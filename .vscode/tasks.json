@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kill process on 8080",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference=[System.Management.Automation.ActionPreference]::SilentlyContinue; try { $conn = Get-NetTCPConnection -LocalPort 8080 | Select-Object -First 1; if ($null -ne $conn -and $conn.OwningProcess) { Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue } } catch { }; exit 0"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

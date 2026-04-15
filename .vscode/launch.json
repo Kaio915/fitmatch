@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter (Debug)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder:fitmatch}",
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot API (Debug)",
+      "request": "launch",
+      "preLaunchTask": "Kill process on 8080",
+      "mainClass": "fitmatch_api.FitmatchApplication",
+      "cwd": "${workspaceFolder:fitmatch_api}",
+      "projectName": "fitmatch",
+      "console": "integratedTerminal",
+      "env": {
+        "SPRING_JACKSON_SERIALIZATION_WRITE_DATES_AS_TIMESTAMPS": null,
+        "EDAMAM_ACCOUNT_USER": "fitmatch-local"
+      },
+      "vmArgs": "-Dspring.output.ansi.enabled=always"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Fitmatch Full Stack (Flutter + API)",
+      "configurations": [
+        "Spring Boot API (Debug)",
+        "Flutter (Debug)"
+      ]
+    }
+  ]
+}
