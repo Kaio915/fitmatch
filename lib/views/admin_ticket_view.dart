@@ -18,7 +18,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
   final List<_TicketMessage> _messages = [];
 
-  String? _selectedRejectReason;
+  String? _selectedAnalysisTemplate;
 
   @override
   void dispose() {
@@ -100,20 +100,123 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     Navigator.pop(context, true);
   }
 
-  Future<void> _reject() async {
-    final reason = (_selectedRejectReason ?? '').trim();
-
-    if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um motivo de rejeição')),
-      );
-      return;
-    }
-
+  Future<void> _reject(String reason) async {
     await AdminService.rejectUser(widget.user['id'], reason: reason);
 
     if (!mounted) return;
     Navigator.pop(context, true);
+  }
+
+  Future<void> _showRejectReasonSheet() async {
+    String? selectedReason;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDCE6F5)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 18),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.rule_rounded, color: Color(0xFFEF4444)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Selecione o motivo da rejeição',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: _rejectTemplates.map((reason) {
+                          final checked = selectedReason == reason;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => setModalState(() {
+                              selectedReason = checked ? null : reason;
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Checkbox(
+                                    value: checked,
+                                    onChanged: (_) => setModalState(() {
+                                      selectedReason = checked ? null : reason;
+                                    }),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 11),
+                                      child: Text(reason),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final reason = (selectedReason ?? '').trim();
+                        if (reason.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Selecione um motivo de rejeição')),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(sheetCtx);
+                        await _reject(reason);
+                      },
+                      icon: const Icon(Icons.send_rounded),
+                      label: const Text('Enviar motivo da rejeição'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -164,9 +267,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     );
   }
 
+  String _compactTemplate(String text) {
+    final cleaned = text.replaceAll('\n', ' ').trim();
+    if (cleaned.length <= 70) return cleaned;
+    return '${cleaned.substring(0, 67)}...';
+  }
+
   Widget _headerCard({required String name, required String email}) {
     final cpf = (widget.user['cpf'] ?? '-').toString();
     final base64 = (widget.user['photoBase64'] ?? '').toString();
+    final type = (widget.user['type'] ?? '').toString().toLowerCase();
+    final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
 
     Widget avatar;
 
@@ -194,9 +305,14 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFFFF), Color(0xFFF7FAFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 8)],
+        border: Border.all(color: const Color(0xFFE3EAF8)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 10)],
       ),
       child: Row(
         children: [
@@ -220,6 +336,22 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                   'CPF: $cpf',
                   style: const TextStyle(color: Colors.black54),
                 ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF1FF),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    'Conta: $typeLabel',
+                    style: const TextStyle(
+                      color: Color(0xFF1D4ED8),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -230,50 +362,68 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
   Widget _templateBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      color: const Color(0xFFF4F6FA),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCE6F5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.04), blurRadius: 8)],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Mensagens prontas (análise)',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 42,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _analysisTemplates.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final t = _analysisTemplates[i];
-                return ActionChip(
-                  label: const Text('Usar'),
-                  avatar: const Icon(Icons.quickreply, size: 18),
-                  onPressed: () => _applyTemplate(t),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Motivo de rejeição (selecionar antes de rejeitar)',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          const Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: Color(0xFF1D4ED8), size: 18),
+              SizedBox(width: 6),
+              Text(
+                'Mensagens prontas (análise)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            initialValue: _selectedRejectReason,
-            items: _rejectTemplates
-                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+            initialValue: _selectedAnalysisTemplate,
+            isExpanded: true,
+            selectedItemBuilder: (context) => _analysisTemplates
+                .map((t) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _compactTemplate(t),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ))
                 .toList(),
-            onChanged: (v) => setState(() => _selectedRejectReason = v),
+            items: _analysisTemplates
+                .map(
+                  (t) => DropdownMenuItem(
+                    value: t,
+                    child: Text(
+                      _compactTemplate(t),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _selectedAnalysisTemplate = v);
+              _applyTemplate(v);
+            },
             decoration: InputDecoration(
-              hintText: 'Selecione um motivo',
+              hintText: 'Selecione uma mensagem pronta',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: const Color(0xFFF8FBFF),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Ao selecionar, o texto é preenchido automaticamente no campo de mensagem.',
+            style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
           ),
         ],
       ),
@@ -283,7 +433,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   Widget _composer() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      color: Colors.white,
+      color: const Color(0xFFF4F6FA),
       child: Row(
         children: [
           Expanded(
@@ -293,6 +443,8 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Escreva uma mensagem para o usuário...',
+                filled: true,
+                fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -336,7 +488,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _reject,
+              onPressed: _showRejectReasonSheet,
               icon: const Icon(Icons.close),
               label: const Text('Rejeitar'),
               style: ElevatedButton.styleFrom(

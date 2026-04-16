@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
+import '../widgets/fitmatch_logo.dart';
 import 'register_student_view.dart';
 import 'register_trainer_view.dart';
 import 'admin_view.dart';
@@ -174,9 +175,8 @@ class _LoginViewState extends State<LoginView> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.fitness_center,
-                        size: 36, color: Color(0xFF0B4DBA)),
-                    const SizedBox(height: 16),
+                    const FitMatchLogo(height: 60),
+                    const SizedBox(height: 20),
                     const Text(
                       'Entrar',
                       style: TextStyle(

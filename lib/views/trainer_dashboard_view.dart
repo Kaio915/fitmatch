@@ -6,6 +6,7 @@ import 'student_profile_view.dart';
 import 'trainer_workout_organizer_view.dart';
 import 'trainer_chat_view.dart';
 import 'diet_control_view.dart';
+import '../widgets/fitmatch_logo.dart';
 
 // ─── Estado dos horários ──────────────────────────────────────────────────────
 // O personal GERENCIA os próprios horários.
@@ -57,6 +58,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   bool _applyingBlockRange = false;
   bool _applyingCloneDay = false;
   bool _clearingDayBlocks = false;
+  final ScrollController _pageScrollController = ScrollController();
 
   List<Map<String, dynamic>> _allTrainerRequests = [];
   final Set<int> _hiddenRequestIds = <int>{};
@@ -129,6 +131,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   void dispose() {
     _dashboardRefreshTimer?.cancel();
     _studentsScrollController.dispose();
+    _pageScrollController.dispose();
     super.dispose();
   }
 
@@ -2519,6 +2522,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             _buildTopBar(),
             Expanded(
               child: SingleChildScrollView(
+                controller: _pageScrollController,
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
                 child: Column(
                   children: [
@@ -2559,142 +2563,146 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
+      child: Column(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.fitness_center,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+          Row(
             children: [
-              const Text(
-                'FitMatch',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: Colors.white,
-                  letterSpacing: 0.3,
+              const FitMatchLogo(height: 38, onDarkBackground: true),
+              const Spacer(),
+              if (_totalPending > 0)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.notifications_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '$_totalPending nova${_totalPending > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+                tooltip: 'Sair',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _topActionButton(
+                  icon: Icons.person_rounded,
+                  label: 'Meu perfil',
+                  isActive: true,
+                  onTap: _scrollToProfile,
                 ),
               ),
-              Text(
-                'Painel do Personal',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _topActionButton(
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Controle de dieta',
+                  isActive: false,
+                  onTap: _openDietControl,
                 ),
               ),
             ],
           ),
-          const Spacer(),
-          if (widget.trainerId != null)
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DietControlView(
-                      userId: widget.trainerId!,
-                      userName: widget.name,
-                      isTrainerSide: true,
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.restaurant_menu_rounded,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Dieta',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (_totalPending > 0)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B),
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.notifications_rounded,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '$_totalPending nova${_totalPending > 1 ? 's' : ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.logout_rounded,
-                size: 18,
-                color: Colors.white,
-              ),
-            ),
-            tooltip: 'Sair',
-          ),
         ],
+      ),
+    );
+  }
+
+  void _openDietControl() {
+    final trainerId = widget.trainerId;
+    if (trainerId == null) {
+      _showSnack(
+        'Não foi possível abrir o controle de dieta.',
+        icon: Icons.error_outline_rounded,
+        color: const Color(0xFFEF4444),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DietControlView(
+          userId: trainerId,
+          userName: widget.name,
+          isTrainerSide: true,
+        ),
+      ),
+    );
+  }
+
+  void _scrollToProfile() {
+    if (!_pageScrollController.hasClients) return;
+    _pageScrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _topActionButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: isActive ? Colors.white : const Color(0xFF0B4DBA),
+        backgroundColor:
+            isActive ? const Color(0xFF3B82F6) : const Color(0xFFF8FBFF),
+        side: BorderSide(
+          color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Icon(icon, size: 17),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -2855,19 +2863,6 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                       color: Color(0xFF22C55E),
                     ),
                   ),
-                // Texto de boas-vindas
-                Positioned(
-                  left: 24,
-                  top: 56,
-                  child: Text(
-                    'Bem-vindo de volta,',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -5267,227 +5262,229 @@ class _RequestRow extends StatelessWidget {
       ),
     };
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: statusUi.$2,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusUi.$1.withValues(alpha: 0.35)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusUi.$1.withValues(alpha: 0.24)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0B4DBA).withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(statusUi.$4, size: 18, color: statusUi.$1),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      studentName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusUi.$1.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        statusUi.$3,
-                        style: TextStyle(
-                          fontSize: 11,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: statusUi.$2,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(statusUi.$4, size: 18, color: statusUi.$1),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        studentName,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: statusUi.$1,
+                          fontSize: 14,
+                          color: Colors.black87,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Plan badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: planBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          Icon(planIcon, size: 11, color: planFg),
-                          const SizedBox(width: 4),
-                          Text(
-                            planLabel,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: planFg,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusUi.$1.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              statusUi.$3,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: statusUi.$1,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: planBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(planIcon, size: 11, color: planFg),
+                                const SizedBox(width: 4),
+                                Text(
+                                  planLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: planFg,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Days display - mostra TODOS os horários selecionados
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: displaySlotLabels
-                              .map((label) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: planBg,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: planFg,
-                                    ),
-                                  ),
-                                );
-                              })
-                              .toList(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
-              icon: Icon(
-                studentBlocked ? Icons.lock_open_rounded : Icons.block_outlined,
-                size: 14,
-              ),
-              label: Text(
-                studentBlocked ? 'Desbloquear aluno' : 'Bloquear aluno',
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: studentBlocked
-                    ? const Color(0xFF0B4DBA)
-                    : const Color(0xFFB91C1C),
-                side: BorderSide(
-                  color: studentBlocked
-                      ? const Color(0xFF0B4DBA)
-                      : const Color(0xFFEF4444),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
-                  label: const Text(
-                    'Excluir',
-                    style: TextStyle(fontSize: 12.5),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
+                  icon: Icon(
+                    studentBlocked ? Icons.lock_open_rounded : Icons.block_outlined,
+                    size: 14,
+                  ),
+                  label: Text(
+                    studentBlocked ? 'Desbloquear aluno' : 'Bloquear aluno',
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB91C1C),
-                    side: const BorderSide(color: Color(0xFFB91C1C)),
-                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    foregroundColor: studentBlocked
+                        ? const Color(0xFF0B4DBA)
+                        : const Color(0xFFB91C1C),
+                    backgroundColor: studentBlocked
+                        ? const Color(0xFFEFF6FF)
+                        : const Color(0xFFFEF2F2),
+                    side: BorderSide(
+                      color: studentBlocked
+                          ? const Color(0xFF93C5FD)
+                          : const Color(0xFFFCA5A5),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    textStyle: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-              ),
-              if (showChat) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: displaySlotLabels
+                  .map(
+                    (label) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: planBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: planFg.withValues(alpha: 0.18)),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: planFg,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                  label: const Text('Excluir', style: TextStyle(fontSize: 12.5)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB91C1C),
+                    backgroundColor: const Color(0xFFFEF2F2),
+                    side: const BorderSide(color: Color(0xFFFCA5A5)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                if (showChat)
+                  OutlinedButton.icon(
                     onPressed: onChat,
                     icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
                     label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0B4DBA),
-                      side: const BorderSide(color: Color(0xFF0B4DBA)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      backgroundColor: const Color(0xFFF8FBFF),
+                      side: const BorderSide(color: Color(0xFFBFD3F5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                ),
-              ],
-              if (isPending) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
+                if (isPending)
+                  OutlinedButton.icon(
                     onPressed: onReject,
+                    icon: const Icon(Icons.close_rounded, size: 15),
+                    label: const Text('Recusar', style: TextStyle(fontSize: 12.5)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFEF4444),
-                      side: const BorderSide(color: Color(0xFFEF4444)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      backgroundColor: const Color(0xFFFEF2F2),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text(
-                      'Recusar',
-                      style: TextStyle(fontSize: 12.5),
-                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
+                if (isPending)
+                  ElevatedButton.icon(
                     onPressed: onConfirm,
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: const Text('Confirmar', style: TextStyle(fontSize: 12.5)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF22C55E),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text(
-                      'Confirmar',
-                      style: TextStyle(fontSize: 12.5),
-                    ),
                   ),
-                ),
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

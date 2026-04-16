@@ -8,6 +8,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
+import '../widgets/fitmatch_logo.dart';
 import 'login_view.dart';
 import 'register_success_view.dart';
 import 'register_trainer_view.dart';
@@ -213,9 +214,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Icon(Icons.fitness_center,
-                      size: 36, color: Color(0xFF0B4DBA)),
-                  const SizedBox(height: 16),
+                  const FitMatchLogo(height: 48),
+                  const SizedBox(height: 20),
                   const Text(
                     'Criar Conta',
                     textAlign: TextAlign.center,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../services/auth_service.dart';
+import '../widgets/fitmatch_logo.dart';
 import 'trainer_chat_view.dart';
 
 // ─── Data model ──────────────────────────────────────────────────────────────
@@ -2054,17 +2055,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     size: 20, color: Colors.white),
               ),
-              const Icon(Icons.fitness_center,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 6),
-              const Text(
-                'FitMatch',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17,
-                  color: Colors.white,
-                ),
-              ),
+              const FitMatchLogo(height: 34, onDarkBackground: true),
               const Spacer(),
               if (_sendingRequest)
                 const Padding(

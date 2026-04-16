@@ -6,6 +6,7 @@ import 'trainer_chat_view.dart';
 import 'trainer_profile_view.dart';
 import 'student_workout_view.dart';
 import 'diet_control_view.dart';
+import '../widgets/fitmatch_logo.dart';
 
 // ─── Student Dashboard ────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  final ScrollController _pageScrollController = ScrollController();
 
   final TextEditingController _searchCtrl = TextEditingController();
   String _filterMode = 'Todos';
@@ -733,6 +735,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _pageScrollController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -747,6 +750,7 @@ class _StudentDashboardState extends State<StudentDashboard>
             _topBar(),
             Expanded(
               child: SingleChildScrollView(
+                controller: _pageScrollController,
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
                 child: Column(
                   children: [
@@ -791,119 +795,121 @@ class _StudentDashboardState extends State<StudentDashboard>
           end: Alignment.centerRight,
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      child: Column(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.fitness_center,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'FitMatch',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
-                  letterSpacing: 0.3,
-                ),
-              ),
-              Text(
-                'Painel do Aluno',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              const FitMatchLogo(height: 40, onDarkBackground: true),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.logout, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        'Sair',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const Spacer(),
-          GestureDetector(
-            onTap: () {
-              final sid = widget.studentId;
-              if (sid == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Não foi possível abrir o controle de dieta.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                return;
-              }
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DietControlView(
-                    userId: sid,
-                    userName: widget.userName,
-                    isTrainerSide: false,
-                  ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _topActionButton(
+                  icon: Icons.person_rounded,
+                  label: 'Meu perfil',
+                  isActive: true,
+                  onTap: _scrollToProfile,
                 ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Dieta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _topActionButton(
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Controle de dieta',
+                  isActive: false,
+                  onTap: _openDietControl,
+                ),
               ),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.logout, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Sair',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _openDietControl() {
+    final sid = widget.studentId;
+    if (sid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o controle de dieta.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DietControlView(
+          userId: sid,
+          userName: widget.userName,
+          isTrainerSide: false,
+        ),
+      ),
+    );
+  }
+
+  void _scrollToProfile() {
+    if (!_pageScrollController.hasClients) return;
+    _pageScrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _topActionButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: isActive ? Colors.white : const Color(0xFF0B4DBA),
+        backgroundColor:
+            isActive ? const Color(0xFF3B82F6) : const Color(0xFFF8FBFF),
+        side: BorderSide(
+          color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Icon(icon, size: 17),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -972,32 +978,15 @@ class _StudentDashboardState extends State<StudentDashboard>
                         ),
                       ),
                     ),
-                    const Positioned(
+                    Positioned(
                       top: 18,
                       right: 22,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.fitness_center,
-                                color: Colors.white54,
-                                size: 14,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'FitMatch',
-                                style: TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      child: Opacity(
+                        opacity: 0.75,
+                        child: FitMatchLogo(
+                          height: 28,
+                          onDarkBackground: true,
+                        ),
                       ),
                     ),
                   ],

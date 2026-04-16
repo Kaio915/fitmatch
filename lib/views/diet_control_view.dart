@@ -1811,10 +1811,6 @@ class _DietControlViewState extends State<DietControlView> {
   }
 
   Widget _buildHeaderActions() {
-    final firstName = widget.userName.trim().isEmpty
-        ? 'Usuário'
-        : widget.userName.trim().split(' ').first;
-
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
@@ -1923,17 +1919,56 @@ class _DietControlViewState extends State<DietControlView> {
             },
           ),
           const SizedBox(height: 10),
-          Text(
-            'Olá, $firstName!',
-            style: const TextStyle(
-              color: Color(0xFF334155),
-              fontSize: 31,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _sectionActionButton(
+                  icon: Icons.person_rounded,
+                  label: 'Meu perfil',
+                  isActive: false,
+                  onTap: () => Navigator.pop(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _sectionActionButton(
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Controle de dieta',
+                  isActive: true,
+                  onTap: () {},
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
         ],
+      ),
+    );
+  }
+
+  Widget _sectionActionButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: isActive ? Colors.white : const Color(0xFF0B4DBA),
+        backgroundColor:
+            isActive ? const Color(0xFF1D4ED8) : const Color(0xFFF8FBFF),
+        side: BorderSide(
+          color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFFBFD3F5),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Icon(icon, size: 17),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
       ),
     );
   }

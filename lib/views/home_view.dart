@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../views/register_student_view.dart';
 import '../views/login_view.dart';
 import '../core/user_type.dart';
+import '../widgets/fitmatch_logo.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
@@ -28,20 +29,7 @@ class HomeView extends StatelessWidget {
               child: Row(
                 children: [
                   // FitMatch totalmente à esquerda
-                  const Row(
-                    children: [
-                      Icon(Icons.fitness_center, color: Color(0xFF0B4DBA)),
-                      SizedBox(width: 8),
-                      Text(
-                        'FitMatch',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ),
+                  const FitMatchLogo(height: 54),
 
                   const Spacer(),
 
