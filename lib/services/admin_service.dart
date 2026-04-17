@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:fitmatch/core/env/app_env.dart';
 
 class AdminService {
-  static const String _baseUrl = 'http://localhost:8080';
+  static const String _baseUrl = AppEnv.apiBaseUrl;
 
   static Future<List<dynamic>> getPendingStudents() async {
     final res = await http.get(Uri.parse('$_baseUrl/admin/pending/aluno'));

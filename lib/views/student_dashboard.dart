@@ -749,9 +749,8 @@ class _StudentDashboardState extends State<StudentDashboard>
           children: [
             _topBar(),
             Expanded(
-              child: SingleChildScrollView(
-                controller: _pageScrollController,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
@@ -763,8 +762,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                     const SizedBox(height: 20),
                     _buildTabs(),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      height: 620,
+                    Expanded(
                       child: TabBarView(
                         controller: _tabController,
                         physics: const NeverScrollableScrollPhysics(),

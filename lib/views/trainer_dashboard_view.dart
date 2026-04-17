@@ -1926,20 +1926,19 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     runSpacing: 6,
                     children: [
                       for (int i = 0; i < _days.length; i++)
-                        if (i != sourceDayIndex)
-                          FilterChip(
-                            label: Text(_days[i]),
-                            selected: selectedTargetDays.contains(i),
-                            onSelected: (value) {
-                              setDialogState(() {
-                                if (value) {
-                                  selectedTargetDays.add(i);
-                                } else {
-                                  selectedTargetDays.remove(i);
-                                }
-                              });
-                            },
-                          ),
+                        FilterChip(
+                          label: Text(_days[i]),
+                          selected: selectedTargetDays.contains(i),
+                          onSelected: (value) {
+                            setDialogState(() {
+                              if (value) {
+                                selectedTargetDays.add(i);
+                              } else {
+                                selectedTargetDays.remove(i);
+                              }
+                            });
+                          },
+                        ),
                     ],
                   ),
                 ],
@@ -1996,7 +1995,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
     final targets = effectiveCloneToAllDays
         ? <int>{for (int i = 0; i < _days.length; i++) if (i != sourceDayIndex) i}
-        : {...targetDayIndexes}..remove(sourceDayIndex);
+      : {...targetDayIndexes};
 
     if (!effectiveCloneToAllDays && targets.isEmpty) {
       _showSnack(
@@ -5722,7 +5721,7 @@ class _StudentRow extends StatelessWidget {
   }
 
   String _formatPlanType(String? planType) {
-    switch (planType?.toUpperCase()) {
+    switch (planType?.trim().toUpperCase()) {
       case 'DIARIO':
         return 'Plano Diário';
       case 'SEMANAL':
@@ -5803,8 +5802,172 @@ class _StudentRow extends StatelessWidget {
     return '$dd/$mm';
   }
 
+  DateTime _addOneMonthKeepingDay(DateTime date) {
+    final nextMonth = date.month == 12 ? 1 : date.month + 1;
+    final nextYear = date.month == 12 ? date.year + 1 : date.year;
+    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
+    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
+    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+  }
+
+  String _formatDateLabel(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    return '$dd/$mm';
+  }
+
+  DateTime? _parseSlotDateMeta(
+    Map<String, String> slot,
+    int hour,
+    int minute,
+    DateTime anchor,
+  ) {
+    final iso = (slot['dateIso'] ?? '').trim();
+    if (iso.isNotEmpty) {
+      final parsed = DateTime.tryParse(iso);
+      if (parsed != null) {
+        return DateTime(parsed.year, parsed.month, parsed.day, hour, minute);
+      }
+    }
+
+    final dateLabel = (slot['dateLabel'] ?? '').trim();
+    final full = RegExp(r'^(\d{2})\/(\d{2})\/(\d{4})$').firstMatch(dateLabel);
+    if (full != null) {
+      final day = int.tryParse(full.group(1)!);
+      final month = int.tryParse(full.group(2)!);
+      final year = int.tryParse(full.group(3)!);
+      if (day != null && month != null && year != null) {
+        return DateTime(year, month, day, hour, minute);
+      }
+    }
+
+    final short = RegExp(r'^(\d{2})\/(\d{2})$').firstMatch(dateLabel);
+    if (short != null) {
+      final day = int.tryParse(short.group(1)!);
+      final month = int.tryParse(short.group(2)!);
+      if (day != null && month != null) {
+        return DateTime(anchor.year, month, day, hour, minute);
+      }
+    }
+
+    return null;
+  }
+
+  List<String> _monthlySummaryLabels(List<Map<String, String>> slots) {
+    if (slots.isEmpty) return const [];
+
+    final anchor = DateTime.now();
+    final parsed = <Map<String, dynamic>>[];
+    for (final slot in slots) {
+      final slotDay = (slot['dayName'] ?? '').trim();
+      final slotTime = (slot['time'] ?? '').trim();
+      final weekday = _weekdayFromPt(slotDay);
+      final hm = _parseHourMinute(slotTime);
+      if (slotDay.isEmpty || slotTime.isEmpty || weekday == null || hm == null) {
+        continue;
+      }
+
+      final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
+      final startAt = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      parsed.add({
+        'dayName': slotDay,
+        'time': slotTime,
+        'weekday': weekday,
+        'hour': hm.$1,
+        'minute': hm.$2,
+        'startAt': startAt,
+      });
+    }
+
+    if (parsed.isEmpty) {
+      return slots.map((slot) {
+        final slotDay = (slot['dayName'] ?? '').trim();
+        final slotTime = (slot['time'] ?? '').trim();
+        final rawDateLabel = (slot['dateLabel'] ?? '').trim();
+        final isoDateLabel = _dateLabelFromIso((slot['dateIso'] ?? '').trim());
+        final dateLabel = rawDateLabel.isNotEmpty
+            ? rawDateLabel
+            : (isoDateLabel.isNotEmpty
+                ? isoDateLabel
+                : _fallbackDateLabelForSlot(slotDay, slotTime));
+        return dateLabel.isEmpty
+            ? '$slotDay $slotTime'
+            : '$slotDay $dateLabel $slotTime';
+      }).toList();
+    }
+
+    parsed.sort((a, b) =>
+        (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime));
+    final first = parsed.first;
+    final firstAt = first['startAt'] as DateTime;
+    final windowEnd = _addOneMonthKeepingDay(firstAt);
+
+    final patterns = <String, Map<String, dynamic>>{};
+    for (final item in parsed) {
+      final key = '${item['weekday']}|${item['time']}';
+      patterns.putIfAbsent(key, () => item);
+    }
+
+    final firstKey = '${first['weekday']}|${first['time']}';
+    final middle = patterns.entries
+        .where((entry) => entry.key != firstKey)
+        .map((entry) => entry.value)
+        .toList();
+    middle.sort((a, b) {
+      final aNext = _nextOccurrence(
+        firstAt,
+        a['weekday'] as int,
+        a['hour'] as int,
+        a['minute'] as int,
+      );
+      final bNext = _nextOccurrence(
+        firstAt,
+        b['weekday'] as int,
+        b['hour'] as int,
+        b['minute'] as int,
+      );
+      return aNext.compareTo(bNext);
+    });
+
+    DateTime? lastAt;
+    Map<String, dynamic>? lastPattern;
+    for (final pattern in patterns.values) {
+      var candidate = pattern['startAt'] as DateTime;
+      while (candidate
+              .add(const Duration(days: 7))
+              .isAtSameMomentAs(windowEnd) ||
+          candidate.add(const Duration(days: 7)).isBefore(windowEnd)) {
+        candidate = candidate.add(const Duration(days: 7));
+      }
+
+      if (candidate.isAfter(windowEnd)) {
+        continue;
+      }
+
+      if (lastAt == null || candidate.isAfter(lastAt)) {
+        lastAt = candidate;
+        lastPattern = pattern;
+      }
+    }
+
+    final labels = <String>[
+      '${first['dayName']} ${_formatDateLabel(firstAt)} ${first['time']}',
+    ];
+    for (final pattern in middle) {
+      labels.add('${pattern['dayName']} ${pattern['time']}');
+    }
+    if (lastAt != null && lastPattern != null && lastAt.isAfter(firstAt)) {
+      labels.add(
+        '${lastPattern['dayName']} ${_formatDateLabel(lastAt)} ${lastPattern['time']}',
+      );
+    }
+
+    return labels;
+  }
+
   String _buildPlanAndScheduleText() {
     final planLabel = _formatPlanType(planType);
+    final normalizedPlanType = planType?.trim().toUpperCase();
 
     String scheduleLabel = '';
 
@@ -5813,26 +5976,34 @@ class _StudentRow extends StatelessWidget {
     if ((daysJson ?? '').trim().isNotEmpty) {
       try {
         final decoded = jsonDecode(daysJson!) as List<dynamic>;
-        final labels = <String>[];
-        final seen = <String>{};
-        for (final slot in decoded.whereType<Map>()) {
-          final slotDay = (slot['dayName'] ?? '').toString().trim();
-          final slotTime = (slot['time'] ?? '').toString().trim();
-          final rawDateLabel = (slot['dateLabel'] ?? '').toString().trim();
-          final isoDateLabel = _dateLabelFromIso((slot['dateIso'] ?? '').toString());
-          if (slotDay.isEmpty || slotTime.isEmpty) continue;
-          final computedDate = rawDateLabel.isNotEmpty
-              ? rawDateLabel
-              : (isoDateLabel.isNotEmpty
-                  ? isoDateLabel
-                  : _fallbackDateLabelForSlot(slotDay, slotTime));
-          final label = computedDate.isEmpty
-              ? '$slotDay $slotTime'
-              : '$slotDay $computedDate $slotTime';
-          if (seen.add(label)) {
-            labels.add(label);
-          }
-        }
+        final slots = decoded
+            .whereType<Map>()
+            .map((slot) => {
+                  'dayName': (slot['dayName'] ?? '').toString().trim(),
+                  'time': (slot['time'] ?? '').toString().trim(),
+                  'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
+                  'dateIso': (slot['dateIso'] ?? '').toString().trim(),
+                })
+            .where((slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+            .toList();
+
+        final labels = normalizedPlanType == 'MENSAL'
+            ? _monthlySummaryLabels(slots)
+            : slots.map((slot) {
+                final slotDay = (slot['dayName'] ?? '').trim();
+                final slotTime = (slot['time'] ?? '').trim();
+                final rawDateLabel = (slot['dateLabel'] ?? '').trim();
+                final isoDateLabel = _dateLabelFromIso((slot['dateIso'] ?? '').trim());
+                final computedDate = rawDateLabel.isNotEmpty
+                    ? rawDateLabel
+                    : (isoDateLabel.isNotEmpty
+                        ? isoDateLabel
+                        : _fallbackDateLabelForSlot(slotDay, slotTime));
+                return computedDate.isEmpty
+                    ? '$slotDay $slotTime'
+                    : '$slotDay $computedDate $slotTime';
+              }).toList();
+
         if (labels.isNotEmpty) {
           scheduleLabel = labels.join(', ');
         }

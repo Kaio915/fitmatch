@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Env/local docs
+.env
+.env.*
+!.env.example
+README.md
+LICENSE
+*.md
+
+# IDE/OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Flutter/Dart caches and build artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Tests and platform folders not needed for Flutter Web image
+test/
+windows/
+linux/
+macos/
+android/
+ios/

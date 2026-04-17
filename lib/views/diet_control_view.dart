@@ -70,6 +70,8 @@ class _DietControlViewState extends State<DietControlView> {
   List<Map<String, dynamic>> _foodSuggestions = [];
   bool _showFoodSuggestions = false;
   Map<String, dynamic>? _selectedExternalFood;
+  bool _firstAccessTipsScheduled = false;
+  bool _showMetricCoachTips = false;
 
   bool get _isPastDay {
     final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -83,6 +85,10 @@ class _DietControlViewState extends State<DietControlView> {
   String get _excludedEntryIdsStateKey => 'diet_excluded_entry_ids_by_date_${widget.userId}';
   String get _suppressedCarryoverStateKey => 'diet_suppressed_carryover_by_date_${widget.userId}';
   String get _carryoverStateKey => 'diet_carryover_by_date_${widget.userId}';
+  String get _firstAccessTipsKey {
+    final role = widget.isTrainerSide ? 'trainer' : 'student';
+    return 'diet_first_access_tips_v1_$role';
+  }
 
   Future<void> _restoreLocalDietState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -238,6 +244,29 @@ class _DietControlViewState extends State<DietControlView> {
       // If local restore fails, continue with remote data load.
     }
     await _loadAll();
+    await _maybeShowFirstAccessTips();
+  }
+
+  Future<void> _maybeShowFirstAccessTips() async {
+    if (_firstAccessTipsScheduled || !mounted) return;
+    _firstAccessTipsScheduled = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeen = prefs.getBool(_firstAccessTipsKey) ?? false;
+    if (alreadySeen || !mounted) return;
+
+    setState(() => _showMetricCoachTips = true);
+    await prefs.setBool(_firstAccessTipsKey, true);
+  }
+
+  void _showCoachTips() {
+    if (!mounted) return;
+    setState(() => _showMetricCoachTips = true);
+  }
+
+  void _hideCoachTips() {
+    if (!mounted) return;
+    setState(() => _showMetricCoachTips = false);
   }
 
   @override
@@ -1884,6 +1913,24 @@ class _DietControlViewState extends State<DietControlView> {
                     label: const Text('Gerenciar Alimentos'),
                   ),
                   OutlinedButton.icon(
+                    onPressed: _showMetricCoachTips ? _hideCoachTips : _showCoachTips,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0B4DBA),
+                      side: const BorderSide(color: Color(0xFFBFD3F5)),
+                      backgroundColor: const Color(0xFFF8FBFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    icon: Icon(
+                      _showMetricCoachTips
+                          ? Icons.visibility_off_rounded
+                          : Icons.wb_cloudy_rounded,
+                      size: 17,
+                    ),
+                    label: Text(
+                      _showMetricCoachTips ? 'Ocultar dicas' : 'Ver dicas novamente',
+                    ),
+                  ),
+                  OutlinedButton.icon(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
@@ -2076,6 +2123,24 @@ class _DietControlViewState extends State<DietControlView> {
     final carbs = totals['carbs'] ?? _carbs;
     final fat = totals['fat'] ?? _fat;
     final remainingKcal = totals['remainingKcal'] ?? _remainingKcal;
+    final showTips = _showMetricCoachTips && !_isPastDay;
+
+    Widget withCoachTip({
+      required Widget card,
+      required String tip,
+      required Color color,
+      required bool visible,
+    }) {
+      if (!visible) return card;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _MetricTipCloud(text: tip, color: color),
+          const SizedBox(height: 8),
+          card,
+        ],
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2088,28 +2153,41 @@ class _DietControlViewState extends State<DietControlView> {
           return Column(
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
                     width: row3w,
-                    child: _MetricCard(
-                      title: 'TMB (Basal)',
-                      value: _basalKcal.toStringAsFixed(0),
-                      unit: 'kcal/dia',
+                    child: withCoachTip(
+                      visible: showTips,
+                      tip: 'Aqui voce calcula e salva seu valor basal.',
                       color: const Color(0xFF0B4DBA),
-                      icon: Icons.person_outline_rounded,
-                      onTap: _isPastDay ? null : _showTmbCalculatorDialog,
+                      card: _MetricCard(
+                        title: 'TMB (Basal)',
+                        value: _basalKcal.toStringAsFixed(0),
+                        unit: 'kcal/dia',
+                        color: const Color(0xFF0B4DBA),
+                        icon: Icons.person_outline_rounded,
+                        hint: _isPastDay ? null : 'Toque para calcular',
+                        onTap: _isPastDay ? null : _showTmbCalculatorDialog,
+                      ),
                     ),
                   ),
                   const SizedBox(width: gap),
                   SizedBox(
                     width: row3w,
-                    child: _MetricCard(
-                      title: 'Meta Diária',
-                      value: _targetKcal.toStringAsFixed(0),
-                      unit: 'kcal/dia',
+                    child: withCoachTip(
+                      visible: showTips,
+                      tip: 'Aqui voce define sua meta diaria de calorias.',
                       color: const Color(0xFF2563EB),
-                      icon: Icons.my_location_rounded,
-                      onTap: _isPastDay ? null : _showTargetDailyDialog,
+                      card: _MetricCard(
+                        title: 'Meta Diária',
+                        value: _targetKcal.toStringAsFixed(0),
+                        unit: 'kcal/dia',
+                        color: const Color(0xFF2563EB),
+                        icon: Icons.my_location_rounded,
+                        hint: _isPastDay ? null : 'Toque para definir meta',
+                        onTap: _isPastDay ? null : _showTargetDailyDialog,
+                      ),
                     ),
                   ),
                   const SizedBox(width: gap),
@@ -2188,24 +2266,36 @@ class _DietControlViewState extends State<DietControlView> {
           children: [
             SizedBox(
               width: cardWidth,
-              child: _MetricCard(
-                title: 'TMB (Basal)',
-                value: _basalKcal.toStringAsFixed(0),
-                unit: 'kcal/dia',
+              child: withCoachTip(
+                visible: showTips,
+                tip: 'Aqui voce calcula e salva seu valor basal.',
                 color: const Color(0xFF0B4DBA),
-                icon: Icons.person_outline_rounded,
-                onTap: _isPastDay ? null : _showTmbCalculatorDialog,
+                card: _MetricCard(
+                  title: 'TMB (Basal)',
+                  value: _basalKcal.toStringAsFixed(0),
+                  unit: 'kcal/dia',
+                  color: const Color(0xFF0B4DBA),
+                  icon: Icons.person_outline_rounded,
+                  hint: _isPastDay ? null : 'Toque para calcular',
+                  onTap: _isPastDay ? null : _showTmbCalculatorDialog,
+                ),
               ),
             ),
             SizedBox(
               width: cardWidth,
-              child: _MetricCard(
-                title: 'Meta Diária',
-                value: _targetKcal.toStringAsFixed(0),
-                unit: 'kcal/dia',
+              child: withCoachTip(
+                visible: showTips,
+                tip: 'Aqui voce define sua meta diaria de calorias.',
                 color: const Color(0xFF2563EB),
-                icon: Icons.my_location_rounded,
-                onTap: _isPastDay ? null : _showTargetDailyDialog,
+                card: _MetricCard(
+                  title: 'Meta Diária',
+                  value: _targetKcal.toStringAsFixed(0),
+                  unit: 'kcal/dia',
+                  color: const Color(0xFF2563EB),
+                  icon: Icons.my_location_rounded,
+                  hint: _isPastDay ? null : 'Toque para definir meta',
+                  onTap: _isPastDay ? null : _showTargetDailyDialog,
+                ),
               ),
             ),
             SizedBox(
@@ -3111,6 +3201,7 @@ class _MetricCard extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final bool compact;
+  final String? hint;
 
   const _MetricCard({
     required this.title,
@@ -3120,6 +3211,7 @@ class _MetricCard extends StatelessWidget {
     required this.icon,
     this.onTap,
     this.compact = false,
+    this.hint,
   });
 
   @override
@@ -3189,12 +3281,103 @@ class _MetricCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if ((hint ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.touch_app_rounded,
+                          size: 13,
+                          color: color.withValues(alpha: 0.85),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            hint!,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: color.withValues(alpha: 0.9),
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MetricTipCloud extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _MetricTipCloud({
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = color.withValues(alpha: 0.12);
+    final border = color.withValues(alpha: 0.35);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: border),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.wb_cloudy_rounded, size: 16, color: color),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: color.withValues(alpha: 0.95),
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 28),
+          child: Transform.rotate(
+            angle: 0.785398,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: bg,
+                border: Border(
+                  right: BorderSide(color: border),
+                  bottom: BorderSide(color: border),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

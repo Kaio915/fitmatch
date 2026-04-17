@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -26,11 +27,17 @@ class StudentWorkoutView extends StatefulWidget {
 
 class _StudentWorkoutViewState extends State<StudentWorkoutView> {
   static const String _allPlansExportKey = '__ALL_PLANS__';
+  static const List<String> _pdfLogoAssetPaths = [
+    'assets/images/fitmatch_logo.png',
+    'assets/images/fitmatch_logo_original.png',
+  ];
   bool _loading = true;
   List<Map<String, dynamic>> _plans = [];
   final Set<String> _exportingPlanKeys = {};
   final Set<String> _expandedDays = {};
   final Set<String> _expandedTimes = {};
+  pw.MemoryImage? _pdfLogoImage;
+  bool _pdfLogoLoadAttempted = false;
 
   static const Map<String, int> _dayOrder = {
     'Segunda': 1,
@@ -112,6 +119,219 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     }
   }
 
+  String _formatDateTimePt(DateTime value) {
+    final dd = value.day.toString().padLeft(2, '0');
+    final mm = value.month.toString().padLeft(2, '0');
+    final yyyy = value.year.toString();
+    final hh = value.hour.toString().padLeft(2, '0');
+    final min = value.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/$yyyy $hh:$min';
+  }
+
+  Future<pw.MemoryImage?> _loadPdfLogo() async {
+    if (_pdfLogoLoadAttempted) return _pdfLogoImage;
+    _pdfLogoLoadAttempted = true;
+    for (final assetPath in _pdfLogoAssetPaths) {
+      try {
+        final data = await rootBundle.load(assetPath);
+        _pdfLogoImage = pw.MemoryImage(data.buffer.asUint8List());
+        break;
+      } catch (_) {
+        _pdfLogoImage = null;
+      }
+    }
+    return _pdfLogoImage;
+  }
+
+  pw.Widget _pdfHeaderCard({
+    required pw.MemoryImage? logo,
+    required String title,
+    required String subtitle,
+  }) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#EAF1FF'),
+        borderRadius: pw.BorderRadius.circular(12),
+        border: pw.Border.all(
+          color: PdfColor.fromHex('#C7DBFF'),
+          width: 1,
+        ),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Container(
+            width: 128,
+            height: 44,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.white,
+              borderRadius: pw.BorderRadius.circular(12),
+              border: pw.Border.all(color: PdfColor.fromHex('#BFDBFE'), width: 1),
+            ),
+            child: pw.Center(
+              child: logo != null
+                  ? pw.Image(
+                      logo,
+                      width: 108,
+                      height: 26,
+                      fit: pw.BoxFit.contain,
+                    )
+                  : pw.Text(
+                      'FitMatch',
+                      style: pw.TextStyle(
+                        color: PdfColor.fromHex('#0B4DBA'),
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+            ),
+          ),
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('#0B4DBA'),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  subtitle,
+                  style: pw.TextStyle(
+                    fontSize: 10.5,
+                    color: PdfColor.fromHex('#475569'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _pdfInfoItem({required String label, required String value}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#F8FAFC'),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9.5,
+              color: PdfColor.fromHex('#64748B'),
+            ),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 11.5,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('#0F172A'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _pdfSectionTitle(String text) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#0B4DBA'),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _pdfExerciseTile({
+    required int index,
+    required String name,
+    required String category,
+  }) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 6),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.white,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 18,
+            height: 18,
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#DBEAFE'),
+              shape: pw.BoxShape.circle,
+            ),
+            child: pw.Center(
+              child: pw.Text(
+                '$index',
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#1D4ED8'),
+                ),
+              ),
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  name,
+                  style: pw.TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('#0F172A'),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  category,
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromHex('#64748B'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Map<String, Map<String, List<Map<String, dynamic>>>> _groupPlansByDayAndTime() {
     final grouped = <String, Map<String, List<Map<String, dynamic>>>>{};
 
@@ -175,49 +395,79 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
 
   Future<Uint8List> _buildPlanPdf(Map<String, dynamic> plan) async {
     final pdf = pw.Document();
+    final logo = await _loadPdfLogo();
     final dayName = (plan['dayName'] ?? 'Dia').toString();
     final time = (plan['time'] ?? '').toString().trim();
     final exercises = _extractExercises(plan['exercises']);
+    final generatedAt = _formatDateTimePt(DateTime.now());
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+        margin: const pw.EdgeInsets.fromLTRB(26, 24, 26, 26),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Gerado em $generatedAt - Pagina ${context.pageNumber}/${context.pagesCount}',
+            style: pw.TextStyle(
+              fontSize: 9,
+              color: PdfColor.fromHex('#94A3B8'),
+            ),
+          ),
+        ),
+        build: (context) => [
+          _pdfHeaderCard(
+            logo: logo,
+            title: 'FitMatch - Treino do Dia',
+            subtitle: 'Treino personalizado para acompanhamento do aluno',
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
             children: [
-              pw.Text(
-                'FitMatch - Treino do Dia',
+              pw.Expanded(
+                child: _pdfInfoItem(label: 'Personal', value: widget.trainerName),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: _pdfInfoItem(label: 'Dia', value: dayName),
+              ),
+              if (time.isNotEmpty) ...[
+                pw.SizedBox(width: 8),
+                pw.Expanded(
+                  child: _pdfInfoItem(label: 'Horario', value: time),
+                ),
+              ],
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          _pdfSectionTitle('Exercicios'),
+          pw.SizedBox(height: 8),
+          if (exercises.isEmpty)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('#F8FAFC'),
+                borderRadius: pw.BorderRadius.circular(8),
+                border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+              ),
+              child: pw.Text(
+                'Nenhum exercicio cadastrado para este treino.',
                 style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 11,
+                  color: PdfColor.fromHex('#64748B'),
                 ),
               ),
-              pw.SizedBox(height: 6),
-              pw.Text('Personal: ${widget.trainerName}'),
-              pw.Text('Dia: $dayName'),
-              if (time.isNotEmpty) pw.Text('Horário: $time'),
-              pw.SizedBox(height: 14),
-              pw.Text(
-                'Exercícios',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              ...exercises.asMap().entries.map(
-                (entry) => pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 4),
-                  child: pw.Text(
-                    '${entry.key + 1}. ${entry.value['name']} (${entry.value['category']})',
-                    style: const pw.TextStyle(fontSize: 12),
+            )
+          else
+            ...exercises.asMap().entries.map(
+                  (entry) => _pdfExerciseTile(
+                    index: entry.key + 1,
+                    name: entry.value['name'] ?? '',
+                    category: entry.value['category'] ?? 'Outros',
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+        ],
       ),
     );
 
@@ -304,18 +554,28 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
 
   Future<Uint8List> _buildAllPlansPdf() async {
     final pdf = pw.Document();
+    final logo = await _loadPdfLogo();
     final grouped = _groupPlansByDayAndTime();
+    final generatedAt = _formatDateTimePt(DateTime.now());
 
     final blocks = <pw.Widget>[];
     grouped.forEach((dayName, perTime) {
       blocks.add(
-        pw.Padding(
-          padding: const pw.EdgeInsets.only(top: 12, bottom: 6),
+        pw.Container(
+          width: double.infinity,
+          margin: const pw.EdgeInsets.only(top: 10, bottom: 8),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: pw.BoxDecoration(
+            color: PdfColor.fromHex('#DBEAFE'),
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: PdfColor.fromHex('#BFDBFE'), width: 1),
+          ),
           child: pw.Text(
             dayName,
             style: pw.TextStyle(
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('#1D4ED8'),
             ),
           ),
         ),
@@ -328,13 +588,21 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         }
 
         blocks.add(
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(top: 6, bottom: 4),
+          pw.Container(
+            width: double.infinity,
+            margin: const pw.EdgeInsets.only(bottom: 6),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#ECFDF3'),
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: PdfColor.fromHex('#BBF7D0'), width: 1),
+            ),
             child: pw.Text(
-              time.isEmpty ? 'Sem horário' : 'Horário: $time',
+              time.isEmpty ? 'Sem horario definido' : 'Horario: $time',
               style: pw.TextStyle(
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: pw.FontWeight.bold,
+                color: PdfColor.fromHex('#166534'),
               ),
             ),
           ),
@@ -342,21 +610,32 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
 
         if (exercises.isEmpty) {
           blocks.add(
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 6),
-              child: pw.Text('Nenhum exercício cadastrado.'),
+            pw.Container(
+              width: double.infinity,
+              margin: const pw.EdgeInsets.only(bottom: 8),
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('#F8FAFC'),
+                borderRadius: pw.BorderRadius.circular(8),
+                border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+              ),
+              child: pw.Text(
+                'Nenhum exercicio cadastrado neste horario.',
+                style: pw.TextStyle(
+                  fontSize: 10.5,
+                  color: PdfColor.fromHex('#64748B'),
+                ),
+              ),
             ),
           );
         } else {
           for (int i = 0; i < exercises.length; i++) {
             final ex = exercises[i];
             blocks.add(
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 4),
-                child: pw.Text(
-                  '${i + 1}. ${ex['name']} (${ex['category']})',
-                  style: const pw.TextStyle(fontSize: 11.5),
-                ),
+              _pdfExerciseTile(
+                index: i + 1,
+                name: ex['name'] ?? '',
+                category: ex['category'] ?? 'Outros',
               ),
             );
           }
@@ -367,17 +646,28 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        build: (context) => [
-          pw.Text(
-            'FitMatch - Treino Completo',
+        margin: const pw.EdgeInsets.fromLTRB(26, 24, 26, 26),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Gerado em $generatedAt - Pagina ${context.pageNumber}/${context.pagesCount}',
             style: pw.TextStyle(
-              fontSize: 20,
-              fontWeight: pw.FontWeight.bold,
+              fontSize: 9,
+              color: PdfColor.fromHex('#94A3B8'),
             ),
           ),
-          pw.SizedBox(height: 6),
-          pw.Text('Personal: ${widget.trainerName}'),
+        ),
+        build: (context) => [
+          _pdfHeaderCard(
+            logo: logo,
+            title: 'FitMatch - Treino Completo',
+            subtitle: 'Todos os treinos organizados por dia e horario',
+          ),
           pw.SizedBox(height: 12),
+          _pdfInfoItem(label: 'Personal', value: widget.trainerName),
+          pw.SizedBox(height: 12),
+          _pdfSectionTitle('Agenda de exercicios'),
+          pw.SizedBox(height: 8),
           ...blocks,
         ],
       ),
