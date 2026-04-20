@@ -176,6 +176,22 @@ class _StudentDashboardState extends State<StudentDashboard>
     return DateTime.tryParse(value.toString());
   }
 
+  int? _parseId(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+
+    final direct = int.tryParse(raw);
+    if (direct != null) return direct;
+
+    final numeric = num.tryParse(raw.replaceAll(',', '.'));
+    if (numeric == null) return null;
+    return numeric.toInt();
+  }
+
   List<Map<String, dynamic>> _attachChatWindowToRequests(
     List<Map<String, dynamic>> requests,
   ) {
@@ -1306,9 +1322,14 @@ class _StudentDashboardState extends State<StudentDashboard>
       Map<String, dynamic> plan, {
       required bool changePlan,
     }) async {
-      final requestId = int.tryParse((plan['id'] ?? '').toString());
+      final requestId = _parseId(plan['id']);
       final trainerName = (plan['trainerName'] ?? 'Personal').toString();
       if (requestId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nao foi possivel identificar este plano.')),
+          );
+        }
         return;
       }
 
@@ -1344,7 +1365,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       if (confirm != true) return;
 
       Future<void> openTrainerProfileForPlan(Map<String, dynamic> selectedPlan) async {
-        final trainerId = int.tryParse((selectedPlan['trainerId'] ?? '').toString());
+        final trainerId = _parseId(selectedPlan['trainerId']);
         if (trainerId == null || widget.studentId == null) {
           _tabController.animateTo(1);
           return;
@@ -1415,7 +1436,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       }
     }
 
-    DateTime _nextOccurrenceForRenewal(String dayName, String time) {
+    DateTime nextOccurrenceForRenewal(String dayName, String time) {
       String normalized = dayName
           .toLowerCase()
           .replaceAll('á', 'a')
@@ -1474,22 +1495,22 @@ class _StudentDashboardState extends State<StudentDashboard>
       return candidate;
     }
 
-    String _toDateIso(DateTime value) {
+    String toDateIso(DateTime value) {
       final yyyy = value.year.toString().padLeft(4, '0');
       final mm = value.month.toString().padLeft(2, '0');
       final dd = value.day.toString().padLeft(2, '0');
       return '$yyyy-$mm-$dd';
     }
 
-    String _toDateLabel(DateTime value) {
+    String toDateLabel(DateTime value) {
       final dd = value.day.toString().padLeft(2, '0');
       final mm = value.month.toString().padLeft(2, '0');
       return '$dd/$mm';
     }
 
     Future<void> handleRenewSamePlan(Map<String, dynamic> plan) async {
-      final requestId = int.tryParse((plan['id'] ?? '').toString());
-      final trainerId = int.tryParse((plan['trainerId'] ?? '').toString());
+      final requestId = _parseId(plan['id']);
+      final trainerId = _parseId(plan['trainerId']);
       final trainerName = (plan['trainerName'] ?? 'Personal').toString();
       final planType = (plan['planType'] ?? 'DIARIO').toString();
 
@@ -1551,15 +1572,15 @@ class _StudentDashboardState extends State<StudentDashboard>
 
         final renewalSlots = validSlots
             .map((slot) {
-              final next = _nextOccurrenceForRenewal(
+              final next = nextOccurrenceForRenewal(
                 slot['dayName']!,
                 slot['time']!,
               );
               return {
                 'dayName': slot['dayName']!,
                 'time': slot['time']!,
-                'dateIso': _toDateIso(next),
-                'dateLabel': _toDateLabel(next),
+                'dateIso': toDateIso(next),
+                'dateLabel': toDateLabel(next),
               };
             })
             .toList();
@@ -1686,10 +1707,16 @@ class _StudentDashboardState extends State<StudentDashboard>
                 onExpiredPlanAction: handleExpiredPlanAction,
                 onRenewSamePlan: handleRenewSamePlan,
                 onCancelPlan: (plan) async {
-                  final requestId = int.tryParse((plan['id'] ?? '').toString());
-                  final trainerId = int.tryParse((plan['trainerId'] ?? '').toString());
+                  final requestId = _parseId(plan['id']);
                   final trainerName = (plan['trainerName'] ?? 'Personal').toString();
-                  if (widget.studentId == null || requestId == null || trainerId == null) {
+                  if (requestId == null) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Nao foi possivel identificar o plano para cancelamento.'),
+                        ),
+                      );
+                    }
                     return;
                   }
 
@@ -2466,8 +2493,17 @@ class _StudentDashboardState extends State<StudentDashboard>
                     data: nonApproved[i],
                     onDelete: () async {
                       final req = nonApproved[i];
-                      final id = nonApproved[i]['id'];
-                      if (id == null) return;
+                      final requestId = _parseId(nonApproved[i]['id']);
+                      if (requestId == null) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Nao foi possivel identificar esta solicitacao.'),
+                            ),
+                          );
+                        }
+                        return;
+                      }
                       try {
                         final status = (req['status'] ?? '').toString();
                         final trainerId = int.tryParse(
@@ -2481,22 +2517,19 @@ class _StudentDashboardState extends State<StudentDashboard>
                         }
 
                         if (status == 'PENDING') {
-                          await AuthService.cancelStudentRequest(
-                            int.parse(id.toString()),
-                          );
+                          await AuthService.cancelStudentRequest(requestId);
                         } else {
-                          await AuthService.hideRequestForStudent(
-                            int.parse(id.toString()),
-                          );
+                          await AuthService.hideRequestForStudent(requestId);
                         }
                         if (!mounted) return;
                         setState(() {
-                          _locallyHiddenRequestIds.add(id.toString());
+                          _locallyHiddenRequestIds.add(requestId.toString());
                           _myRequests.removeWhere(
-                            (r) => r['id'].toString() == id.toString(),
+                            (r) => r['id'].toString() == requestId.toString(),
                           );
                         });
                         await _persistHiddenRequestIds();
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Solicitação removida das suas solicitações'),
@@ -2511,9 +2544,9 @@ class _StudentDashboardState extends State<StudentDashboard>
                         if (isNotFound) {
                           if (!mounted) return;
                           setState(() {
-                            _locallyHiddenRequestIds.add(id.toString());
+                            _locallyHiddenRequestIds.add(requestId.toString());
                             _myRequests.removeWhere(
-                              (r) => r['id'].toString() == id.toString(),
+                              (r) => r['id'].toString() == requestId.toString(),
                             );
                           });
                           await _persistHiddenRequestIds();
@@ -2562,8 +2595,8 @@ class _RequestItem extends StatelessWidget {
     switch (planType) {
       case 'SEMANAL':
         return (
-          const Color(0xFF7C3AED),
-          const Color(0xFFF5F3FF),
+          const Color(0xFF1D4ED8),
+          const Color(0xFFEFF6FF),
           'Plano Semanal',
           Icons.event_repeat_rounded,
         );
@@ -2576,8 +2609,8 @@ class _RequestItem extends StatelessWidget {
         );
       default:
         return (
-          const Color(0xFF0B4DBA),
-          const Color(0xFFEEF4FF),
+          const Color(0xFFB45309),
+          const Color(0xFFFFFBEB),
           'Plano Diário',
           Icons.today_rounded,
         );
@@ -3149,6 +3182,69 @@ class _ApprovedTrainerItem extends StatelessWidget {
     }
   }
 
+  DateTime _addOneMonthKeepingDay(DateTime date) {
+    final nextMonth = date.month == 12 ? 1 : date.month + 1;
+    final nextYear = date.month == 12 ? date.year + 1 : date.year;
+    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
+    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
+    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+  }
+
+  List<({String label, bool isCycleEnd})> _buildPlanSlotBadges({
+    required Map<String, dynamic> plan,
+    required DateTime planBase,
+    required List<Map<String, dynamic>> days,
+    required String dayName,
+    required String time,
+  }) {
+    final badges = <({String label, bool isCycleEnd})>[];
+
+    void addBadge(String label, {bool isCycleEnd = false}) {
+      final normalized = label.trim();
+      if (normalized.isEmpty) return;
+      final idx = badges.indexWhere((item) => item.label == normalized);
+      if (idx == -1) {
+        badges.add((label: normalized, isCycleEnd: isCycleEnd));
+        return;
+      }
+      if (isCycleEnd && !badges[idx].isCycleEnd) {
+        badges[idx] = (label: normalized, isCycleEnd: true);
+      }
+    }
+
+    if (days.isNotEmpty) {
+      for (final slot in days) {
+        final slotDay = (slot['dayName'] ?? '').toString();
+        final slotTime = (slot['time'] ?? '').toString();
+        final slotDateLabel = (slot['dateLabel'] ?? '').toString();
+        addBadge(
+          _calendarLabelForSlot(
+            slotDay,
+            slotTime,
+            base: planBase,
+            dateLabel: slotDateLabel,
+          ),
+        );
+      }
+    } else {
+      addBadge(
+        _calendarLabelForSlot(
+          dayName,
+          time,
+          base: planBase,
+        ),
+      );
+    }
+
+    final planType = (plan['planType'] ?? 'DIARIO').toString().toUpperCase();
+    if (planType == 'MENSAL') {
+      final cycleEnd = _addOneMonthKeepingDay(planBase);
+      addBadge(_formatDateTime(cycleEnd), isCycleEnd: true);
+    }
+
+    return badges;
+  }
+
   String _weekdayNamePt(int weekday) {
     switch (weekday) {
       case DateTime.monday:
@@ -3226,11 +3322,22 @@ class _ApprovedTrainerItem extends StatelessWidget {
     final firstPlan = plans.isNotEmpty ? plans.first : <String, dynamic>{};
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF7FFF9), Color(0xFFECFDF3)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBEE8CC)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF065F46).withValues(alpha: 0.07),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3238,8 +3345,8 @@ class _ApprovedTrainerItem extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF059669), Color(0xFF10B981)],
@@ -3252,18 +3359,18 @@ class _ApprovedTrainerItem extends StatelessWidget {
                         ? Image.network(
                             AuthService.getUserPhotoUrl(trainerId),
                             fit: BoxFit.cover,
-                            width: 44,
-                            height: 44,
+                            width: 48,
+                            height: 48,
                             errorBuilder: (_, __, ___) => const Icon(
                               Icons.person_rounded,
                               color: Colors.white,
-                              size: 22,
+                              size: 24,
                             ),
                           )
                         : const Icon(
                             Icons.person_rounded,
                             color: Colors.white,
-                            size: 22,
+                            size: 24,
                           ),
                   ),
                 ),
@@ -3276,7 +3383,7 @@ class _ApprovedTrainerItem extends StatelessWidget {
                       child: Text(
                         trainerName,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
                         ),
@@ -3323,19 +3430,44 @@ class _ApprovedTrainerItem extends StatelessWidget {
               final expiresAt = _resolvePlanExpiresAt(plan);
               final isExpired =
                   expiresAt != null && DateTime.now().isAfter(expiresAt);
-                final planBase =
+              final planBase =
                   _resolvePlanStartAt(plan) ??
                   _parseIsoDate(plan['approvedAt']) ??
                   _parseIsoDate(plan['createdAt']) ??
                   DateTime.now();
+              final slotBadges = _buildPlanSlotBadges(
+                plan: plan,
+                planBase: planBase,
+                days: days,
+                dayName: dayName,
+                time: time,
+              );
+
+              final statusFg = isExpired
+                  ? const Color(0xFF9A3412)
+                  : const Color(0xFF0F766E);
+              final statusBg = isExpired
+                  ? const Color(0xFFFFEDD5)
+                  : const Color(0xFFDCFCE7);
+              final statusLabel = isExpired ? 'Vencido' : 'Ativo';
+              final statusIcon = isExpired
+                  ? Icons.warning_amber_rounded
+                  : Icons.check_circle_rounded;
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFDDEFE3)),
+                  color: const Color(0xFFFBFFFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFD6EBDE)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3368,7 +3500,89 @@ class _ApprovedTrainerItem extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        TextButton.icon(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon, size: 12, color: statusFg),
+                              const SizedBox(width: 4),
+                              Text(
+                                statusLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: statusFg,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: slotBadges.map((slot) {
+                        final slotBg = slot.isCycleEnd
+                            ? const Color(0xFFEFF6FF)
+                            : planBg.withValues(alpha: 0.6);
+                        final slotBorder = slot.isCycleEnd
+                            ? const Color(0xFFBFDBFE)
+                            : planFg.withValues(alpha: 0.18);
+                        final slotFg = slot.isCycleEnd
+                            ? const Color(0xFF1D4ED8)
+                            : planFg;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: slotBg,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: slotBorder),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                slot.isCycleEnd
+                                    ? Icons.flag_rounded
+                                    : Icons.schedule_rounded,
+                                size: 12,
+                                color: slotFg,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                slot.label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: slot.isCycleEnd
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: slotFg,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        OutlinedButton.icon(
                           onPressed: (studentId != null && planTrainerId != null)
                               ? () {
                                   Navigator.push(
@@ -3388,23 +3602,27 @@ class _ApprovedTrainerItem extends StatelessWidget {
                             size: 15,
                           ),
                           label: const Text('Visualizar treino'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF0B4DBA),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1D4ED8),
+                            side: const BorderSide(color: Color(0xFF93C5FD)),
+                            backgroundColor: const Color(0xFFEFF6FF),
                             textStyle: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        TextButton.icon(
+                        OutlinedButton.icon(
                           onPressed: () => onCancelPlan(plan),
                           icon: const Icon(
                             Icons.cancel_outlined,
                             size: 15,
                           ),
                           label: const Text('Cancelar plano'),
-                          style: TextButton.styleFrom(
+                          style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFB91C1C),
+                            side: const BorderSide(color: Color(0xFFFCA5A5)),
+                            backgroundColor: const Color(0xFFFFF1F2),
                             textStyle: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
@@ -3413,53 +3631,6 @@ class _ApprovedTrainerItem extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    if (days.isNotEmpty)
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: days.map((slot) {
-                          final slotDay = (slot['dayName'] ?? '').toString();
-                          final slotTime = (slot['time'] ?? '').toString();
-                          final slotDateLabel =
-                              (slot['dateLabel'] ?? '').toString();
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: planBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _calendarLabelForSlot(
-                                slotDay,
-                                slotTime,
-                                base: planBase,
-                                dateLabel: slotDateLabel,
-                              ),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: planFg,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      )
-                    else
-                      Text(
-                        _calendarLabelForSlot(
-                          dayName,
-                          time,
-                          base: planBase,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
-                      ),
                     if (isExpired) ...[
                       const SizedBox(height: 10),
                       Container(

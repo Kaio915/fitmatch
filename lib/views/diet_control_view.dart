@@ -70,7 +70,6 @@ class _DietControlViewState extends State<DietControlView> {
   List<Map<String, dynamic>> _foodSuggestions = [];
   bool _showFoodSuggestions = false;
   Map<String, dynamic>? _selectedExternalFood;
-  bool _firstAccessTipsScheduled = false;
   bool _showMetricCoachTips = false;
 
   bool get _isPastDay {
@@ -85,11 +84,6 @@ class _DietControlViewState extends State<DietControlView> {
   String get _excludedEntryIdsStateKey => 'diet_excluded_entry_ids_by_date_${widget.userId}';
   String get _suppressedCarryoverStateKey => 'diet_suppressed_carryover_by_date_${widget.userId}';
   String get _carryoverStateKey => 'diet_carryover_by_date_${widget.userId}';
-  String get _firstAccessTipsKey {
-    final role = widget.isTrainerSide ? 'trainer' : 'student';
-    return 'diet_first_access_tips_v1_$role';
-  }
-
   Future<void> _restoreLocalDietState() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -244,19 +238,6 @@ class _DietControlViewState extends State<DietControlView> {
       // If local restore fails, continue with remote data load.
     }
     await _loadAll();
-    await _maybeShowFirstAccessTips();
-  }
-
-  Future<void> _maybeShowFirstAccessTips() async {
-    if (_firstAccessTipsScheduled || !mounted) return;
-    _firstAccessTipsScheduled = true;
-
-    final prefs = await SharedPreferences.getInstance();
-    final alreadySeen = prefs.getBool(_firstAccessTipsKey) ?? false;
-    if (alreadySeen || !mounted) return;
-
-    setState(() => _showMetricCoachTips = true);
-    await prefs.setBool(_firstAccessTipsKey, true);
   }
 
   void _showCoachTips() {
@@ -606,6 +587,59 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
+    final normalizedFavoriteName = favoriteName.toLowerCase();
+    Map<String, dynamic>? existingTemplate;
+    for (final template in _savedMealTemplates) {
+      final templateName =
+          (template['name'] ?? template['mealType'] ?? '').toString().trim();
+      if (templateName.toLowerCase() == normalizedFavoriteName) {
+        existingTemplate = template;
+        break;
+      }
+    }
+
+    final targetMealType = favoriteName;
+    var replacingExisting = false;
+    var existingSavedMealId = 0;
+    var existingMealType = '';
+    if (existingTemplate != null) {
+      final existingDisplayName =
+          (existingTemplate['name'] ?? existingTemplate['mealType'] ?? 'Refeição').toString();
+      existingSavedMealId = _toInt(existingTemplate['id']);
+      existingMealType = (existingTemplate['mealType'] ?? mealType).toString().trim();
+
+      final replaceConfirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Nome já existe'),
+              content: Text(
+                'Já existe uma refeição favorita com o nome "$existingDisplayName".\n\nDeseja substituir a refeição salva por esta nova?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B4DBA),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Substituir'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+
+      if (!replaceConfirmed) {
+        return;
+      }
+
+      replacingExisting = true;
+    }
+
     final templateItems = entries
         .map(
           (entry) => {
@@ -624,16 +658,115 @@ class _DietControlViewState extends State<DietControlView> {
       await AuthService.saveDietSavedMeal(
         userId: widget.userId,
         name: favoriteName,
-        mealType: mealType,
+        mealType: targetMealType,
         items: templateItems,
       );
+
+      if (replacingExisting &&
+          existingSavedMealId > 0 &&
+          existingMealType.toLowerCase() != targetMealType.toLowerCase()) {
+        try {
+          await AuthService.deleteDietSavedMeal(
+            userId: widget.userId,
+            savedMealId: existingSavedMealId,
+          );
+        } catch (_) {
+          // Se falhar na limpeza do registro antigo, mantém o novo salvo.
+        }
+      }
+
+      final shouldRenameMealSection =
+          mealType.trim().toLowerCase() != favoriteName.toLowerCase();
+      if (shouldRenameMealSection) {
+        await _renameMealTypeInCurrentDay(
+          fromMealType: mealType,
+          toMealType: favoriteName,
+        );
+      }
+
       await _loadAll(keepUi: true);
-      _showSnack('Refeição favorita salva com sucesso.', color: const Color(0xFF16A34A));
+      _showSnack(
+        replacingExisting
+            ? 'Refeição favorita substituída com sucesso.'
+            : 'Refeição favorita salva com sucesso.',
+        color: const Color(0xFF16A34A),
+      );
     } catch (e) {
       _showSnack(
         e.toString().replaceFirst('Exception: ', ''),
         color: const Color(0xFFDC2626),
       );
+    }
+  }
+
+  Future<void> _renameMealTypeInCurrentDay({
+    required String fromMealType,
+    required String toMealType,
+  }) async {
+    final fromMealTypeTrimmed = fromMealType.trim();
+    final toMealTypeTrimmed = toMealType.trim();
+    if (fromMealTypeTrimmed.isEmpty || toMealTypeTrimmed.isEmpty) return;
+
+    final sourceMeal = _meals.cast<Map<String, dynamic>?>().firstWhere(
+          (meal) =>
+              (meal?['mealType'] ?? '').toString().trim().toLowerCase() ==
+              fromMealTypeTrimmed.toLowerCase(),
+          orElse: () => null,
+        );
+    if (sourceMeal == null) return;
+
+    final sourceEntries = (sourceMeal['entries'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .toList();
+    if (sourceEntries.isEmpty) return;
+
+    final dateIso = _toDateIso(_selectedDate);
+    final addedEntryIds = <int>[];
+    try {
+      for (final entry in sourceEntries) {
+        final foodId = _toInt(entry['foodId']);
+        final quantity = _toDouble(entry['quantityGrams']);
+        if (foodId <= 0 || quantity <= 0) continue;
+
+        final created = await AuthService.addDietEntry(
+          userId: widget.userId,
+          foodId: foodId,
+          mealType: toMealTypeTrimmed,
+          quantityGrams: quantity,
+          dateIso: dateIso,
+        );
+        final createdId = _toInt(created['id']);
+        if (createdId > 0) {
+          addedEntryIds.add(createdId);
+        }
+      }
+
+      for (final entry in sourceEntries) {
+        final entryId = _toInt(entry['id']);
+        if (entryId <= 0) continue;
+        await AuthService.deleteDietEntry(
+          userId: widget.userId,
+          entryId: entryId,
+        );
+      }
+
+      // Após renomear a refeição do dia, oculta o carryover do nome antigo
+      // para evitar cartão duplicado com itens bloqueados.
+      _carryoverByMealType.remove(fromMealTypeTrimmed);
+      _carryoverByDate[dateIso]?.remove(fromMealTypeTrimmed);
+      _suppressedCarryoverByDate
+          .putIfAbsent(dateIso, () => <String>{})
+          .add(fromMealTypeTrimmed);
+      await _persistLocalDietState();
+    } catch (_) {
+      // Rollback best-effort: remove entradas criadas no novo tipo.
+      for (final addedId in addedEntryIds) {
+        try {
+          await AuthService.deleteDietEntry(userId: widget.userId, entryId: addedId);
+        } catch (_) {}
+      }
+      rethrow;
     }
   }
 
@@ -779,10 +912,19 @@ class _DietControlViewState extends State<DietControlView> {
     if (!confirmed) return;
 
     try {
+      final templateName = (template['name'] ?? '').toString().trim();
+      final templateMealType = (template['mealType'] ?? '').toString().trim();
+
       await AuthService.deleteDietSavedMeal(
         userId: widget.userId,
         savedMealId: savedMealId,
       );
+
+      await _removeMealTypesFromCurrentDay({
+        if (templateName.isNotEmpty) templateName,
+        if (templateMealType.isNotEmpty) templateMealType,
+      });
+
       await _loadAll(keepUi: true);
       _showSnack('Refeição favorita excluída.', color: const Color(0xFF16A34A));
     } catch (e) {
@@ -791,6 +933,53 @@ class _DietControlViewState extends State<DietControlView> {
         color: const Color(0xFFDC2626),
       );
     }
+  }
+
+  Future<void> _removeMealTypesFromCurrentDay(Set<String> mealTypes) async {
+    if (mealTypes.isEmpty) return;
+
+    final normalizedTargets = mealTypes
+        .map((mealType) => mealType.trim())
+        .where((mealType) => mealType.isNotEmpty)
+        .map((mealType) => mealType.toLowerCase())
+        .toSet();
+    if (normalizedTargets.isEmpty) return;
+
+    final dateIso = _toDateIso(_selectedDate);
+    final deletedEntryIds = <int>[];
+
+    for (final meal in _meals) {
+      final currentMealType = (meal['mealType'] ?? '').toString().trim();
+      if (!normalizedTargets.contains(currentMealType.toLowerCase())) continue;
+
+      final entries = (meal['entries'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((entry) => Map<String, dynamic>.from(entry));
+
+      for (final entry in entries) {
+        final entryId = _toInt(entry['id']);
+        if (entryId <= 0) continue;
+        await AuthService.deleteDietEntry(userId: widget.userId, entryId: entryId);
+        deletedEntryIds.add(entryId);
+      }
+    }
+
+    if (deletedEntryIds.isNotEmpty) {
+      for (final entryId in deletedEntryIds) {
+        _excludedEntryIds.remove(entryId);
+      }
+      _excludedEntryIdsByDate[dateIso] = Set<int>.from(_excludedEntryIds);
+    }
+
+    for (final mealType in mealTypes) {
+      final trimmed = mealType.trim();
+      if (trimmed.isEmpty) continue;
+      _carryoverByMealType.remove(trimmed);
+      _carryoverByDate[dateIso]?.remove(trimmed);
+      _suppressedCarryoverByDate.putIfAbsent(dateIso, () => <String>{}).add(trimmed);
+    }
+
+    await _persistLocalDietState();
   }
 
   Future<void> _unlockCarryoverEntry(String mealType, Map<String, dynamic> entry) async {

@@ -50,4 +50,7 @@ target/
 
 # ===== ARQUIVOS SENSÍVEIS =====
 .env
+.env.*
+.env_*
+!.env.example
 application.properties

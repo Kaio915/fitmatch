@@ -1422,8 +1422,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final (planFg, planBg) = plan == 'SEMANAL'
         ? (const Color(0xFF0B4DBA), const Color(0xFFEEF4FD))
         : plan == 'MENSAL'
-            ? (const Color(0xFF7C3AED), const Color(0xFFF5F3FF))
-            : (const Color(0xFF059669), const Color(0xFFECFDF5));
+        ? (const Color(0xFF0B4DBA), const Color(0xFFEEF4FD))
+        : (const Color(0xFFB45309), const Color(0xFFFFFBEB));
 
     // Tenta parsear daysJson para exibir os slots
     List<Map<String, String>> slots = [];

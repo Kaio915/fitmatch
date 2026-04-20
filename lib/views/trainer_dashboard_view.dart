@@ -483,6 +483,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           final state = (s['state'] ?? '').toString().trim().toUpperCase();
           if (day.isEmpty || time.isEmpty) continue;
 
+          // REQUEST (pendente/aprovado) deve ser calculado por request + data real,
+          // não como bloqueio manual base.
+          if (state == 'REQUEST') {
+            continue;
+          }
+
           if (dateIso.isNotEmpty) {
             final targetList = state == 'UNBLOCK_ONCE'
                 ? _oneTimeManualUnblocks
@@ -959,6 +965,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return _parseIsoDateTime(req['createdAt']) ?? _requestAnchor(req);
   }
 
+  DateTime _weeklyOverlayAnchor(Map<String, dynamic> req) {
+    return _parseIsoDateTime(req['createdAt']) ??
+      _parseIsoDateTime(req['approvedAt']) ??
+      DateTime.now();
+  }
+
   bool _sameMomentByMinute(DateTime a, DateTime b) {
     return a.year == b.year &&
         a.month == b.month &&
@@ -979,6 +991,28 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     if (fromMeta != null) return fromMeta;
 
     return _nextOccurrenceForFallback(anchor, weekday, hm.$1, hm.$2);
+  }
+
+  DateTime? _slotStartAtForWeekly(
+    Map<String, String> slot,
+    DateTime anchor,
+  ) {
+    final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+    final hm = _parseHourMinuteForFallback((slot['time'] ?? '').toString());
+    if (weekday == null || hm == null) return null;
+
+    final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
+    if (fromMeta != null) return fromMeta;
+
+    final weekStart = _startOfWeek(anchor);
+    final targetDate = weekStart.add(Duration(days: weekday - 1));
+    return DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      hm.$1,
+      hm.$2,
+    );
   }
 
   DateTime? _monthlyFirstSessionAt(Map<String, dynamic> req) {
@@ -1092,7 +1126,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       if (plan != 'SEMANAL') continue;
       if (status != 'APPROVED' && status != 'PENDING') continue;
 
-      final anchor = _requestWindowAnchor(req);
+      final anchor = _weeklyOverlayAnchor(req);
       final slots = _extractRequestSlots(req);
 
       for (final slot in slots) {
@@ -1103,7 +1137,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           continue;
         }
 
-        final slotStart = _slotStartAtForMonthly(slot, anchor);
+        final slotStart = _slotStartAtForWeekly(slot, anchor);
         if (slotStart == null) continue;
 
         if (!_sameMomentByMinute(candidate, slotStart)) {
@@ -2386,25 +2420,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             targetReq,
                             approved: true,
                           );
-                          final approvedPlanType = (targetReq['planType'] ?? 'DIARIO')
-                              .toString()
-                              .toUpperCase();
-                          if (widget.trainerId != null) {
-                            if (approvedPlanType == 'SEMANAL') {
-                              await AuthService.blockSlot(
-                                widget.trainerId!,
-                                dayName,
-                                slot.time,
-                              );
-                            }
-                          }
                           final approvedReq = matchReq;
                           setState(() {
-                            if (approvedPlanType == 'SEMANAL') {
-                              slot.state = _SlotState.unavailable;
-                              slot.studentName = (approvedReq['studentName'] ?? 'Aluno')
-                                  .toString();
-                            }
                             // Atualização otimista: adiciona aluno imediatamente
                             final sid = approvedReq['studentId']?.toString();
                             final alreadyIn = _myStudents.any(
@@ -4651,37 +4668,6 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           final reqId = req['id'] is int
                               ? req['id'] as int
                               : int.parse(req['id'].toString());
-                          final selectedSlots = () {
-                            final raw = req['daysJson']?.toString();
-                            if (raw != null && raw.isNotEmpty) {
-                              try {
-                                final decoded = jsonDecode(raw) as List<dynamic>;
-                                return decoded
-                                    .whereType<Map>()
-                                    .map(
-                                      (slot) => {
-                                        'dayName': (slot['dayName'] ?? '')
-                                            .toString(),
-                                        'time': (slot['time'] ?? '').toString(),
-                                      },
-                                    )
-                                    .where(
-                                      (slot) =>
-                                          slot['dayName']!.isNotEmpty &&
-                                          slot['time']!.isNotEmpty,
-                                    )
-                                    .toList();
-                              } catch (_) {
-                                return <Map<String, String>>[];
-                              }
-                            }
-                            return <Map<String, String>>[
-                              {
-                                'dayName': (req['dayName'] ?? '').toString(),
-                                'time': (req['time'] ?? '').toString(),
-                              },
-                            ];
-                          }();
                           await AuthService.updateRequestStatus(
                             reqId,
                             'APPROVED',
@@ -4690,37 +4676,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             req,
                             approved: true,
                           );
-                          // Bloqueia todos os slots do plano aprovado
-                          if (widget.trainerId != null) {
-                            final approvedPlanType =
-                                (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-                            if (approvedPlanType == 'SEMANAL') {
-                              for (final slot in selectedSlots) {
-                                await AuthService.blockSlot(
-                                  widget.trainerId!,
-                                  slot['dayName'] ?? '',
-                                  slot['time'] ?? '',
-                                );
-                              }
-                            }
-                          }
-                          // Atualiza todos os slots visualmente + atualização otimista
+                          // Atualização otimista (sem materializar bloqueio manual base)
                           setState(() {
-                            final approvedPlanType =
-                                (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-                            if (approvedPlanType == 'SEMANAL') {
-                              for (final slot in selectedSlots) {
-                                final daySlots = _schedule[slot['dayName'] ?? ''];
-                                if (daySlots != null) {
-                                  for (final s in daySlots) {
-                                    if (s.time == (slot['time'] ?? '')) {
-                                      s.state = _SlotState.unavailable;
-                                      break;
-                                    }
-                                  }
-                                }
-                              }
-                            }
                             // Adiciona aluno imediatamente em Meus Alunos
                             final sid = req['studentId']?.toString();
                             final alreadyIn = _myStudents.any(
@@ -4833,8 +4790,8 @@ class _RequestRow extends StatelessWidget {
     switch (pt) {
       case 'SEMANAL':
         return (
-          const Color(0xFF7C3AED),
-          const Color(0xFFF5F3FF),
+          const Color(0xFF1D4ED8),
+          const Color(0xFFEFF6FF),
           'Plano Semanal',
           Icons.event_repeat_rounded,
         );
@@ -4847,8 +4804,8 @@ class _RequestRow extends StatelessWidget {
         );
       default:
         return (
-          const Color(0xFF0B4DBA),
-          const Color(0xFFEEF4FF),
+          const Color(0xFFB45309),
+          const Color(0xFFFFFBEB),
           'Aula Avulsa',
           Icons.flash_on_rounded,
         );
@@ -5261,7 +5218,7 @@ class _RequestRow extends StatelessWidget {
       ),
     };
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -5275,7 +5232,7 @@ class _RequestRow extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -5291,7 +5248,7 @@ class _RequestRow extends StatelessWidget {
                   ),
                   child: Icon(statusUi.$4, size: 18, color: statusUi.$1),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -5304,10 +5261,10 @@ class _RequestRow extends StatelessWidget {
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -5379,7 +5336,7 @@ class _RequestRow extends StatelessWidget {
                           ? const Color(0xFF93C5FD)
                           : const Color(0xFFFCA5A5),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     textStyle: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -5391,17 +5348,17 @@ class _RequestRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: displaySlotLabels
                   .map(
                     (label) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: planBg,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: planFg.withValues(alpha: 0.18)),
                       ),
                       child: Text(
@@ -5416,10 +5373,10 @@ class _RequestRow extends StatelessWidget {
                   )
                   .toList(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 10,
+              runSpacing: 10,
               children: [
                 OutlinedButton.icon(
                   onPressed: onDelete,
@@ -5429,7 +5386,7 @@ class _RequestRow extends StatelessWidget {
                     foregroundColor: const Color(0xFFB91C1C),
                     backgroundColor: const Color(0xFFFEF2F2),
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -5444,7 +5401,7 @@ class _RequestRow extends StatelessWidget {
                       foregroundColor: const Color(0xFF0B4DBA),
                       backgroundColor: const Color(0xFFF8FBFF),
                       side: const BorderSide(color: Color(0xFFBFD3F5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -5459,7 +5416,7 @@ class _RequestRow extends StatelessWidget {
                       foregroundColor: const Color(0xFFEF4444),
                       backgroundColor: const Color(0xFFFEF2F2),
                       side: const BorderSide(color: Color(0xFFFCA5A5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -5474,7 +5431,7 @@ class _RequestRow extends StatelessWidget {
                       backgroundColor: const Color(0xFF22C55E),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),

@@ -175,12 +175,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }
 
   DateTime _requestAnchorFromReq(Map<String, dynamic> req) {
-    return DateTime.tryParse((req['createdAt'] ?? '').toString()) ?? DateTime.now();
+    return DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
+        DateTime.tryParse((req['approvedAt'] ?? '').toString()) ??
+        DateTime.now();
   }
 
   DateTime? _requestSlotStartDateTime(
     Map<String, String> slot,
-    DateTime anchor,
+    DateTime anchor, {
+    bool preferAnchorWeek = false,
+  }
   ) {
     final dayName = (slot['dayName'] ?? '').trim();
     final time = (slot['time'] ?? '').trim();
@@ -214,6 +218,18 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       if (day != null && month != null) {
         return DateTime(anchor.year, month, day, hm.$1, hm.$2);
       }
+    }
+
+    if (preferAnchorWeek) {
+      final weekStart = _startOfWeek(anchor);
+      final targetDay = weekStart.add(Duration(days: weekday - 1));
+      return DateTime(
+        targetDay.year,
+        targetDay.month,
+        targetDay.day,
+        hm.$1,
+        hm.$2,
+      );
     }
 
     var candidate = _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
@@ -299,6 +315,30 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     if (baseState == SlotState.available &&
         _isWeeklyOrMonthlyPendingMatch(_otherPendingRequests, dayName, time)) {
       return SlotState.unavailable;
+    }
+
+    if (_hasOneTimeManualUnblock(dayName, time)) {
+      return SlotState.available;
+    }
+
+    if (_hasOneTimeManualBlock(dayName, time)) {
+      return SlotState.unavailable;
+    }
+
+    return baseState;
+  }
+
+  SlotState _effectiveTrainerSlotState(String dayName, String time, SlotState baseState) {
+    if (widget.studentId != null) return baseState;
+
+    if (_isApprovedSlotMatch(dayName, time)) {
+      return SlotState.unavailable;
+    }
+
+    if (baseState == SlotState.available &&
+        (_isDailyPendingMatch(_otherPendingRequests, dayName, time) ||
+            _isWeeklyOrMonthlyPendingMatch(_otherPendingRequests, dayName, time))) {
+      return SlotState.requested;
     }
 
     if (_hasOneTimeManualUnblock(dayName, time)) {
@@ -398,18 +438,26 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         continue;
       }
 
-      final anchor =
-          DateTime.tryParse((req['createdAt'] ?? '').toString()) ?? DateTime.now();
-        final windowEnd = planType == 'MENSAL'
-          ? _addOneMonthKeepingDay(anchor)
-          : null;
+      final monthlyWindow =
+          planType == 'MENSAL' ? _monthlyCycleWindowForRequest(req) : null;
+      if (planType == 'MENSAL' && monthlyWindow == null) {
+        continue;
+      }
+
+        final anchor = planType == 'SEMANAL'
+          ? _requestAnchorFromReq(req)
+          : _requestAnchorForAvailability(req);
 
       for (final selected in _requestSlotsFromData(req)) {
         final reqDay = _normalizeDayName((selected['dayName'] ?? '').toString());
         final reqTime = _normalizeTime((selected['time'] ?? '').toString());
         if (reqDay != normalizedDay || reqTime != normalizedTime) continue;
 
-        final slotStart = _requestSlotStartDateTime(selected, anchor);
+        final slotStart = _requestSlotStartDateTime(
+          selected,
+          anchor,
+          preferAnchorWeek: planType == 'SEMANAL',
+        );
         if (slotStart == null) continue;
 
         final sameMoment =
@@ -424,7 +472,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           continue;
         }
 
-        if (candidate.isBefore(slotStart) || candidate.isAfter(windowEnd!)) {
+        if (candidate.isBefore(slotStart) ||
+            candidate.isAfter(monthlyWindow!.end)) {
           continue;
         }
 
@@ -442,6 +491,28 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     return DateTime.tryParse((req['approvedAt'] ?? '').toString()) ??
         DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
         DateTime.now();
+  }
+
+  ({DateTime start, DateTime end})? _monthlyCycleWindowForRequest(
+    Map<String, dynamic> req,
+  ) {
+    final slots = _requestSlotsFromData(req);
+    if (slots.isEmpty) return null;
+
+    final anchor = DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
+        _requestAnchorForAvailability(req);
+
+    DateTime? firstStart;
+    for (final slot in slots) {
+      final startAt = _requestSlotStartDateTime(slot, anchor);
+      if (startAt == null) continue;
+      if (firstStart == null || startAt.isBefore(firstStart)) {
+        firstStart = startAt;
+      }
+    }
+
+    if (firstStart == null) return null;
+    return (start: firstStart, end: _addOneMonthKeepingDay(firstStart));
   }
 
   bool _isApprovedSlotMatch(String dayName, String time) {
@@ -468,15 +539,18 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       if (slots.isEmpty) continue;
 
       if (planType == 'SEMANAL') {
-        final anchor = DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
-            _requestAnchorForAvailability(req);
+        final anchor = _requestAnchorFromReq(req);
 
         for (final slot in slots) {
           final reqDay = _normalizeDayName((slot['dayName'] ?? '').toString());
           final reqTime = _normalizeTime((slot['time'] ?? '').toString());
           if (reqDay != normalizedDay || reqTime != normalizedTime) continue;
 
-          final slotStart = _requestSlotStartDateTime(slot, anchor);
+          final slotStart = _requestSlotStartDateTime(
+            slot,
+            anchor,
+            preferAnchorWeek: true,
+          );
           if (slotStart == null) continue;
 
           final sameMoment =
@@ -518,7 +592,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       if (planType == 'MENSAL') {
         final anchor = DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
             _requestAnchorForAvailability(req);
-        final windowEnd = _addOneMonthKeepingDay(anchor);
+        final monthlyWindow = _monthlyCycleWindowForRequest(req);
+        if (monthlyWindow == null) {
+          continue;
+        }
 
         for (final slot in slots) {
           final reqDay = _normalizeDayName((slot['dayName'] ?? '').toString());
@@ -527,7 +604,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
           final slotStart = _requestSlotStartDateTime(slot, anchor);
           if (slotStart == null || candidate.isBefore(slotStart)) continue;
-          if (candidate.isAfter(windowEnd)) continue;
+          if (candidate.isAfter(monthlyWindow.end)) continue;
 
           final diffDays = candidate.difference(slotStart).inDays;
           if (diffDays % 7 == 0) {
@@ -1033,6 +1110,21 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           .map((req) => Map<String, dynamic>.from(req))
           .toList();
 
+        final requestBackedSlotKeys = <String>{};
+        if (widget.studentId != null) {
+          for (final req in allTrainerReqs) {
+            final status = (req['status'] ?? '').toString().toUpperCase();
+            if (status != 'PENDING' && status != 'APPROVED') continue;
+
+            for (final selected in _requestSlotsFromData(req)) {
+              final slotDay = _normalizeDayName((selected['dayName'] ?? '').toString());
+              final slotTime = _normalizeTime((selected['time'] ?? '').toString());
+              if (slotDay.isEmpty || slotTime.isEmpty) continue;
+              requestBackedSlotKeys.add('$slotDay|$slotTime');
+            }
+          }
+        }
+
       // Processa avaliações
       double avg = 0;
       if (ratings.isNotEmpty) {
@@ -1074,10 +1166,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           final dateIso = (s['dateIso'] ?? '').toString().trim();
           final state = (s['state'] ?? '').toString().toUpperCase();
 
-          // No perfil visto pelo aluno, slots de estado REQUEST devem ser
-          // calculados pelos requests ativos (PENDING/APPROVED) para respeitar
-          // regra de data real e evitar recorrência indevida em aula avulsa.
-          if (widget.studentId != null && state == 'REQUEST') {
+          // REQUEST (de solicitação/plano) deve ser calculado por data real
+          // via requests ativos (PENDING/APPROVED), nunca como recorrência base.
+          if (state == 'REQUEST') {
             continue;
           }
 
@@ -1092,6 +1183,17 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             });
             continue;
           }
+
+          // No perfil visto por aluno, evita aplicar bloqueio recorrente de base
+          // para slots que já são controlados por requests ativos (PENDING/APPROVED).
+          // Isso impede vazamento de bloqueio semanal para semanas futuras.
+          if (widget.studentId != null && state != 'UNBLOCK_ONCE') {
+            final slotKey = '$day|$time';
+            if (requestBackedSlotKeys.contains(slotKey)) {
+              continue;
+            }
+          }
+
           final daySlots = _schedule[day];
           if (daySlots != null) {
             for (final slot in daySlots) {
@@ -1130,44 +1232,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             }
           }
         }
-        // Marca slots pendentes de solicitações
-        // - Se for o perfil do personal (studentId == null): marca como "solicitado" (amarelo)
-        // - Se for um aluno vendo o perfil: marca apenas outros alunos como indisponível (cinza)
-        for (final req in allTrainerReqs) {
-          if ((req['status'] ?? '').toString() != 'PENDING') {
-            continue;
-          }
-          if (widget.studentId != null) {
-            continue;
-          }
-          // Se é aluno vendo o perfil, pula solicitações do próprio aluno
-          if (widget.studentId != null &&
-              req['studentId'].toString() == widget.studentId.toString()) {
-            continue;
-          }
-          final planType =
-              (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-          if (widget.studentId != null && planType == 'DIARIO') {
-            continue;
-          }
-          for (final selected in _requestSlotsFromData(req)) {
-            final day = selected['dayName'] ?? '';
-            final time = selected['time'] ?? '';
-            final daySlots = _schedule[day];
-            if (daySlots != null) {
-              for (final slot in daySlots) {
-                if (slot.time == time && slot.state == SlotState.available) {
-                  // Se é o perfil do personal (studentId == null), marca como solicitado (amarelo)
-                  // Se é aluno vendo, marca como indisponível (cinza)
-                  final newState = widget.studentId == null
-                      ? SlotState.requested  // Personal vendo seu próprio perfil
-                      : SlotState.unavailable; // Aluno vendo perfil de outro personal
-                  slot.state = newState;
-                }
-              }
-            }
-          }
-        }
+        // Solicitações pendentes/aprovadas são aplicadas por data real na UI
+        // via _effectiveStudentSlotState/_effectiveTrainerSlotState.
         _loadingSlots = false;
         _ratings = List<Map<String, dynamic>>.from(ratings);
         _avgRating = avg;
@@ -2374,9 +2440,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         ? _monthlySelectionSummaryLabels(_inlineSelectedSlots)
         : _inlineSelectedSlots.map(_inlineSelectionLabel).toList();
     final availableCount = slots.where((s) {
-      final state = canRequest
+        final state = canRequest
           ? _effectiveStudentSlotState(_days[_selectedDay], s.time, s.state)
-          : s.state;
+          : _effectiveTrainerSlotState(_days[_selectedDay], s.time, s.state);
       if (state != SlotState.available) return false;
       if (!canRequest) return true;
       if (_isBlockedByWeeklyStartRule(_selectedDay, weekOffset: _scheduleWeekOffset)) {
@@ -2503,9 +2569,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                       final daySlots = _schedule[_days[i]] ?? [];
                       final hasAvail = daySlots.any(
                         (s) {
-                          final state = canRequest
+                            final state = canRequest
                               ? _effectiveStudentSlotState(_days[i], s.time, s.state)
-                              : s.state;
+                              : _effectiveTrainerSlotState(_days[i], s.time, s.state);
                           return state == SlotState.available &&
                               (!canRequest ||
                                   !_isBlockedByWeeklyStartRule(i, weekOffset: _scheduleWeekOffset)) &&
@@ -2515,8 +2581,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                       final hasRequested =
                           daySlots.any((s) {
                             final state = canRequest
-                                ? _effectiveStudentSlotState(_days[i], s.time, s.state)
-                                : s.state;
+                              ? _effectiveStudentSlotState(_days[i], s.time, s.state)
+                              : _effectiveTrainerSlotState(_days[i], s.time, s.state);
                             return state == SlotState.requested;
                           });
 
@@ -2703,8 +2769,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                     canRequest && _isBlockedByWeeklyStartRule(_selectedDay, weekOffset: _scheduleWeekOffset);
                 final isPastSlot = canRequest && _isPastSlotFor(_selectedDay, baseSlot.time);
                 final effectiveState = canRequest
-                    ? _effectiveStudentSlotState(_days[_selectedDay], baseSlot.time, baseSlot.state)
-                    : baseSlot.state;
+                  ? _effectiveStudentSlotState(_days[_selectedDay], baseSlot.time, baseSlot.state)
+                  : _effectiveTrainerSlotState(_days[_selectedDay], baseSlot.time, baseSlot.state);
                 final viewSlot = _Slot(baseSlot.time)..state = effectiveState;
                 return _SlotTile(
                   slot: viewSlot,
