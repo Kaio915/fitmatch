@@ -603,7 +603,7 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> buscarCidades(String nome) async {
     try {
       final uri = Uri.parse(
-        'http://127.0.0.1:8080/cidades?nome=${Uri.encodeComponent(nome)}',
+        '$_baseUrl/cidades?nome=${Uri.encodeComponent(nome)}',
       );
 
       final response = await http.get(uri);
