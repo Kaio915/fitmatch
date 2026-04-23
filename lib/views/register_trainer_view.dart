@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   final bioController = TextEditingController();
 
   List<Map<String, dynamic>> cidades = [];
+  Timer? _cidadeDebounce;
 
   final _cpfMask = MaskTextInputFormatter(
     mask: '###.###.###-##',
@@ -93,6 +95,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
 
   @override
   void dispose() {
+    _cidadeDebounce?.cancel();
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -369,12 +372,28 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
           TextFormField(
             controller: cidadeController,
             onChanged: (value) async {
-              if (value.length >= 2) {
-                final resultado = await AuthService.buscarCidades(value);
-                setState(() => cidades = resultado);
-              } else {
-                setState(() => cidades = []);
+              _cidadeDebounce?.cancel();
+
+              final query = value.trim();
+              if (query.length < 2) {
+                if (mounted) {
+                  setState(() => cidades = []);
+                }
+                return;
               }
+
+              _cidadeDebounce = Timer(const Duration(milliseconds: 300), () async {
+                final typedAtRequest = cidadeController.text.trim();
+                final resultado =
+                    await AuthService.buscarCidadesIbge(typedAtRequest);
+
+                if (!mounted) return;
+
+                // Evita exibir resultados antigos quando o usuário digita rápido.
+                if (typedAtRequest == cidadeController.text.trim()) {
+                  setState(() => cidades = resultado);
+                }
+              });
             },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Campo obrigatório';

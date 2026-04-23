@@ -10,6 +10,7 @@ import 'package:fitmatch/core/env/app_env.dart';
 
 class AuthService {
   static const String _baseUrl = AppEnv.apiBaseUrl;
+  static List<Map<String, String>>? _ibgeMunicipiosCache;
 
   static String _extractErrorMessage(http.Response res) {
     try {
@@ -599,24 +600,94 @@ class AuthService {
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
   }
 
-  // ✅ BUSCA CIDADES
-  static Future<List<Map<String, dynamic>>> buscarCidades(String nome) async {
+  // ✅ BUSCA CIDADES APENAS VIA IBGE
+  static Future<List<Map<String, dynamic>>> buscarCidadesIbge(String nome) async {
+    final query = nome.trim();
+    if (query.length < 2) return [];
+
+    return _buscarCidadesViaIbge(query);
+  }
+
+  static Future<List<Map<String, dynamic>>> _buscarCidadesViaIbge(
+      String query) async {
     try {
-      final uri = Uri.parse(
-        '$_baseUrl/cidades?nome=${Uri.encodeComponent(nome)}',
-      );
+      final municipios = await _obterMunicipiosIbge();
+      if (municipios.isEmpty) return [];
 
-      final response = await http.get(uri);
+      final termo = _normalizeText(query);
+      final prefixMatches = <Map<String, dynamic>>[];
 
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      for (final cidade in municipios) {
+        final nomeCidade = cidade['nome'] ?? '';
+        final ufCidade = cidade['uf'] ?? '';
+        final nomeNormalizado = _normalizeText(nomeCidade);
+
+        if (nomeNormalizado.startsWith(termo)) {
+          prefixMatches.add({'nome': nomeCidade, 'uf': ufCidade});
+        }
+
+        if (prefixMatches.length >= 20) {
+          break;
+        }
       }
-      return [];
-    } catch (e) {
-      // ignore: avoid_print
-      print('Erro ao buscar cidades: $e');
+
+      return prefixMatches;
+    } catch (_) {
       return [];
     }
+  }
+
+  static Future<List<Map<String, String>>> _obterMunicipiosIbge() async {
+    if (_ibgeMunicipiosCache != null && _ibgeMunicipiosCache!.isNotEmpty) {
+      return _ibgeMunicipiosCache!;
+    }
+
+    final uri = Uri.parse(
+      'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?view=nivelado',
+    );
+
+    final response = await http.get(uri).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) return [];
+
+    final List<dynamic> raw = jsonDecode(response.body) as List<dynamic>;
+    final cidades = raw.whereType<Map<String, dynamic>>().map((item) {
+      final nome = (item['municipio-nome'] ?? '').toString();
+      final siglaUf = (item['UF-sigla'] ?? '').toString();
+
+      return {'nome': nome, 'uf': siglaUf};
+    }).where((c) => c['nome']!.isNotEmpty && c['uf']!.isNotEmpty).toList();
+
+    _ibgeMunicipiosCache = cidades;
+    return cidades;
+  }
+
+  static String _normalizeText(String value) {
+    final lower = value.toLowerCase();
+    final buffer = StringBuffer();
+
+    const replacements = {
+      'a': 'áàâãä',
+      'e': 'éèêë',
+      'i': 'íìîï',
+      'o': 'óòôõö',
+      'u': 'úùûü',
+      'c': 'ç',
+      'n': 'ñ',
+    };
+
+    for (final ch in lower.split('')) {
+      var replaced = false;
+      for (final entry in replacements.entries) {
+        if (entry.value.contains(ch)) {
+          buffer.write(entry.key);
+          replaced = true;
+          break;
+        }
+      }
+      if (!replaced) buffer.write(ch);
+    }
+
+    return buffer.toString();
   }
   // ✅ CRIAR CONEXÃO (aluno seguir personal)
   static Future<Map<String, dynamic>> createConnection({
