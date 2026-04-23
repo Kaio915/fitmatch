@@ -767,6 +767,22 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     return dateKeys.length;
   }
 
+  int _countDistinctSelectedWeekdays(
+    List<Map<String, String>> selections, {
+    String? extraDayName,
+  }) {
+    final weekdays = <String>{};
+    for (final s in selections) {
+      final normalized = _normalizeDayName((s['dayName'] ?? '').toString());
+      if (normalized.isNotEmpty) weekdays.add(normalized);
+    }
+    if (extraDayName != null) {
+      final normalizedExtra = _normalizeDayName(extraDayName);
+      if (normalizedExtra.isNotEmpty) weekdays.add(normalizedExtra);
+    }
+    return weekdays.length;
+  }
+
   DateTime _weeklyEarliestStartDate() {
     final now = DateTime.now();
     final today = _dateOnly(now);
@@ -1776,6 +1792,37 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
     }
 
+    if (_inlinePlanType.toUpperCase() == 'MENSAL') {
+      final normalizedTargetDay = _normalizeDayName(dayName);
+      final hasSameWeekday = _inlineSelectedSlots.any((s) {
+        return _normalizeDayName((s['dayName'] ?? '').toString()) ==
+            normalizedTargetDay;
+      });
+
+      if (hasSameWeekday) {
+        _showSnack(
+          'No plano mensal, selecione cada dia da semana apenas uma vez.',
+          icon: Icons.info_outline_rounded,
+          color: const Color(0xFF0B4DBA),
+        );
+        return;
+      }
+
+      final selectedWeekdays = _countDistinctSelectedWeekdays(
+        _inlineSelectedSlots,
+        extraDayName: dayName,
+      );
+
+      if (selectedWeekdays > 7) {
+        _showSnack(
+          'Plano mensal permite no máximo 7 dias da semana diferentes.',
+          icon: Icons.info_outline_rounded,
+          color: const Color(0xFF0B4DBA),
+        );
+        return;
+      }
+    }
+
     if (dayIndex >= 0 && _isBlockedByWeeklyStartRule(dayIndex)) {
       final startDate = _weeklyEarliestStartDate();
       final startDayName = _dayNameFromWeekday(startDate.weekday);
@@ -1919,6 +1966,32 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               color: const Color(0xFF0B4DBA),
             );
             return false;
+          }
+        }
+
+        if (normalizedPlanType == 'MENSAL') {
+          final selectedWeekdays = _countDistinctSelectedWeekdays(mappedSelections);
+          if (selectedWeekdays > 7) {
+            _showSnack(
+              'Plano mensal permite no máximo 7 dias da semana diferentes.',
+              icon: Icons.info_outline_rounded,
+              color: const Color(0xFF0B4DBA),
+            );
+            return false;
+          }
+
+          final weekdaySeen = <String>{};
+          for (final slot in mappedSelections) {
+            final day = _normalizeDayName((slot['dayName'] ?? '').toString());
+            if (day.isEmpty) continue;
+            if (!weekdaySeen.add(day)) {
+              _showSnack(
+                'No plano mensal, não repita o mesmo dia da semana.',
+                icon: Icons.info_outline_rounded,
+                color: const Color(0xFF0B4DBA),
+              );
+              return false;
+            }
           }
         }
 

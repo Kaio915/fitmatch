@@ -27,12 +27,32 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
   final cpfController = TextEditingController();
   final crefController = TextEditingController();
   final cidadeController = TextEditingController();
   final especialidadeController = TextEditingController();
+  final especialidadeOutroController = TextEditingController();
   final valorController = TextEditingController();
   final bioController = TextEditingController();
+
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
+
+  String? _especialidadeSelecionada;
+
+  final List<String> _especialidades = const [
+    'Perda de peso',
+    'Hipertrofia',
+    'Definição muscular',
+    'Ganho de força',
+    'Condicionamento físico',
+    'Saúde e bem-estar',
+    'Postura e mobilidade',
+    'Reabilitação e prevenção de lesões',
+    'Preparação para provas físicas',
+    'Outro',
+  ];
 
   List<Map<String, dynamic>> cidades = [];
   Timer? _cidadeDebounce;
@@ -40,6 +60,14 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   final _cpfMask = MaskTextInputFormatter(
     mask: '###.###.###-##',
     filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  final _crefMask = MaskTextInputFormatter(
+    mask: '######-G/AA',
+    filter: {
+      '#': RegExp(r'[0-9]'),
+      'A': RegExp(r'[A-Za-z]'),
+    },
   );
 
   final ImagePicker _picker = ImagePicker();
@@ -99,13 +127,25 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     cpfController.dispose();
     crefController.dispose();
     cidadeController.dispose();
     especialidadeController.dispose();
+    especialidadeOutroController.dispose();
     valorController.dispose();
     bioController.dispose();
     super.dispose();
+  }
+
+  String _especialidadeFinal() {
+    if ((_especialidadeSelecionada ?? '').trim() == 'Outro') {
+      return especialidadeOutroController.text.trim();
+    }
+    if ((_especialidadeSelecionada ?? '').trim().isNotEmpty) {
+      return _especialidadeSelecionada!.trim();
+    }
+    return especialidadeController.text.trim();
   }
 
   void _showSnack(String msg) {
@@ -129,9 +169,9 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         password: passwordController.text.trim(),
         cpf: cpfController.text.trim(),
         photo: _photo!,
-        cref: crefController.text.trim(),
+        cref: crefController.text.trim().toUpperCase(),
         cidade: cidadeController.text.trim(),
-        especialidade: especialidadeController.text.trim(),
+        especialidade: _especialidadeFinal(),
         valorHora: valorController.text.trim(),
         bio: bioController.text.trim(),
       );
@@ -262,18 +302,17 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
                   _input('Nome Completo *', 'Seu nome completo', nameController),
                   _input('Email *', 'seuemail@email.com', emailController,
                       isEmail: true),
-                  _input('Senha *', 'Mínimo 6 caracteres', passwordController,
-                      obscure: true, isPassword: true),
+                    _passwordField(),
+                    _confirmPasswordField(),
 
                   _cpfField(),
                   _photoField(),
 
-                  _input('CREF *', 'Seu número de registro', crefController),
+                  _crefField(),
 
                   _cidadeAutocomplete(),
 
-                    _input('Especialidade', 'Ex: Musculação, Funcional...',
-                      especialidadeController, required: false),
+                    _especialidadeDropdown(),
                     _input('Valor por Hora', 'Ex: 120', valorController,
                       required: false),
 
@@ -460,6 +499,136 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
           },
           decoration: _decoration('000.000.000-00'),
         ),
+      ]),
+    );
+  }
+
+  Widget _crefField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('CREF *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: crefController,
+          inputFormatters: [_crefMask],
+          textCapitalization: TextCapitalization.characters,
+          validator: (value) {
+            final v = (value ?? '').trim().toUpperCase();
+            if (v.isEmpty) return 'Campo obrigatório';
+            if (!RegExp(r'^\d{6}-G\/[A-Z]{2}$').hasMatch(v)) {
+              return 'Formato: 123456-G/SP';
+            }
+            return null;
+          },
+          decoration: _decoration('Ex: 123456-G/SP'),
+        ),
+      ]),
+    );
+  }
+
+  Widget _passwordField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Senha *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: passwordController,
+          obscureText: !_showPassword,
+          validator: (value) {
+            final v = (value ?? '').trim();
+            if (v.isEmpty) return 'Campo obrigatório';
+            if (v.length < 6) return 'Mínimo 6 caracteres';
+            return null;
+          },
+          decoration: _decoration('Mínimo 6 caracteres').copyWith(
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _showPassword = !_showPassword),
+              icon: Icon(
+                _showPassword ? Icons.visibility_off : Icons.visibility,
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _confirmPasswordField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Confirmar Senha *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: confirmPasswordController,
+          obscureText: !_showConfirmPassword,
+          validator: (value) {
+            final v = (value ?? '').trim();
+            if (v.isEmpty) return 'Campo obrigatório';
+            if (v != passwordController.text.trim()) {
+              return 'As senhas não coincidem';
+            }
+            return null;
+          },
+          decoration: _decoration('Repita a senha').copyWith(
+            suffixIcon: IconButton(
+              onPressed: () =>
+                  setState(() => _showConfirmPassword = !_showConfirmPassword),
+              icon: Icon(
+                _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _especialidadeDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Especialidade',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: _especialidadeSelecionada,
+          items: _especialidades
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
+          onChanged: (value) {
+            setState(() => _especialidadeSelecionada = value);
+            if (value != 'Outro') {
+              especialidadeOutroController.clear();
+            }
+          },
+          validator: (value) {
+            if (value == 'Outro' && especialidadeOutroController.text.trim().isEmpty) {
+              return 'Descreva a especialidade';
+            }
+            return null;
+          },
+          decoration: _decoration('Selecione uma especialidade'),
+        ),
+        if (_especialidadeSelecionada == 'Outro') ...[
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: especialidadeOutroController,
+            validator: (value) {
+              if (_especialidadeSelecionada == 'Outro' &&
+                  (value == null || value.trim().isEmpty)) {
+                return 'Campo obrigatório';
+              }
+              return null;
+            },
+            decoration: _decoration('Digite sua especialidade'),
+          ),
+        ],
       ]),
     );
   }

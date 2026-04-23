@@ -27,6 +27,10 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   // ✅ Objetivo: dropdown + "Outro" com campo livre
   String? _objetivoSelecionado;
@@ -65,6 +69,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     _objetivoOutroCtrl.dispose();
     super.dispose();
   }
@@ -311,8 +316,39 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     'Senha *',
                     'Mínimo 6 caracteres',
                     controller: _passCtrl,
-                    obscure: true,
+                    obscure: !_showPassword,
                     isPassword: true,
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
+                      icon: Icon(
+                        _showPassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                    ),
+                  ),
+                  _input(
+                    'Confirmar Senha *',
+                    'Repita a senha',
+                    controller: _confirmPassCtrl,
+                    obscure: !_showConfirmPassword,
+                    customValidator: (value) {
+                      final v = (value ?? '').trim();
+                      if (v.isEmpty) return 'Campo obrigatório';
+                      if (v != _passCtrl.text.trim()) {
+                        return 'As senhas não coincidem';
+                      }
+                      return null;
+                    },
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(
+                        () => _showConfirmPassword = !_showConfirmPassword,
+                      ),
+                      icon: Icon(
+                        _showConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                    ),
                   ),
 
                   // CPF
@@ -559,6 +595,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     bool obscure = false,
     bool isEmail = false,
     bool isPassword = false,
+    String? Function(String?)? customValidator,
+    Widget? suffixIcon,
     required TextEditingController controller,
   }) {
     return Padding(
@@ -579,13 +617,14 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
             controller: controller,
             obscureText: obscure,
             validator: (value) {
+              if (customValidator != null) return customValidator(value);
               final v = (value ?? '').trim();
               if (v.isEmpty) return 'Campo obrigatório';
               if (isEmail && !v.contains('@')) return 'Email inválido';
               if (isPassword && v.length < 6) return 'Mínimo 6 caracteres';
               return null;
             },
-            decoration: _decoration(hint),
+            decoration: _decoration(hint).copyWith(suffixIcon: suffixIcon),
           ),
         ],
       ),

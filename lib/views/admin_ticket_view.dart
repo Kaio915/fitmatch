@@ -278,6 +278,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final base64 = (widget.user['photoBase64'] ?? '').toString();
     final type = (widget.user['type'] ?? '').toString().toLowerCase();
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
+    final status = (widget.user['status'] ?? '-').toString();
+    final createdAt = (widget.user['createdAt'] ?? '').toString();
+    final cidade = (widget.user['cidade'] ?? '').toString();
+    final cref = (widget.user['cref'] ?? '').toString();
+    final especialidade = (widget.user['especialidade'] ?? '').toString();
+    final experiencia = (widget.user['experiencia'] ?? '').toString();
+    final valorHora = (widget.user['valorHora'] ?? '').toString();
+    final objetivos = (widget.user['objetivos'] ?? '').toString();
+    final nivel = (widget.user['nivel'] ?? '').toString();
+    final bio = (widget.user['bio'] ?? '').toString();
+    final rejectionReason = (widget.user['rejectionReason'] ?? '').toString();
 
     Widget avatar;
 
@@ -303,7 +314,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFFFFFF), Color(0xFFF7FAFF)],
@@ -314,48 +325,104 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         border: Border.all(color: const Color(0xFFE3EAF8)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 10)],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          avatar,
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'CPF: $cpf',
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF1FF),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    'Conta: $typeLabel',
-                    style: const TextStyle(
-                      color: Color(0xFF1D4ED8),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+          Row(
+            children: [
+              avatar,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      email,
+                      style: const TextStyle(color: Color(0xFF475569), fontSize: 13.5),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _infoChip('CPF: $cpf'),
+                        _infoChip('Status: $status'),
+                        _infoChip('Conta: $typeLabel'),
+                        if (createdAt.isNotEmpty) _infoChip('Criado em: $createdAt'),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (cidade.isNotEmpty) _infoChip('Cidade: $cidade'),
+                if (cref.isNotEmpty) _infoChip('CREF: $cref'),
+                if (especialidade.isNotEmpty)
+                  _infoChip('Especialidade: $especialidade'),
+                if (experiencia.isNotEmpty)
+                  _infoChip('Experiência: $experiencia'),
+                if (valorHora.isNotEmpty) _infoChip('Valor/h: $valorHora'),
+                if (objetivos.isNotEmpty) _infoChip('Objetivo: $objetivos'),
+                if (nivel.isNotEmpty) _infoChip('Nível: $nivel'),
               ],
             ),
           ),
+          if (bio.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Bio: $bio',
+              style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5),
+            ),
+          ],
+          if (rejectionReason.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Motivo anterior: $rejectionReason',
+              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _infoChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontWeight: FontWeight.w600,
+          fontSize: 11.5,
+        ),
       ),
     );
   }
