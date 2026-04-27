@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 
 class DietControlView extends StatefulWidget {
@@ -71,6 +72,10 @@ class _DietControlViewState extends State<DietControlView> {
   bool _showFoodSuggestions = false;
   Map<String, dynamic>? _selectedExternalFood;
   bool _showMetricCoachTips = false;
+
+  void _onGlobalRefresh() {
+    unawaited(_loadAll(keepUi: true));
+  }
 
   bool get _isPastDay {
     final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -228,7 +233,32 @@ class _DietControlViewState extends State<DietControlView> {
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     unawaited(_initStateAndLoad());
+  }
+
+  Future<Map<String, dynamic>?> _findLatestPreviousDayWithMeals({
+    required DateTime baseDate,
+    int maxDaysBack = 30,
+  }) async {
+    for (var i = 1; i <= maxDaysBack; i++) {
+      final candidate = baseDate.subtract(Duration(days: i));
+      final candidateDaily = await AuthService.getDietEntriesByDate(
+        userId: widget.userId,
+        dateIso: _toDateIso(candidate),
+      );
+      final candidateMeals = (candidateDaily['meals'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      if (candidateMeals.isNotEmpty) {
+        return {
+          'dateIso': _toDateIso(candidate),
+          'daily': candidateDaily,
+        };
+      }
+    }
+    return null;
   }
 
   Future<void> _initStateAndLoad() async {
@@ -252,6 +282,7 @@ class _DietControlViewState extends State<DietControlView> {
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _foodSearchDebounce?.cancel();
     _foodSearchCtrl.dispose();
     _quantityCtrl.dispose();
@@ -287,8 +318,24 @@ class _DietControlViewState extends State<DietControlView> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
-        final selectedDateIso = _toDateIso(_selectedDate);
-        final previousDateIso = _toDateIso(_selectedDate.subtract(const Duration(days: 1)));
+      final selectedDateIso = _toDateIso(_selectedDate);
+      final previousDateIso = _toDateIso(_selectedDate.subtract(const Duration(days: 1)));
+      final previousMealsNow = (previousDaily['meals'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      String carryoverSourceDateIso = previousDateIso;
+      Map<String, dynamic> carryoverSourceDaily = previousDaily;
+
+      if (previousMealsNow.isEmpty) {
+        final fallback = await _findLatestPreviousDayWithMeals(baseDate: _selectedDate);
+        if (!mounted) return;
+        if (fallback != null) {
+          carryoverSourceDateIso = (fallback['dateIso'] ?? previousDateIso).toString();
+          carryoverSourceDaily =
+              Map<String, dynamic>.from(fallback['daily'] as Map<String, dynamic>);
+        }
+      }
 
       final existingSignatures = <String>{};
       for (final meal in meals) {
@@ -318,7 +365,7 @@ class _DietControlViewState extends State<DietControlView> {
         });
       }
 
-      final previousMeals = (previousDaily['meals'] as List<dynamic>? ?? const [])
+        final previousMeals = (carryoverSourceDaily['meals'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e));
 
@@ -336,9 +383,9 @@ class _DietControlViewState extends State<DietControlView> {
       }
 
       final previousSuppressedCarryover =
-          _suppressedCarryoverByDate[previousDateIso] ?? const <String>{};
+          _suppressedCarryoverByDate[carryoverSourceDateIso] ?? const <String>{};
       final previousDayCarryover =
-          _carryoverByDate[previousDateIso] ?? const <String, List<Map<String, dynamic>>>{};
+          _carryoverByDate[carryoverSourceDateIso] ?? const <String, List<Map<String, dynamic>>>{};
       previousDayCarryover.forEach((mealType, entries) {
         if (previousSuppressedCarryover.contains(mealType)) return;
         for (final entry in entries) {
@@ -2079,6 +2126,17 @@ class _DietControlViewState extends State<DietControlView> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  OutlinedButton.icon(
+                    onPressed: _onGlobalRefresh,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF1D4ED8),
+                      side: const BorderSide(color: Color(0xFF1D4ED8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                    label: const Text('Atualizar'),
+                  ),
                   OutlinedButton.icon(
                     onPressed: _isPastDay ? null : _showFoodDialog,
                     style: OutlinedButton.styleFrom(

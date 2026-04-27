@@ -4,6 +4,7 @@ import '../views/register_student_view.dart';
 import '../views/login_view.dart';
 import '../core/user_type.dart';
 import '../widgets/fitmatch_logo.dart';
+import '../routes/app_routes.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
@@ -34,30 +35,36 @@ class HomeView extends StatelessWidget {
                   const Spacer(),
 
                   // botão totalmente à direita
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B4DBA),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterStudentView(),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 56),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0B4DBA),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
                         ),
-                      );
-                    },
-                    child: const Text(
-                      'Criar Conta Gratuita',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: AppRoutes.registerStudent,
+                            ),
+                            builder: (_) => const RegisterStudentView(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Criar Conta Gratuita',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],

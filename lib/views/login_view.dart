@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'register_student_view.dart';
 import 'register_trainer_view.dart';
+import '../routes/app_routes.dart';
 import 'admin_view.dart';
 import 'student_dashboard.dart';
 import 'trainer_dashboard_view.dart';
@@ -28,8 +30,26 @@ class _LoginViewState extends State<LoginView> {
   // controla borda vermelha
   String? _fieldError; // se != null, pinta os campos
 
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _emailController.clear();
+      _passwordController.clear();
+      _fieldError = null;
+      loading = false;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
+  }
+
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
@@ -248,6 +268,9 @@ class _LoginViewState extends State<LoginView> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
+                                settings: const RouteSettings(
+                                  name: AppRoutes.registerStudent,
+                                ),
                                 builder: (_) => const RegisterStudentView(),
                               ),
                             );
@@ -255,6 +278,9 @@ class _LoginViewState extends State<LoginView> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
+                                settings: const RouteSettings(
+                                  name: AppRoutes.registerTrainer,
+                                ),
                                 builder: (_) => const RegisterTrainerView(),
                               ),
                             );

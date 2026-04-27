@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'trainer_chat_view.dart';
@@ -52,7 +53,6 @@ class TrainerProfileView extends StatefulWidget {
 class _TrainerProfileViewState extends State<TrainerProfileView> {
   int _selectedDay = 0;
   int _scheduleWeekOffset = 0;
-  bool _isFavorite = false;
   bool _sendingRequest = false;
   bool _loadingSlots = true;
   bool _applyingBlockRange = false;
@@ -144,6 +144,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }
 
   late final Map<String, List<_Slot>> _schedule;
+
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _selectedDay = DateTime.now().weekday - 1;
+      _scheduleWeekOffset = 0;
+      _initialSchedulePositioned = false;
+    });
+    _loadSlotStates();
+  }
 
   List<Map<String, String>> _requestSlotsFromData(Map<String, dynamic> req) {
     final raw = req['daysJson']?.toString();
@@ -1067,6 +1077,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     final allSlots = [
       for (int h = 0; h < 24; h++) '${h.toString().padLeft(2, '0')}:00'
     ];
@@ -1274,6 +1285,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _slotsRefreshTimer?.cancel();
     super.dispose();
   }
@@ -2198,7 +2210,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               const Spacer(),
               if (_sendingRequest)
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.only(right: 56),
                   child: SizedBox(
                     width: 20,
                     height: 20,
@@ -2207,19 +2219,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   ),
                 )
               else
-                IconButton(
-                  onPressed: () =>
-                      setState(() => _isFavorite = !_isFavorite),
-                  icon: Icon(
-                    _isFavorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 22,
-                    color: _isFavorite
-                        ? const Color(0xFFFFB3B3)
-                        : Colors.white70,
-                  ),
-                ),
+                const SizedBox(width: 56),
             ],
           ),
         ),

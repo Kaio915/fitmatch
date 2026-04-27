@@ -7,6 +7,7 @@ class AppRoutes {
 
   static const registerStudent = '/register-student';
   static const registerTrainer = '/register-trainer';
+  static const dietControl = '/diet-control';
 
   static Map<String, WidgetBuilder> routes = {
     home: (_) => const HomeView(),

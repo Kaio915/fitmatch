@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:async';
+import '../routes/app_routes.dart';
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 import 'student_profile_view.dart';
 import 'trainer_workout_organizer_view.dart';
@@ -104,9 +106,21 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
   late final Map<String, List<_Slot>> _schedule;
 
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _selectedDay = DateTime.now().weekday - 1;
+      _agendaWeekOffset = 0;
+      _studentSearch = '';
+      _initialAgendaPositioned = false;
+    });
+    _loadAll();
+  }
+
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _horasPorSessao = widget.horasPorSessao?.trim().isNotEmpty == true
         ? widget.horasPorSessao!
         : '1h por sessão';
@@ -129,6 +143,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _dashboardRefreshTimer?.cancel();
     _studentsScrollController.dispose();
     _pageScrollController.dispose();
@@ -2621,21 +2636,24 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     ],
                   ),
                 ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+              Padding(
+                padding: const EdgeInsets.only(right: 56),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.logout_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.logout_rounded,
-                    size: 18,
-                    color: Colors.white,
-                  ),
+                  tooltip: 'Sair',
                 ),
-                tooltip: 'Sair',
               ),
             ],
           ),
@@ -2679,6 +2697,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: AppRoutes.dietControl),
         builder: (_) => DietControlView(
           userId: trainerId,
           userName: widget.name,

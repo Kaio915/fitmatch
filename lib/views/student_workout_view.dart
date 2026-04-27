@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 
 class StudentWorkoutView extends StatefulWidget {
@@ -52,10 +53,29 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     'Domingo': 7,
   };
 
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _expandedPlanPanels.clear();
+      _expandedDays.clear();
+      _expandedTimes.clear();
+      _exportingPlanKeys.clear();
+    });
+    _loadPlans();
+  }
+
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _loadHiddenPlanIds().then((_) => _loadPlans());
+  }
+
+  @override
+  void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
+    super.dispose();
   }
 
   String get _hiddenPlansStorageKey =>

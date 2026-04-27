@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 import 'student_profile_view.dart';
 import 'trainer_profile_view.dart';
@@ -78,6 +79,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   Timer? _refreshTimer;
   bool _isSessionReadOnly = false;
   String? _sessionReadOnlyMessage;
+
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    _messageCtrl.clear();
+    _loadBlockedStateForProfileButton();
+    _loadMessages();
+  }
 
   bool get _effectiveReadOnly => widget.readOnly || _isSessionReadOnly;
 
@@ -628,6 +637,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _loadBlockedStateForProfileButton();
     _loadMessages();
     if (!_effectiveReadOnly) {
@@ -1170,6 +1180,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _refreshTimer?.cancel();
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
@@ -1251,7 +1262,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
   Widget _buildTopBar(String? peerPhotoUrl) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(8, 10, 64, 10),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(

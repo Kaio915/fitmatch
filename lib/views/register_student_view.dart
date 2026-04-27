@@ -12,6 +12,8 @@ import '../widgets/fitmatch_logo.dart';
 import 'login_view.dart';
 import 'register_success_view.dart';
 import 'register_trainer_view.dart';
+import '../routes/app_routes.dart';
+import '../core/app_refresh_notifier.dart';
 
 class RegisterStudentView extends StatefulWidget {
   const RegisterStudentView({super.key});
@@ -28,6 +30,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
+  final _cpfCtrl = TextEditingController();
 
   bool _showPassword = false;
   bool _showConfirmPassword = false;
@@ -65,11 +68,39 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    AppRefreshNotifier.signal.addListener(_handleRefresh);
+  }
+
+  void _handleRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _formKey.currentState?.reset();
+      _nameCtrl.clear();
+      _emailCtrl.clear();
+      _passCtrl.clear();
+      _confirmPassCtrl.clear();
+      _cpfCtrl.clear();
+      _cpfMask.clear();
+      _objetivoOutroCtrl.clear();
+      _objetivoSelecionado = null;
+      nivelSelecionado = null;
+      _photo = null;
+      _photoBytes = null;
+      _showPassword = false;
+      _showConfirmPassword = false;
+    });
+  }
+
+  @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_handleRefresh);
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmPassCtrl.dispose();
+    _cpfCtrl.dispose();
     _objetivoOutroCtrl.dispose();
     super.dispose();
   }
@@ -278,6 +309,9 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
+                                  settings: const RouteSettings(
+                                    name: AppRoutes.registerTrainer,
+                                  ),
                                   builder: (_) => const RegisterTrainerView(),
                                 ),
                               );
@@ -427,6 +461,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
         ),
         const SizedBox(height: 6),
         TextFormField(
+          controller: _cpfCtrl,
           inputFormatters: [_cpfMask],
           keyboardType: TextInputType.number,
           validator: (value) {

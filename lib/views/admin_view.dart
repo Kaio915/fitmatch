@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/admin_service.dart';
 import 'admin_history_view.dart';
 import 'admin_ticket_view.dart';
@@ -23,14 +24,21 @@ class _AdminViewState extends State<AdminView> {
   final GlobalKey _trainersSectionKey = GlobalKey();
   final GlobalKey _alunosSectionKey = GlobalKey();
 
+  void _onGlobalRefresh() {
+    _scrollToTop();
+    _load();
+  }
+
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _load();
   }
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _scrollController.dispose();
     super.dispose();
   }
@@ -733,16 +741,19 @@ class _AdminViewState extends State<AdminView> {
             ),
           ),
           const Spacer(),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF0B4DBA),
-              side: const BorderSide(color: Color(0xFF98A2B3)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          Padding(
+            padding: const EdgeInsets.only(right: 56),
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0B4DBA),
+                side: const BorderSide(color: Color(0xFF98A2B3)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              icon: const Icon(Icons.logout),
+              label: const Text('Sair'),
             ),
-            icon: const Icon(Icons.logout),
-            label: const Text('Sair'),
           ),
         ],
       ),

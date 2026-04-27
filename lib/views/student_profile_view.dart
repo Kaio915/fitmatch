@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 
 // ─── Perfil do Aluno ──────────────────────────────────────────────────────────
@@ -36,8 +37,21 @@ class _StudentProfileViewState extends State<StudentProfileView> {
   final _commentCtrl = TextEditingController();
   String? _resolvedTrainerName;
 
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    _commentCtrl.clear();
+    setState(() {
+      _myRating = 0;
+      _error = null;
+      _loading = true;
+    });
+    _load();
+  }
+
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _commentCtrl.dispose();
     super.dispose();
   }
@@ -45,6 +59,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _load();
   }
 

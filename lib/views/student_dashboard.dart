@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 import 'trainer_chat_view.dart';
 import 'trainer_profile_view.dart';
 import 'student_workout_view.dart';
 import 'diet_control_view.dart';
+import '../routes/app_routes.dart';
 import '../widgets/fitmatch_logo.dart';
 
 // ─── Student Dashboard ────────────────────────────────────────────────────────
@@ -60,9 +62,28 @@ class _StudentDashboardState extends State<StudentDashboard>
   List<Map<String, dynamic>> _receivedRatings = [];
   bool _loadingReceivedRatings = false;
 
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    _searchCtrl.clear();
+    setState(() {
+      _filterMode = 'Todos';
+      _searchHasRun = false;
+      _filteredTrainers = [];
+    });
+    _tabController.animateTo(0);
+    if (widget.studentId != null) {
+      _loadMyRequests();
+      _loadConnections();
+      _loadReceivedRatings();
+    }
+    _loadTrainers();
+  }
+
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     // NÃO carrega trainers ao abrir (busca lazy)
@@ -749,6 +770,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _pageScrollController.dispose();
@@ -816,28 +838,31 @@ class _StudentDashboardState extends State<StudentDashboard>
             children: [
               const FitMatchLogo(height: 40, onDarkBackground: true),
               const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.logout, color: Colors.white, size: 16),
-                      SizedBox(width: 6),
-                      Text(
-                        'Sair',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+              Padding(
+                padding: const EdgeInsets.only(right: 56),
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.white, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          'Sair',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -884,6 +909,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: AppRoutes.dietControl),
         builder: (_) => DietControlView(
           userId: sid,
           userName: widget.userName,

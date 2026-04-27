@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
+import '../core/app_refresh_notifier.dart';
 
 class AdminTicketView extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -21,7 +22,22 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   String? _selectedAnalysisTemplate;
 
   @override
+  void initState() {
+    super.initState();
+    AppRefreshNotifier.signal.addListener(_handleRefresh);
+  }
+
+  void _handleRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _selectedAnalysisTemplate = null;
+      _msgController.clear();
+    });
+  }
+
+  @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_handleRefresh);
     _msgController.dispose();
     super.dispose();
   }
@@ -280,6 +296,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
     final status = (widget.user['status'] ?? '-').toString();
     final createdAt = (widget.user['createdAt'] ?? '').toString();
+    final createdDate = createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt;
     final cidade = (widget.user['cidade'] ?? '').toString();
     final cref = (widget.user['cref'] ?? '').toString();
     final especialidade = (widget.user['especialidade'] ?? '').toString();
@@ -289,6 +306,19 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final nivel = (widget.user['nivel'] ?? '').toString();
     final bio = (widget.user['bio'] ?? '').toString();
     final rejectionReason = (widget.user['rejectionReason'] ?? '').toString();
+    final normalizedStatus = status.trim().toUpperCase();
+    final isApproved = normalizedStatus == 'APPROVED';
+    final isRejected = normalizedStatus == 'REJECTED';
+    final statusBg = isApproved
+      ? const Color(0xFFDCFCE7)
+      : isRejected
+        ? const Color(0xFFFEE2E2)
+        : const Color(0xFFFFEDD5);
+    final statusFg = isApproved
+      ? const Color(0xFF166534)
+      : isRejected
+        ? const Color(0xFFB91C1C)
+        : const Color(0xFF9A3412);
 
     Widget avatar;
 
@@ -317,13 +347,19 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFFFFFF), Color(0xFFF7FAFF)],
+          colors: [Color(0xFFFFFFFF), Color(0xFFF3F7FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3EAF8)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 10)],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDCE6F5)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: .08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,14 +386,30 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       style: const TextStyle(color: Color(0xFF475569), fontSize: 13.5),
                     ),
                     const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Status: $normalizedStatus',
+                        style: TextStyle(
+                          color: statusFg,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _infoChip('CPF: $cpf'),
-                        _infoChip('Status: $status'),
-                        _infoChip('Conta: $typeLabel'),
-                        if (createdAt.isNotEmpty) _infoChip('Criado em: $createdAt'),
+                        _infoChip('CPF: $cpf', icon: Icons.badge_outlined),
+                        _infoChip('Conta: $typeLabel', icon: Icons.manage_accounts_outlined),
+                        if (createdDate.isNotEmpty)
+                          _infoChip('Criado em: $createdDate', icon: Icons.event_note_outlined),
                       ],
                     ),
                   ],
@@ -370,38 +422,78 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: const Color(0xFFF8FBFF),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (cidade.isNotEmpty) _infoChip('Cidade: $cidade'),
-                if (cref.isNotEmpty) _infoChip('CREF: $cref'),
-                if (especialidade.isNotEmpty)
-                  _infoChip('Especialidade: $especialidade'),
-                if (experiencia.isNotEmpty)
-                  _infoChip('Experiência: $experiencia'),
-                if (valorHora.isNotEmpty) _infoChip('Valor/h: $valorHora'),
-                if (objetivos.isNotEmpty) _infoChip('Objetivo: $objetivos'),
-                if (nivel.isNotEmpty) _infoChip('Nível: $nivel'),
+                const Text(
+                  'Dados complementares',
+                  style: TextStyle(
+                    color: Color(0xFF334155),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (cidade.isNotEmpty)
+                      _infoChip('Cidade: $cidade', icon: Icons.location_on_outlined),
+                    if (cref.isNotEmpty)
+                      _infoChip('CREF: $cref', icon: Icons.workspace_premium_outlined),
+                    if (especialidade.isNotEmpty)
+                      _infoChip(
+                        'Especialidade: $especialidade',
+                        icon: Icons.fitness_center_outlined,
+                      ),
+                    if (experiencia.isNotEmpty)
+                      _infoChip('Experiência: $experiencia', icon: Icons.school_outlined),
+                    if (valorHora.isNotEmpty)
+                      _infoChip('Valor/h: $valorHora', icon: Icons.attach_money_outlined),
+                    if (objetivos.isNotEmpty)
+                      _infoChip('Objetivo: $objetivos', icon: Icons.flag_outlined),
+                    if (nivel.isNotEmpty)
+                      _infoChip('Nível: $nivel', icon: Icons.trending_up_outlined),
+                  ],
+                ),
               ],
             ),
           ),
           if (bio.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(
-              'Bio: $bio',
-              style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                'Bio: $bio',
+                style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5),
+              ),
             ),
           ],
           if (rejectionReason.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              'Motivo anterior: $rejectionReason',
-              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Text(
+                'Motivo anterior: $rejectionReason',
+                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+              ),
             ),
           ],
         ],
@@ -409,20 +501,30 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     );
   }
 
-  Widget _infoChip(String text) {
+  Widget _infoChip(String text, {IconData? icon}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: const Color(0xFFF0F5FF),
+        border: Border.all(color: const Color(0xFFD6E4FF)),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFF334155),
-          fontWeight: FontWeight.w600,
-          fontSize: 11.5,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: const Color(0xFF335AA3)),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -13,6 +13,8 @@ import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'register_student_view.dart';
 import 'register_success_view.dart';
+import '../routes/app_routes.dart';
+import '../core/app_refresh_notifier.dart';
 
 class RegisterTrainerView extends StatefulWidget {
   const RegisterTrainerView({super.key});
@@ -122,7 +124,39 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    AppRefreshNotifier.signal.addListener(_handleRefresh);
+  }
+
+  void _handleRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _formKey.currentState?.reset();
+      nameController.clear();
+      emailController.clear();
+      passwordController.clear();
+      confirmPasswordController.clear();
+      cpfController.clear();
+      crefController.clear();
+      cidadeController.clear();
+      especialidadeController.clear();
+      especialidadeOutroController.clear();
+      valorController.clear();
+      bioController.clear();
+      _especialidadeSelecionada = null;
+      cidades = [];
+      _photo = null;
+      _photoBytes = null;
+      _showPassword = false;
+      _showConfirmPassword = false;
+      loading = false;
+    });
+  }
+
+  @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_handleRefresh);
     _cidadeDebounce?.cancel();
     nameController.dispose();
     emailController.dispose();
@@ -258,6 +292,9 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
+                                  settings: const RouteSettings(
+                                    name: AppRoutes.registerStudent,
+                                  ),
                                   builder: (_) => const RegisterStudentView(),
                                 ),
                               );

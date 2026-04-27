@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 
 class TrainerWorkoutOrganizerView extends StatefulWidget {
@@ -81,6 +82,22 @@ class _TrainerWorkoutOrganizerViewState
   List<Map<String, dynamic>> _plans = [];
 
   final Map<String, Map<String, String>> _selectedExercises = {};
+
+  void _onGlobalRefresh() {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    _searchCtrl.clear();
+    setState(() {
+      _editingPlanId = null;
+      _editingFavoriteId = null;
+      _editingCustomId = null;
+      _selectedExercises.clear();
+      _selectedDay = _dayOptions.first;
+      final times = _timeOptionsForSelectedDay;
+      _selectedTime = times.isNotEmpty ? times.first : '';
+    });
+    _loadData();
+  }
 
   List<String> get _dayOptions {
     final allowed =
@@ -201,6 +218,7 @@ class _TrainerWorkoutOrganizerViewState
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _selectedDay = _dayOptions.first;
     _selectedTime = _timeOptionsForSelectedDay.isNotEmpty
         ? _timeOptionsForSelectedDay.first
@@ -211,6 +229,7 @@ class _TrainerWorkoutOrganizerViewState
 
   @override
   void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _searchCtrl.dispose();
     _favoriteNameCtrl.dispose();
     _customNameCtrl.dispose();

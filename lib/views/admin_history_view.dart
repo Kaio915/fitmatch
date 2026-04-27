@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_refresh_notifier.dart';
 import '../services/admin_service.dart';
 
 class AdminHistoryView extends StatefulWidget {
@@ -26,10 +27,21 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
   final Set<int> _deletingIds = <int>{};
 
+  void _onGlobalRefresh() {
+    _load();
+  }
+
   @override
   void initState() {
     super.initState();
+    AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
+    super.dispose();
   }
 
   Future<void> _load() async {
