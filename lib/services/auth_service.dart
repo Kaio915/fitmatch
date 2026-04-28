@@ -7,10 +7,48 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fitmatch/core/env/app_env.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static const String _baseUrl = AppEnv.apiBaseUrl;
   static List<Map<String, String>>? _ibgeMunicipiosCache;
+
+  static const String _tokenKey = 'auth_token';
+  static String? _cachedToken;
+
+  static Future<String?> _getToken() async {
+    if (_cachedToken != null) return _cachedToken;
+    final prefs = await SharedPreferences.getInstance();
+    _cachedToken = prefs.getString(_tokenKey);
+    return _cachedToken;
+  }
+
+  static Future<void> setToken(String? token) async {
+    final next = token?.trim();
+    _cachedToken = (next != null && next.isNotEmpty) ? next : null;
+    final prefs = await SharedPreferences.getInstance();
+    if (_cachedToken == null) {
+      await prefs.remove(_tokenKey);
+    } else {
+      await prefs.setString(_tokenKey, _cachedToken!);
+    }
+  }
+
+  static Future<Map<String, String>> _headers({bool json = false, bool auth = true}) async {
+    final headers = <String, String>{};
+    if (json) headers['Content-Type'] = 'application/json';
+    if (auth) {
+      final token = await _getToken();
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    return headers;
+  }
+
+  static Future<Map<String, String>> authHeaders({bool json = false}) {
+    return _headers(json: json, auth: true);
+  }
 
   static String _extractErrorMessage(http.Response res) {
     try {
@@ -156,7 +194,12 @@ class AuthService {
       throw Exception(_extractErrorMessage(res));
     }
 
-    return jsonDecode(res.body) as Map<String, dynamic>;
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final token = data['token'];
+    if (token is String && token.trim().isNotEmpty) {
+      await setToken(token);
+    }
+    return data;
   }
 
   // ✅ LISTAR TRAINERS APROVADOS (opcionalmente filtrado para aluno)
@@ -200,7 +243,7 @@ class AuthService {
     if (daysJson != null) body['daysJson'] = daysJson;
     final res = await http.post(
       Uri.parse('$_baseUrl/requests'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode(body),
     );
     if (res.statusCode != 200) {
@@ -212,7 +255,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerRequests(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/requests/trainer/$trainerId'));
+      Uri.parse('$_baseUrl/requests/trainer/$trainerId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -222,7 +267,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getApprovedTrainerRequests(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/requests/trainer/$trainerId/approved'));
+      Uri.parse('$_baseUrl/requests/trainer/$trainerId/approved'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -232,7 +279,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getAllTrainerRequests(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/requests/trainer/$trainerId/all'));
+      Uri.parse('$_baseUrl/requests/trainer/$trainerId/all'),
+      headers: await _headers(),
+    );
 
     if (res.statusCode == 200) {
       final List<dynamic> data = jsonDecode(res.body);
@@ -254,6 +303,7 @@ class AuthService {
     final ts = DateTime.now().millisecondsSinceEpoch;
     var res = await http.get(
       Uri.parse('$_baseUrl/requests/student/$studentId/all?t=$ts'),
+      headers: await _headers(),
     );
     if (res.statusCode == 200) {
       final List<dynamic> data = jsonDecode(res.body);
@@ -263,6 +313,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.get(
         Uri.parse('$_baseUrl/requests/student/$studentId?t=$ts'),
+        headers: await _headers(),
       );
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
@@ -276,7 +327,9 @@ class AuthService {
   // ✅ ALUNO APAGA UMA SOLICITAÇÃO
   static Future<void> deleteRequest(int requestId) async {
     final res = await http.delete(
-        Uri.parse('$_baseUrl/requests/$requestId'));
+      Uri.parse('$_baseUrl/requests/$requestId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
     }
@@ -286,7 +339,7 @@ class AuthService {
   static Future<void> hideRequestForStudent(int requestId) async {
     var res = await http.patch(
       Uri.parse('$_baseUrl/requests/$requestId/hide-for-student'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({}),
     );
     if (res.statusCode == 200 || res.statusCode == 204) return;
@@ -294,7 +347,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.post(
         Uri.parse('$_baseUrl/requests/$requestId/hide-for-student'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _headers(json: true),
         body: jsonEncode({}),
       );
       if (res.statusCode == 200 || res.statusCode == 204) return;
@@ -303,6 +356,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.delete(
         Uri.parse('$_baseUrl/requests/$requestId/hide-for-student'),
+        headers: await _headers(),
       );
       if (res.statusCode == 200 || res.statusCode == 204) return;
     }
@@ -325,7 +379,7 @@ class AuthService {
 
     var res = await http.patch(
       cancelUri,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({}),
     );
 
@@ -334,7 +388,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.post(
         cancelUri,
-        headers: {'Content-Type': 'application/json'},
+        headers: await _headers(json: true),
         body: jsonEncode({}),
       );
       if (res.statusCode == 200 || res.statusCode == 204) return;
@@ -343,7 +397,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       final rejectRes = await http.patch(
         Uri.parse('$_baseUrl/requests/$requestId/status'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _headers(json: true),
         body: jsonEncode({'status': 'REJECTED'}),
       );
       if (rejectRes.statusCode == 200 || rejectRes.statusCode == 204) {
@@ -359,7 +413,7 @@ class AuthService {
   static Future<void> hideRequestForTrainer(int requestId) async {
     var res = await http.patch(
       Uri.parse('$_baseUrl/requests/$requestId/hide-for-trainer'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({}),
     );
 
@@ -368,7 +422,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.post(
         Uri.parse('$_baseUrl/requests/$requestId/hide-for-trainer'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _headers(json: true),
         body: jsonEncode({}),
       );
       if (res.statusCode == 200 || res.statusCode == 204) return;
@@ -384,7 +438,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       final rejectRes = await http.patch(
         Uri.parse('$_baseUrl/requests/$requestId/status'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _headers(json: true),
         body: jsonEncode({'status': 'REJECTED'}),
       );
       if (rejectRes.statusCode == 200 || rejectRes.statusCode == 204) {
@@ -405,7 +459,10 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerSlots(
       int trainerId) async {
     final res =
-        await http.get(Uri.parse('$_baseUrl/slots/trainer/$trainerId'));
+        await http.get(
+      Uri.parse('$_baseUrl/slots/trainer/$trainerId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -422,7 +479,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/slots/trainer/$trainerId/block'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'dayName': dayName,
         'time': time,
@@ -445,7 +502,7 @@ class AuthService {
   }) async {
     final req = http.Request(
         'DELETE', Uri.parse('$_baseUrl/slots/trainer/$trainerId/block'));
-    req.headers['Content-Type'] = 'application/json';
+    req.headers.addAll(await _headers(json: true));
     req.body = jsonEncode({
       'dayName': dayName,
       'time': time,
@@ -465,7 +522,7 @@ class AuthService {
       int requestId, String status) async {
     final res = await http.patch(
       Uri.parse('$_baseUrl/requests/$requestId/status'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'status': status}),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -485,6 +542,7 @@ class AuthService {
       Uri.parse('$_baseUrl/requests/trainer/$trainerId/students/$studentId/block').replace(
         queryParameters: queryParameters,
       ),
+      headers: await _headers(),
     );
     if (res.statusCode == 200) return;
 
@@ -493,6 +551,7 @@ class AuthService {
         Uri.parse('$_baseUrl/connections/trainer/$trainerId/students/$studentId/block').replace(
           queryParameters: queryParameters,
         ),
+        headers: await _headers(),
       );
       if (res.statusCode == 200) return;
     }
@@ -508,12 +567,14 @@ class AuthService {
   static Future<void> unblockStudent(int trainerId, int studentId) async {
     var res = await http.delete(
       Uri.parse('$_baseUrl/requests/trainer/$trainerId/students/$studentId/block'),
+      headers: await _headers(),
     );
     if (res.statusCode == 200 || res.statusCode == 204) return;
 
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.delete(
         Uri.parse('$_baseUrl/connections/trainer/$trainerId/students/$studentId/block'),
+        headers: await _headers(),
       );
       if (res.statusCode == 200 || res.statusCode == 204) return;
     }
@@ -541,6 +602,7 @@ class AuthService {
 
     final res = await http.delete(
       uri,
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -551,6 +613,7 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getBlockedStudents(int trainerId) async {
     var res = await http.get(
       Uri.parse('$_baseUrl/requests/trainer/$trainerId/students/blocked'),
+      headers: await _headers(),
     );
     if (res.statusCode == 200) {
       final List<dynamic> data = jsonDecode(res.body);
@@ -560,6 +623,7 @@ class AuthService {
     if (res.statusCode == 404 || res.statusCode == 405) {
       res = await http.get(
         Uri.parse('$_baseUrl/connections/trainer/$trainerId/students/blocked'),
+        headers: await _headers(),
       );
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
@@ -594,7 +658,7 @@ class AuthService {
 
     final res = await http.patch(
       Uri.parse('$_baseUrl/auth/trainer/$trainerId/profile'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode(body),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -698,7 +762,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/connections'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'studentId': studentId,
         'trainerId': trainerId,
@@ -713,7 +777,9 @@ class AuthService {
   // ✅ REMOVER CONEXÃO
   static Future<void> deleteConnection(int connectionId) async {
     final res = await http.delete(
-        Uri.parse('$_baseUrl/connections/$connectionId'));
+      Uri.parse('$_baseUrl/connections/$connectionId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
     }
@@ -723,7 +789,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerConnections(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/connections/trainer/$trainerId'));
+      Uri.parse('$_baseUrl/connections/trainer/$trainerId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -733,7 +801,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerApprovedConnections(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/connections/trainer/$trainerId/approved'));
+      Uri.parse('$_baseUrl/connections/trainer/$trainerId/approved'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -743,7 +813,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getStudentConnections(
       int studentId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/connections/student/$studentId'));
+      Uri.parse('$_baseUrl/connections/student/$studentId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -751,7 +823,10 @@ class AuthService {
 
   // ✅ BUSCAR TODOS OS ALUNOS APROVADOS DA PLATAFORMA
   static Future<List<Map<String, dynamic>>> fetchStudents() async {
-    final res = await http.get(Uri.parse('$_baseUrl/auth/students'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/auth/students'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -764,7 +839,7 @@ class AuthService {
           ? {'q': query.trim()}
           : null,
     );
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: await _headers());
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -774,6 +849,7 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerCustomExercises(int trainerId) async {
     final res = await http.get(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/custom-exercises'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
@@ -787,7 +863,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/custom-exercises'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'category': category.trim(),
@@ -805,7 +881,7 @@ class AuthService {
   }) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/custom-exercises/$exerciseId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'category': category.trim(),
@@ -821,6 +897,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/custom-exercises/$exerciseId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -831,6 +908,7 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerWorkoutFavorites(int trainerId) async {
     final res = await http.get(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/favorites'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
@@ -844,7 +922,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/favorites'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'exercises': exercises,
@@ -862,7 +940,7 @@ class AuthService {
   }) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/favorites/$favoriteId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'exercises': exercises,
@@ -878,6 +956,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/favorites/$favoriteId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -891,7 +970,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/favorites/$favoriteId/clone'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'name': name.trim()}),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -905,6 +984,7 @@ class AuthService {
   }) async {
     final res = await http.get(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/students/$studentId/plans'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
@@ -920,7 +1000,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/students/$studentId/plans'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'dayName': dayName.trim(),
         if (time != null && time.trim().isNotEmpty) 'time': time.trim(),
@@ -941,7 +1021,7 @@ class AuthService {
   }) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/students/$studentId/plans/$planId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'dayName': dayName.trim(),
         if (time != null && time.trim().isNotEmpty) 'time': time.trim(),
@@ -959,6 +1039,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/workouts/trainer/$trainerId/students/$studentId/plans/$planId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -972,6 +1053,7 @@ class AuthService {
   }) async {
     final res = await http.get(
       Uri.parse('$_baseUrl/workouts/student/$studentId/trainer/$trainerId/plans'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
@@ -988,7 +1070,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/ratings'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'trainerId': trainerId,
         'studentId': studentId,
@@ -1004,7 +1086,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getTrainerRatings(
       int trainerId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/ratings/trainer/$trainerId'));
+      Uri.parse('$_baseUrl/ratings/trainer/$trainerId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -1027,7 +1111,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/student-ratings'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'trainerId': trainerId,
         'studentId': studentId,
@@ -1045,7 +1129,9 @@ class AuthService {
   static Future<List<Map<String, dynamic>>> getStudentRatings(
       int studentId) async {
     final res = await http.get(
-        Uri.parse('$_baseUrl/student-ratings/student/$studentId'));
+      Uri.parse('$_baseUrl/student-ratings/student/$studentId'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -1053,7 +1139,10 @@ class AuthService {
 
   // ✅ DIETA - ALIMENTOS
   static Future<List<Map<String, dynamic>>> getDietFoods(int userId) async {
-    final res = await http.get(Uri.parse('$_baseUrl/diet/$userId/foods'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/diet/$userId/foods'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -1074,7 +1163,7 @@ class AuthService {
       },
     );
 
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: await _headers());
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -1091,7 +1180,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/foods'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'caloriesPer100g': caloriesPer100g,
@@ -1117,7 +1206,7 @@ class AuthService {
   }) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/diet/$userId/foods/$foodId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'name': name.trim(),
         'caloriesPer100g': caloriesPer100g,
@@ -1138,7 +1227,7 @@ class AuthService {
   }) async {
     final res = await http.patch(
       Uri.parse('$_baseUrl/diet/$userId/foods/$foodId/favorite'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'favorite': favorite}),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -1146,7 +1235,10 @@ class AuthService {
   }
 
   static Future<List<Map<String, dynamic>>> getDietSavedMeals(int userId) async {
-    final res = await http.get(Uri.parse('$_baseUrl/diet/$userId/saved-meals'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/diet/$userId/saved-meals'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
@@ -1161,7 +1253,7 @@ class AuthService {
     final encodedMealType = Uri.encodeComponent(mealType.trim());
     final res = await http.put(
       Uri.parse('$_baseUrl/diet/$userId/saved-meals/$encodedMealType'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'name': name.trim(), 'items': items}),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -1176,7 +1268,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/saved-meals/$savedMealId/apply'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'date': dateIso, 'targetMealType': targetMealType.trim()}),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -1189,6 +1281,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/diet/$userId/saved-meals/$savedMealId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -1201,6 +1294,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/diet/$userId/foods/$foodId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -1209,7 +1303,10 @@ class AuthService {
 
   // ✅ DIETA - METAS
   static Future<Map<String, dynamic>> getDietGoals(int userId) async {
-    final res = await http.get(Uri.parse('$_baseUrl/diet/$userId/goals'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/diet/$userId/goals'),
+      headers: await _headers(),
+    );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -1221,7 +1318,7 @@ class AuthService {
   }) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/diet/$userId/goals'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'basalKcal': basalKcal,
         'targetKcal': targetKcal,
@@ -1238,7 +1335,7 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$_baseUrl/diet/$userId/entries')
         .replace(queryParameters: {'date': dateIso});
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: await _headers());
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -1252,7 +1349,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/entries'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'foodId': foodId,
         'mealType': mealType,
@@ -1270,6 +1367,7 @@ class AuthService {
   }) async {
     final res = await http.delete(
       Uri.parse('$_baseUrl/diet/$userId/entries/$entryId'),
+      headers: await _headers(),
     );
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw Exception(_extractErrorMessage(res));
@@ -1284,7 +1382,7 @@ class AuthService {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/chat/send'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'senderId': senderId,
         'receiverId': receiverId,
@@ -1313,6 +1411,7 @@ class AuthService {
 
     final res = await http.get(
       uri,
+      headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);

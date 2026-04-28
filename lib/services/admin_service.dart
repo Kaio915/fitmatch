@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:fitmatch/core/env/app_env.dart';
+import 'package:fitmatch/services/auth_service.dart';
 
 class AdminService {
   static const String _baseUrl = AppEnv.apiBaseUrl;
 
   static Future<List<dynamic>> getPendingStudents() async {
-    final res = await http.get(Uri.parse('$_baseUrl/admin/pending/aluno'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/pending/aluno'),
+      headers: await AuthService.authHeaders(),
+    );
     if (res.statusCode != 200) {
       throw Exception('Erro ao buscar alunos pendentes');
     }
@@ -14,7 +18,10 @@ class AdminService {
   }
 
   static Future<List<dynamic>> getPendingTrainers() async {
-    final res = await http.get(Uri.parse('$_baseUrl/admin/pending/personal'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/pending/personal'),
+      headers: await AuthService.authHeaders(),
+    );
     if (res.statusCode != 200) {
       throw Exception('Erro ao buscar personals pendentes');
     }
@@ -22,7 +29,10 @@ class AdminService {
   }
 
   static Future<void> approveUser(int id) async {
-    final res = await http.put(Uri.parse('$_baseUrl/admin/approve/$id'));
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/approve/$id'),
+      headers: await AuthService.authHeaders(),
+    );
     if (res.statusCode != 200) {
       throw Exception('Erro ao aprovar usuário');
     }
@@ -32,7 +42,7 @@ class AdminService {
   static Future<void> rejectUser(int id, {required String reason}) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/admin/reject/$id'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await AuthService.authHeaders(json: true),
       body: jsonEncode({'reason': reason}),
     );
 
@@ -48,7 +58,7 @@ class AdminService {
           : '$_baseUrl/admin/users/$type?status=$status',
     );
 
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: await AuthService.authHeaders());
 
     if (res.statusCode != 200) {
       throw Exception('Erro ao buscar usuários');
@@ -58,7 +68,10 @@ class AdminService {
   }
 
   static Future<void> deleteUser(int id) async {
-    final res = await http.delete(Uri.parse('$_baseUrl/admin/users/$id'));
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/admin/users/$id'),
+      headers: await AuthService.authHeaders(),
+    );
     if (res.statusCode != 200) {
       throw Exception('Erro ao excluir usuário');
     }

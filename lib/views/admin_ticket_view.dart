@@ -83,9 +83,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         'Informações profissionais insuficientes para validação.',
       ]);
     } else {
-      base.addAll([
-        'Informações inconsistentes no cadastro.',
-      ]);
+      base.addAll(['Informações inconsistentes no cadastro.']);
     }
 
     return base;
@@ -156,7 +154,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       Expanded(
                         child: Text(
                           'Selecione o motivo da rejeição',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ],
@@ -209,7 +210,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                         final reason = (selectedReason ?? '').trim();
                         if (reason.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Selecione um motivo de rejeição')),
+                            const SnackBar(
+                              content: Text('Selecione um motivo de rejeição'),
+                            ),
                           );
                           return;
                         }
@@ -240,6 +243,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final name = (widget.user['name'] ?? '').toString();
     final email = (widget.user['email'] ?? '').toString();
     final type = (widget.user['type'] ?? '').toString().toLowerCase();
+    final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -247,12 +251,40 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: Text(
-          'Análise - ${type == 'personal' ? 'Personal' : 'Aluno'}',
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text(
+              'Análise',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                height: 1.1,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B4DBA).withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: const Color(0xFF0B4DBA).withValues(alpha: .22),
+                ),
+              ),
+              child: Text(
+                typeLabel,
+                style: const TextStyle(
+                  color: Color(0xFF0B4DBA),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       body: SafeArea(
@@ -296,7 +328,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
     final status = (widget.user['status'] ?? '-').toString();
     final createdAt = (widget.user['createdAt'] ?? '').toString();
-    final createdDate = createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt;
+    final createdDate = createdAt.length >= 10
+        ? createdAt.substring(0, 10)
+        : createdAt;
     final cidade = (widget.user['cidade'] ?? '').toString();
     final cref = (widget.user['cref'] ?? '').toString();
     final especialidade = (widget.user['especialidade'] ?? '').toString();
@@ -310,13 +344,13 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final isApproved = normalizedStatus == 'APPROVED';
     final isRejected = normalizedStatus == 'REJECTED';
     final statusBg = isApproved
-      ? const Color(0xFFDCFCE7)
-      : isRejected
+        ? const Color(0xFFDCFCE7)
+        : isRejected
         ? const Color(0xFFFEE2E2)
         : const Color(0xFFFFEDD5);
     final statusFg = isApproved
-      ? const Color(0xFF166534)
-      : isRejected
+        ? const Color(0xFF166534)
+        : isRejected
         ? const Color(0xFFB91C1C)
         : const Color(0xFF9A3412);
 
@@ -325,21 +359,12 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     if (base64.isNotEmpty) {
       try {
         final Uint8List bytes = base64Decode(base64);
-        avatar = CircleAvatar(
-          radius: 32,
-          backgroundImage: MemoryImage(bytes),
-        );
+        avatar = CircleAvatar(radius: 32, backgroundImage: MemoryImage(bytes));
       } catch (_) {
-        avatar = const CircleAvatar(
-          radius: 32,
-          child: Icon(Icons.person),
-        );
+        avatar = const CircleAvatar(radius: 32, child: Icon(Icons.person));
       }
     } else {
-      avatar = const CircleAvatar(
-        radius: 32,
-        child: Icon(Icons.person),
-      );
+      avatar = const CircleAvatar(radius: 32, child: Icon(Icons.person));
     }
 
     return Container(
@@ -383,11 +408,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                     const SizedBox(height: 3),
                     Text(
                       email,
-                      style: const TextStyle(color: Color(0xFF475569), fontSize: 13.5),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontSize: 13.5,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(999),
@@ -407,9 +438,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       runSpacing: 8,
                       children: [
                         _infoChip('CPF: $cpf', icon: Icons.badge_outlined),
-                        _infoChip('Conta: $typeLabel', icon: Icons.manage_accounts_outlined),
+                        _infoChip(
+                          'Conta: $typeLabel',
+                          icon: Icons.manage_accounts_outlined,
+                        ),
                         if (createdDate.isNotEmpty)
-                          _infoChip('Criado em: $createdDate', icon: Icons.event_note_outlined),
+                          _infoChip(
+                            'Criado em: $createdDate',
+                            icon: Icons.event_note_outlined,
+                          ),
                       ],
                     ),
                   ],
@@ -443,22 +480,40 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                   runSpacing: 8,
                   children: [
                     if (cidade.isNotEmpty)
-                      _infoChip('Cidade: $cidade', icon: Icons.location_on_outlined),
+                      _infoChip(
+                        'Cidade: $cidade',
+                        icon: Icons.location_on_outlined,
+                      ),
                     if (cref.isNotEmpty)
-                      _infoChip('CREF: $cref', icon: Icons.workspace_premium_outlined),
+                      _infoChip(
+                        'CREF: $cref',
+                        icon: Icons.workspace_premium_outlined,
+                      ),
                     if (especialidade.isNotEmpty)
                       _infoChip(
                         'Especialidade: $especialidade',
                         icon: Icons.fitness_center_outlined,
                       ),
                     if (experiencia.isNotEmpty)
-                      _infoChip('Experiência: $experiencia', icon: Icons.school_outlined),
+                      _infoChip(
+                        'Experiência: $experiencia',
+                        icon: Icons.school_outlined,
+                      ),
                     if (valorHora.isNotEmpty)
-                      _infoChip('Valor/h: $valorHora', icon: Icons.attach_money_outlined),
+                      _infoChip(
+                        'Valor/h: $valorHora',
+                        icon: Icons.attach_money_outlined,
+                      ),
                     if (objetivos.isNotEmpty)
-                      _infoChip('Objetivo: $objetivos', icon: Icons.flag_outlined),
+                      _infoChip(
+                        'Objetivo: $objetivos',
+                        icon: Icons.flag_outlined,
+                      ),
                     if (nivel.isNotEmpty)
-                      _infoChip('Nível: $nivel', icon: Icons.trending_up_outlined),
+                      _infoChip(
+                        'Nível: $nivel',
+                        icon: Icons.trending_up_outlined,
+                      ),
                   ],
                 ),
               ],
@@ -476,7 +531,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               ),
               child: Text(
                 'Bio: $bio',
-                style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5),
+                style: const TextStyle(
+                  color: Color(0xFF334155),
+                  fontSize: 12.5,
+                ),
               ),
             ),
           ],
@@ -492,7 +550,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               ),
               child: Text(
                 'Motivo anterior: $rejectionReason',
-                style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontSize: 12.5,
+                ),
               ),
             ),
           ],
@@ -537,14 +598,20 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFDCE6F5)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.04), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(.04), blurRadius: 8),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.auto_awesome_rounded, color: Color(0xFF1D4ED8), size: 18),
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: Color(0xFF1D4ED8),
+                size: 18,
+              ),
               SizedBox(width: 6),
               Text(
                 'Mensagens prontas (análise)',
@@ -557,13 +624,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             initialValue: _selectedAnalysisTemplate,
             isExpanded: true,
             selectedItemBuilder: (context) => _analysisTemplates
-                .map((t) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _compactTemplate(t),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ))
+                .map(
+                  (t) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _compactTemplate(t),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
                 .toList(),
             items: _analysisTemplates
                 .map(
@@ -586,7 +655,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               hintText: 'Selecione uma mensagem pronta',
               filled: true,
               fillColor: const Color(0xFFF8FBFF),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -614,7 +685,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 hintText: 'Escreva uma mensagem para o usuário...',
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -630,7 +703,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 foregroundColor: Colors.white,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -686,7 +759,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 6)],
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 6),
+          ],
         ),
         child: Text(m.text, style: TextStyle(color: fg)),
       ),
