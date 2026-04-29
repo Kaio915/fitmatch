@@ -1105,7 +1105,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             ? AuthService.getStudentRequests(widget.studentId!)
             : Future.value(<Map<String, dynamic>>[]),
         widget.studentId != null
-            ? AuthService.getTrainerConnections(widget.trainerId!)
+            ? AuthService.getConnectionBetween(widget.trainerId!, widget.studentId!)
+                .then((c) => c != null ? [c] : <Map<String, dynamic>>[])
             : Future.value(<Map<String, dynamic>>[]),
         AuthService.getTrainerRatings(widget.trainerId!),
         AuthService.getAllTrainerRequests(widget.trainerId!),

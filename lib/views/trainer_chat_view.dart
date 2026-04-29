@@ -77,6 +77,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   bool _loadingMessages = true;
   bool _hideProfileButtonForBlockedStudent = false;
   Timer? _refreshTimer;
+  Timer? _presenceTimer;
+  Timer? _heartbeatTimer;
+  bool _peerIsOnline = false;
   bool _isSessionReadOnly = false;
   String? _sessionReadOnlyMessage;
 
@@ -647,6 +650,29 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         (_) => _loadMessages(scrollToBottom: false),
       );
     }
+    // Presença: envia heartbeat próprio e busca status do peer
+    _sendHeartbeatOnce();
+    _fetchPeerPresence();
+    _heartbeatTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _sendHeartbeatOnce(),
+    );
+    _presenceTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _fetchPeerPresence(),
+    );
+  }
+
+  void _sendHeartbeatOnce() {
+    if (widget.senderId == null) return;
+    AuthService.sendHeartbeat();
+  }
+
+  Future<void> _fetchPeerPresence() async {
+    if (widget.receiverId == null) return;
+    final online = await AuthService.getUserPresence(widget.receiverId!);
+    if (!mounted) return;
+    setState(() => _peerIsOnline = online);
   }
 
   Future<void> _loadBlockedStateForProfileButton() async {
@@ -1182,6 +1208,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _refreshTimer?.cancel();
+    _presenceTimer?.cancel();
+    _heartbeatTimer?.cancel();
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -1316,7 +1344,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                   width: 11,
                   height: 11,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF22C55E),
+                    color: _peerIsOnline
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF9CA3AF),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
@@ -1337,10 +1367,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                     color: Colors.black87,
                   ),
                 ),
-                const Text(
-                  'Online agora',
+                Text(
+                  _peerIsOnline ? 'Online agora' : 'Offline',
                   style: TextStyle(
-                      fontSize: 12, color: Color(0xFF22C55E)),
+                    fontSize: 12,
+                    color: _peerIsOnline
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF9CA3AF),
+                  ),
                 ),
               ],
             ),

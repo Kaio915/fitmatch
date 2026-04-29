@@ -52,6 +52,8 @@ class _DietControlViewState extends State<DietControlView> {
   final Map<String, Set<String>> _suppressedCarryoverByDate = {};
   final Map<String, Set<int>> _excludedEntryIdsByDate = {};
   final Set<int> _excludedEntryIds = <int>{};
+  // mealType → data ISO a partir da qual foi suprimido permanentemente
+  final Map<String, String> _suppressedMealTypeSince = {};
 
   double _basalKcal = 0;
   double _targetKcal = 0;
@@ -89,6 +91,7 @@ class _DietControlViewState extends State<DietControlView> {
   String get _excludedEntryIdsStateKey => 'diet_excluded_entry_ids_by_date_${widget.userId}';
   String get _suppressedCarryoverStateKey => 'diet_suppressed_carryover_by_date_${widget.userId}';
   String get _carryoverStateKey => 'diet_carryover_by_date_${widget.userId}';
+  String get _suppressedMealTypeSinceKey => 'diet_suppressed_meal_type_since_${widget.userId}';
   Future<void> _restoreLocalDietState() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -155,6 +158,22 @@ class _DietControlViewState extends State<DietControlView> {
         _carryoverByDate.clear();
       }
     }
+
+    final sinceRaw = prefs.getString(_suppressedMealTypeSinceKey);
+    if (sinceRaw != null && sinceRaw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(sinceRaw) as Map<String, dynamic>;
+        _suppressedMealTypeSince.clear();
+        decoded.forEach((mealType, dateVal) {
+          final dateStr = dateVal?.toString().trim() ?? '';
+          if (mealType.isNotEmpty && dateStr.isNotEmpty) {
+            _suppressedMealTypeSince[mealType] = dateStr;
+          }
+        });
+      } catch (_) {
+        _suppressedMealTypeSince.clear();
+      }
+    }
   }
 
   Future<void> _persistLocalDietState() async {
@@ -189,6 +208,9 @@ class _DietControlViewState extends State<DietControlView> {
     await prefs.setString(_excludedEntryIdsStateKey, jsonEncode(excludedPayload));
     await prefs.setString(_suppressedCarryoverStateKey, jsonEncode(suppressedPayload));
     await prefs.setString(_carryoverStateKey, jsonEncode(carryoverPayload));
+    if (_suppressedMealTypeSince.isNotEmpty) {
+      await prefs.setString(_suppressedMealTypeSinceKey, jsonEncode(Map<String, String>.from(_suppressedMealTypeSince)));
+    }
   }
 
   List<String> _resolveMealChoices({
@@ -302,9 +324,15 @@ class _DietControlViewState extends State<DietControlView> {
         userId: widget.userId,
         dateIso: _toDateIso(_selectedDate),
       );
-      final previousDaily = await AuthService.getDietEntriesByDate(
-        userId: widget.userId,
-        dateIso: _toDateIso(_selectedDate.subtract(const Duration(days: 1))),
+
+      // Busca os últimos 7 dias em paralelo para carryover robusto (sem depender de SP)
+      const int _carryoverWindowDays = 7;
+      final lookbackDates = List.generate(
+        _carryoverWindowDays,
+        (i) => _toDateIso(_selectedDate.subtract(Duration(days: i + 1))),
+      );
+      final lookbackDailies = await Future.wait(
+        lookbackDates.map((d) => AuthService.getDietEntriesByDate(userId: widget.userId, dateIso: d)),
       );
       if (!mounted) return;
 
@@ -319,21 +347,22 @@ class _DietControlViewState extends State<DietControlView> {
           .toList();
 
       final selectedDateIso = _toDateIso(_selectedDate);
-      final previousDateIso = _toDateIso(_selectedDate.subtract(const Duration(days: 1)));
-      final previousMealsNow = (previousDaily['meals'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      String carryoverSourceDateIso = previousDateIso;
-      Map<String, dynamic> carryoverSourceDaily = previousDaily;
 
-      if (previousMealsNow.isEmpty) {
-        final fallback = await _findLatestPreviousDayWithMeals(baseDate: _selectedDate);
+      // Verifica se há alguma entrada nos últimos 7 dias (para fallback além do window)
+      final recentHasEntries = lookbackDailies
+          .any((d) => ((d['meals'] as List<dynamic>?) ?? const []).isNotEmpty);
+
+      // Fallback para além de 7 dias (caso usuário não use o app por mais tempo)
+      Map<String, dynamic>? fallbackCarryoverDaily;
+      String? fallbackCarryoverDateIso;
+      if (!recentHasEntries) {
+        final fallback = await _findLatestPreviousDayWithMeals(
+          baseDate: _selectedDate.subtract(const Duration(days: _carryoverWindowDays)),
+        );
         if (!mounted) return;
         if (fallback != null) {
-          carryoverSourceDateIso = (fallback['dateIso'] ?? previousDateIso).toString();
-          carryoverSourceDaily =
-              Map<String, dynamic>.from(fallback['daily'] as Map<String, dynamic>);
+          fallbackCarryoverDateIso = (fallback['dateIso'] ?? '').toString();
+          fallbackCarryoverDaily = Map<String, dynamic>.from(fallback['daily'] as Map<String, dynamic>);
         }
       }
 
@@ -365,34 +394,60 @@ class _DietControlViewState extends State<DietControlView> {
         });
       }
 
-        final previousMeals = (carryoverSourceDaily['meals'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e));
-
-      for (final meal in previousMeals) {
-        final mealType = (meal['mealType'] ?? '').toString().trim();
-        if (mealType.isEmpty) continue;
-
-        final previousEntries = (meal['entries'] as List<dynamic>? ?? const [])
+      // Acumula carryover dos últimos 7 dias do backend (do mais recente ao mais antigo)
+      for (int i = 0; i < lookbackDates.length; i++) {
+        final dateIso = lookbackDates[i];
+        final dayData = lookbackDailies[i];
+        final pastMeals = (dayData['meals'] as List<dynamic>? ?? const [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e));
 
-        for (final entry in previousEntries) {
-          addCarryover(mealType, entry);
+        for (final meal in pastMeals) {
+          final mealType = (meal['mealType'] ?? '').toString().trim();
+          if (mealType.isEmpty) continue;
+
+          // Pula se o mealType foi suprimido permanentemente APÓS esta data de entrada
+          final suppressionDate = _suppressedMealTypeSince[mealType];
+          if (suppressionDate != null && suppressionDate.compareTo(dateIso) > 0) continue;
+
+          final pastEntries = (meal['entries'] as List<dynamic>? ?? const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e));
+          for (final entry in pastEntries) {
+            addCarryover(mealType, entry);
+          }
         }
       }
 
-      final previousSuppressedCarryover =
-          _suppressedCarryoverByDate[carryoverSourceDateIso] ?? const <String>{};
-      final previousDayCarryover =
-          _carryoverByDate[carryoverSourceDateIso] ?? const <String, List<Map<String, dynamic>>>{};
-      previousDayCarryover.forEach((mealType, entries) {
-        if (previousSuppressedCarryover.contains(mealType)) return;
-        for (final entry in entries) {
-          addCarryover(mealType, Map<String, dynamic>.from(entry));
+      // Fallback para além de 7 dias (via backend + cadeia SP)
+      if (fallbackCarryoverDaily != null && fallbackCarryoverDateIso != null) {
+        final fallbackMeals = (fallbackCarryoverDaily['meals'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e));
+        for (final meal in fallbackMeals) {
+          final mealType = (meal['mealType'] ?? '').toString().trim();
+          if (mealType.isEmpty) continue;
+          final suppressionDate = _suppressedMealTypeSince[mealType];
+          if (suppressionDate != null && suppressionDate.compareTo(fallbackCarryoverDateIso!) > 0) continue;
+          final pastEntries = (meal['entries'] as List<dynamic>? ?? const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e));
+          for (final entry in pastEntries) {
+            addCarryover(mealType, entry);
+          }
         }
-      });
+        // Cadeia SP do fallback
+        final fallbackChain = _carryoverByDate[fallbackCarryoverDateIso] ?? const <String, List<Map<String, dynamic>>>{};
+        fallbackChain.forEach((mealType, entries) {
+          final suppressionDate = _suppressedMealTypeSince[mealType];
+          if (suppressionDate != null && suppressionDate.compareTo(fallbackCarryoverDateIso!) > 0) return;
+          for (final entry in entries) {
+            addCarryover(mealType, Map<String, dynamic>.from(entry));
+          }
+        });
+      }
 
+      // Remove mealTypes explicitamente suprimidos HOJE (via lixeira no dia atual)
       final suppressedCarryover = _suppressedCarryoverByDate[selectedDateIso] ?? const <String>{};
       if (suppressedCarryover.isNotEmpty) {
         carryoverByMealType.removeWhere((mealType, _) => suppressedCarryover.contains(mealType));
@@ -511,6 +566,8 @@ class _DietControlViewState extends State<DietControlView> {
         quantityGrams: qty,
         dateIso: _toDateIso(_selectedDate),
       );
+      // Usuário adicionou item: remove supressão permanente do mealType
+      _suppressedMealTypeSince.remove(_selectedMeal);
       await _loadAll(keepUi: true);
       if (!mounted) return;
       setState(() => _showFoodSuggestions = false);
@@ -913,6 +970,8 @@ class _DietControlViewState extends State<DietControlView> {
         dateIso: _toDateIso(_selectedDate),
       );
 
+      // Usuário aplicou favorito: remove supressão permanente do mealType de destino
+      _suppressedMealTypeSince.remove(targetMealType);
       await _loadAll(keepUi: true);
       _showSnack('Favorito adicionado em $targetMealType.', color: const Color(0xFF16A34A));
     } catch (e) {
@@ -1024,6 +1083,7 @@ class _DietControlViewState extends State<DietControlView> {
       _carryoverByMealType.remove(trimmed);
       _carryoverByDate[dateIso]?.remove(trimmed);
       _suppressedCarryoverByDate.putIfAbsent(dateIso, () => <String>{}).add(trimmed);
+      _suppressedMealTypeSince[trimmed] = dateIso;
     }
 
     await _persistLocalDietState();
@@ -1078,6 +1138,10 @@ class _DietControlViewState extends State<DietControlView> {
         quantityGrams: quantity,
         dateIso: _toDateIso(_selectedDate),
       );
+
+      // Usuário ativou este mealType: remove supressão permanente
+      _suppressedMealTypeSince.remove(mealType);
+      await _persistLocalDietState();
 
       await _loadAll(keepUi: true);
       _showSnack('Alimento desbloqueado e adicionado.', color: const Color(0xFF16A34A));
@@ -1141,6 +1205,9 @@ class _DietControlViewState extends State<DietControlView> {
       _suppressedCarryoverByDate.putIfAbsent(dateIso, () => <String>{}).add(mealType);
       _carryoverByDate[dateIso]?.remove(mealType);
       _carryoverByMealType.remove(mealType);
+      // Suprime permanentemente: este mealType não deve reaparecer em dias futuros
+      // até que o usuário adicione novamente um item a ele
+      _suppressedMealTypeSince[mealType] = dateIso;
       await _persistLocalDietState();
 
       await _loadAll(keepUi: true);

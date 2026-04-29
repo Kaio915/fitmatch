@@ -639,9 +639,18 @@ class AuthService {
   }
 
   static Future<bool> isStudentBlockedByTrainer(int trainerId, int studentId) async {
-    final blocked = await getBlockedStudents(trainerId);
-    return blocked.any((b) =>
-        (b['studentId']?.toString() ?? '') == studentId.toString());
+    try {
+      final res = await http.get(
+        Uri.parse('$_baseUrl/requests/trainer/$trainerId/students/$studentId/is-blocked'),
+        headers: await _headers(),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return data['blocked'] == true;
+      }
+    } catch (_) {}
+    // fallback: nega o bloqueio em caso de erro para não travar o chat
+    return false;
   }
 
   // ✅ PERSONAL ATUALIZA PERFIL (cidade, valorHora, horasPorSessao)
@@ -785,7 +794,7 @@ class AuthService {
     }
   }
 
-  // ✅ BUSCAR CONEXÕES DE UM TRAINER (quem o segue)
+  // ✅ BUSCAR CONEXÕES DE UM TRAINER (quem o segue) — somente para o próprio trainer
   static Future<List<Map<String, dynamic>>> getTrainerConnections(
       int trainerId) async {
     final res = await http.get(
@@ -795,6 +804,18 @@ class AuthService {
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
+  }
+
+  // ✅ VERIFICAR SE UM ALUNO ESTÁ CONECTADO A UM TRAINER (acessível pelo aluno)
+  static Future<Map<String, dynamic>?> getConnectionBetween(
+      int trainerId, int studentId) async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/connections/trainer/$trainerId/student/$studentId'),
+      headers: await _headers(),
+    );
+    if (res.statusCode != 200) return null;
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return data.isEmpty ? null : data;
   }
 
   // ✅ BUSCAR ALUNOS APROVADOS DE UM TRAINER (com plano aceito)
@@ -1099,6 +1120,31 @@ class AuthService {
     final res = await http.get(Uri.parse('$_baseUrl/auth/user/$userId'));
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  // ✅ PRESENÇA — envia heartbeat para marcar usuário como online
+  static Future<void> sendHeartbeat() async {
+    try {
+      await http.put(
+        Uri.parse('$_baseUrl/presence/heartbeat'),
+        headers: await _headers(),
+      );
+    } catch (_) {}
+  }
+
+  // ✅ PRESENÇA — verifica se um usuário está online
+  static Future<bool> getUserPresence(int userId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_baseUrl/presence/$userId'),
+        headers: await _headers(),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return data['online'] == true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   // ✅ PERSONAL AVALIA ALUNO
