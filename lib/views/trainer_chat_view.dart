@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_refresh_notifier.dart';
@@ -649,7 +648,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   @override
   void initState() {
     super.initState();
-    _inputFocusNode = FocusNode(onKeyEvent: _handleInputKeyEvent);
+    _inputFocusNode = FocusNode();
     _messageCtrl.addListener(_onTextChanged);
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _loadBlockedStateForProfileButton();
@@ -690,14 +689,10 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     );
   }
 
-  KeyEventResult _handleInputKeyEvent(FocusNode node, KeyEvent event) {
-    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
-        event.logicalKey == LogicalKeyboardKey.enter &&
-        !HardwareKeyboard.instance.isShiftPressed) {
-      _sendMessage();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+  bool get _isAtBottom {
+    if (!_scrollCtrl.hasClients) return true;
+    final pos = _scrollCtrl.position;
+    return pos.pixels >= pos.maxScrollExtent - 80;
   }
 
   void _onTextChanged() {
@@ -1212,13 +1207,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         );
       }
 
+      final wasAtBottom = _isAtBottom;
       if (!mounted) return;
       setState(() {
         _loadingMessages = false;
         _messages.clear();
         _messages.addAll(visibleMessages);
       });
-      if (scrollToBottom) _scrollToBottom();
+      if (scrollToBottom || wasAtBottom) _scrollToBottom();
     } catch (_) {
       if (mounted) setState(() => _loadingMessages = false);
     }
@@ -1315,6 +1311,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         _messageCtrl.clear();
       });
       _scrollToBottom();
+      _inputFocusNode.requestFocus();
     } catch (e) {
       final errorText = e.toString().toLowerCase();
       if (errorText.contains('somente para leitura') ||
@@ -1342,6 +1339,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         : null;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF4F6FA),
       body: SafeArea(
         child: Column(
@@ -1584,7 +1582,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         ? 'Solicitação recebida de ${widget.trainerName}'
         : 'Solicitação enviada para ${widget.trainerName}';
 
-    return Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxH = (MediaQuery.of(context).size.height * 0.22).clamp(80.0, 140.0);
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -1655,6 +1660,10 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           ),
         ],
       ),
+    ),
+          ),
+        );
+      },
     );
   }
 
@@ -1754,10 +1763,16 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(LogicalKeyboardKey.enter): () => _sendMessage(),
+              },
+              child: TextField(
               controller: _messageCtrl,
               focusNode: _inputFocusNode,
-              maxLines: null,
+              minLines: 1,
+              maxLines: 5,
+              textInputAction: TextInputAction.newline,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 hintText: 'Digite uma mensagem...',
@@ -1783,6 +1798,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                       color: Color(0xFF0B4DBA), width: 1.5),
                 ),
               ),
+            ),
             ),
           ),
           const SizedBox(width: 10),
