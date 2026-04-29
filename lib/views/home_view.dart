@@ -237,7 +237,7 @@ class _LoginChoiceCardState extends State<LoginChoiceCard> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          transform: Matrix4.identity()..translate(0.0, hover ? -4 : 0),
+          transform: Matrix4.translationValues(0.0, hover ? -4.0 : 0.0, 0.0),
           width: 220,
           height: 180,
           padding: const EdgeInsets.all(18),
@@ -249,7 +249,7 @@ class _LoginChoiceCardState extends State<LoginChoiceCard> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(.06),
+                color: Colors.black.withValues(alpha: .06),
                 blurRadius: 16,
                 offset: const Offset(0, 10),
               ),
@@ -315,7 +315,7 @@ class _FeatureCardLargeState extends State<FeatureCardLarge> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         height: 210,
-        transform: Matrix4.identity()..translate(0.0, hover ? -4 : 0),
+        transform: Matrix4.translationValues(0.0, hover ? -4.0 : 0.0, 0.0),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -325,7 +325,7 @@ class _FeatureCardLargeState extends State<FeatureCardLarge> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.06),
+              color: Colors.black.withValues(alpha: .06),
               blurRadius: 18,
               offset: const Offset(0, 12),
             ),

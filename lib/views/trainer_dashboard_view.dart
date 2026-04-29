@@ -2091,7 +2091,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       _showSnack(
         effectiveCloneToAllDays
             ? 'Padrão de $sourceDayName clonado para todos os dias da semana.'
-        : 'Padrão de $sourceDayName clonado para ${targets.length} dia${targets.length > 1 ? 's' : ''} (${targetNames.join(', ')}). ${changedCount} bloqueio${changedCount > 1 ? 's' : ''} aplicado${changedCount > 1 ? 's' : ''}.',
+        : 'Padrão de $sourceDayName clonado para ${targets.length} dia${targets.length > 1 ? 's' : ''} (${targetNames.join(', ')}). $changedCount bloqueio${changedCount > 1 ? 's' : ''} aplicado${changedCount > 1 ? 's' : ''}.',
         icon: Icons.check_circle_rounded,
         color: const Color(0xFF16A34A),
       );

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 import 'student_profile_view.dart';
@@ -73,15 +76,21 @@ class TrainerChatView extends StatefulWidget {
 class _TrainerChatViewState extends State<TrainerChatView> {
   final _messageCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  late final FocusNode _inputFocusNode;
   final List<_ChatMessage> _messages = [];
   bool _loadingMessages = true;
   bool _hideProfileButtonForBlockedStudent = false;
   Timer? _refreshTimer;
   Timer? _presenceTimer;
   Timer? _heartbeatTimer;
+  Timer? _typingPollTimer;
+  Timer? _typingDebounceTimer;
   bool _peerIsOnline = false;
+  bool _peerIsTyping = false;
+  DateTime? _lastTypingSent;
   bool _isSessionReadOnly = false;
   String? _sessionReadOnlyMessage;
+  AppLifecycleListener? _lifecycleListener;
 
   void _onGlobalRefresh() {
     if (!mounted) return;
@@ -640,6 +649,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   @override
   void initState() {
     super.initState();
+    _inputFocusNode = FocusNode(onKeyEvent: _handleInputKeyEvent);
+    _messageCtrl.addListener(_onTextChanged);
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _loadBlockedStateForProfileButton();
     _loadMessages();
@@ -661,6 +672,60 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       const Duration(seconds: 30),
       (_) => _fetchPeerPresence(),
     );
+    // Polling do indicador de digitação
+    if (!_effectiveReadOnly && widget.receiverId != null && widget.senderId != null) {
+      _typingPollTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => _checkPeerTyping(),
+      );
+    }
+    // Recarrega ao voltar ao app/aba
+    _lifecycleListener = AppLifecycleListener(
+      onShow: () => _loadMessages(scrollToBottom: false),
+      onResume: () {
+        _sendHeartbeatOnce();
+        _loadMessages(scrollToBottom: false);
+      },
+      onHide: () => AuthService.setOffline(),
+    );
+  }
+
+  KeyEventResult _handleInputKeyEvent(FocusNode node, KeyEvent event) {
+    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        !HardwareKeyboard.instance.isShiftPressed) {
+      _sendMessage();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _onTextChanged() {
+    if (_effectiveReadOnly) return;
+    if (widget.senderId == null || widget.receiverId == null) return;
+    final now = DateTime.now();
+    if (_lastTypingSent == null ||
+        now.difference(_lastTypingSent!) > const Duration(seconds: 3)) {
+      _lastTypingSent = now;
+      AuthService.sendTyping(widget.receiverId!);
+    }
+    _typingDebounceTimer?.cancel();
+    _typingDebounceTimer = Timer(const Duration(seconds: 4), () {
+      _lastTypingSent = null;
+    });
+  }
+
+  Future<void> _checkPeerTyping() async {
+    if (widget.receiverId == null || widget.senderId == null) return;
+    final typing = await AuthService.getPeerTyping(
+      widget.receiverId!,
+      widget.senderId!,
+    );
+    if (!mounted) return;
+    if (typing != _peerIsTyping) {
+      setState(() => _peerIsTyping = typing);
+      if (typing) _scrollToBottom();
+    }
   }
 
   void _sendHeartbeatOnce() {
@@ -1210,7 +1275,12 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     _refreshTimer?.cancel();
     _presenceTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _typingPollTimer?.cancel();
+    _typingDebounceTimer?.cancel();
+    _lifecycleListener?.dispose();
+    _messageCtrl.removeListener(_onTextChanged);
     _messageCtrl.dispose();
+    _inputFocusNode.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -1290,7 +1360,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
   Widget _buildTopBar(String? peerPhotoUrl) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 64, 10),
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -1413,6 +1483,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                       studentData = null;
                     }
                   }
+                  if (!mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1519,7 +1590,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       decoration: BoxDecoration(
         color: planBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: planFg.withOpacity(0.25)),
+        border: Border.all(color: planFg.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1563,10 +1634,10 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: planFg.withOpacity(0.12),
+                              color: planFg.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                               border:
-                                  Border.all(color: planFg.withOpacity(0.3)),
+                                  Border.all(color: planFg.withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               label,
@@ -1596,7 +1667,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
             color: Color(0xFF0B4DBA), strokeWidth: 2.5),
       );
     }
-    if (_messages.isEmpty) {
+    if (_messages.isEmpty && !_peerIsTyping) {
       return const Center(
         child: Text(
           'Nenhuma mensagem ainda.\nSeja o primeiro a dizer olá!',
@@ -1605,19 +1676,25 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         ),
       );
     }
+    final peerPhotoUrl = widget.receiverId != null
+        ? AuthService.getUserPhotoUrl(widget.receiverId!)
+        : null;
+    final myPhotoUrl = widget.senderId != null
+        ? AuthService.getUserPhotoUrl(widget.senderId!)
+        : null;
+    final totalItems = _messages.length + (_peerIsTyping ? 1 : 0);
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
-      itemCount: _messages.length,
-      itemBuilder: (_, i) => _MessageBubble(
-        message: _messages[i],
-        myPhotoUrl: widget.senderId != null
-            ? AuthService.getUserPhotoUrl(widget.senderId!)
-            : null,
-        peerPhotoUrl: widget.receiverId != null
-            ? AuthService.getUserPhotoUrl(widget.receiverId!)
-            : null,
-      ),
+      itemCount: totalItems,
+      itemBuilder: (_, i) {
+        if (i == _messages.length) return const _TypingIndicator();
+        return _MessageBubble(
+          message: _messages[i],
+          myPhotoUrl: myPhotoUrl,
+          peerPhotoUrl: peerPhotoUrl,
+        );
+      },
     );
   }
 
@@ -1637,7 +1714,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           decoration: BoxDecoration(
             color: const Color(0xFFFFF7ED),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.25)),
+            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1679,7 +1756,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           Expanded(
             child: TextField(
               controller: _messageCtrl,
-              onSubmitted: (_) => _sendMessage(),
+              focusNode: _inputFocusNode,
               maxLines: null,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
@@ -1722,6 +1799,93 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                 child: Icon(Icons.send_rounded,
                     color: Colors.white, size: 20),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Indicador de digitação ───────────────────────────────────────────────────
+
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8, top: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(18),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFFE7EBF3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (i) {
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (_, __) {
+                    final phase = (_controller.value + i * 0.33) % 1.0;
+                    final t = (math.sin(phase * math.pi * 2) + 1) / 2;
+                    return Container(
+                      margin: EdgeInsets.only(right: i < 2 ? 5 : 0),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: Color.lerp(
+                          const Color(0xFFCBD5E1),
+                          const Color(0xFF64748B),
+                          t,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  },
+                );
+              }),
             ),
           ),
         ],
@@ -1812,8 +1976,8 @@ class _MessageBubble extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color: isMe
-                        ? const Color(0xFF0B4DBA).withOpacity(0.18)
-                        : Colors.black.withOpacity(0.06),
+                        ? const Color(0xFF0B4DBA).withValues(alpha: 0.18)
+                        : Colors.black.withValues(alpha: 0.06),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1842,7 +2006,7 @@ class _MessageBubble extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10.5,
                           color: isMe
-                              ? Colors.white.withOpacity(0.6)
+                              ? Colors.white.withValues(alpha: 0.6)
                               : Colors.black38,
                         ),
                       ),
@@ -1851,7 +2015,7 @@ class _MessageBubble extends StatelessWidget {
                         Icon(
                           Icons.done_all_rounded,
                           size: 14,
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                         ),
                       ],
                     ],

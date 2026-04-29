@@ -228,7 +228,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 16,
               )
             ],
@@ -286,7 +286,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withValues(alpha: 0.05),
                                   blurRadius: 6,
                                 ),
                               ],

@@ -326,9 +326,9 @@ class _DietControlViewState extends State<DietControlView> {
       );
 
       // Busca os últimos 7 dias em paralelo para carryover robusto (sem depender de SP)
-      const int _carryoverWindowDays = 7;
+      const int carryoverWindowDays = 7;
       final lookbackDates = List.generate(
-        _carryoverWindowDays,
+        carryoverWindowDays,
         (i) => _toDateIso(_selectedDate.subtract(Duration(days: i + 1))),
       );
       final lookbackDailies = await Future.wait(
@@ -357,7 +357,7 @@ class _DietControlViewState extends State<DietControlView> {
       String? fallbackCarryoverDateIso;
       if (!recentHasEntries) {
         final fallback = await _findLatestPreviousDayWithMeals(
-          baseDate: _selectedDate.subtract(const Duration(days: _carryoverWindowDays)),
+          baseDate: _selectedDate.subtract(const Duration(days: carryoverWindowDays)),
         );
         if (!mounted) return;
         if (fallback != null) {
@@ -428,7 +428,7 @@ class _DietControlViewState extends State<DietControlView> {
           final mealType = (meal['mealType'] ?? '').toString().trim();
           if (mealType.isEmpty) continue;
           final suppressionDate = _suppressedMealTypeSince[mealType];
-          if (suppressionDate != null && suppressionDate.compareTo(fallbackCarryoverDateIso!) > 0) continue;
+          if (suppressionDate != null && suppressionDate.compareTo(fallbackCarryoverDateIso) > 0) continue;
           final pastEntries = (meal['entries'] as List<dynamic>? ?? const [])
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e));
@@ -712,6 +712,7 @@ class _DietControlViewState extends State<DietControlView> {
       existingSavedMealId = _toInt(existingTemplate['id']);
       existingMealType = (existingTemplate['mealType'] ?? mealType).toString().trim();
 
+      if (!mounted) return;
       final replaceConfirmed = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(

@@ -278,7 +278,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
-        BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 8)
+        BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8)
       ],
     );
   }

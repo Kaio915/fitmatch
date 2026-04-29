@@ -138,7 +138,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFDCE6F5)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 18),
+                BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 18),
               ],
             ),
             child: SafeArea(
@@ -599,7 +599,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFDCE6F5)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(.04), blurRadius: 8),
+          BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -760,7 +760,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           color: bg,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 6),
+            BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 6),
           ],
         ),
         child: Text(m.text, style: TextStyle(color: fg)),

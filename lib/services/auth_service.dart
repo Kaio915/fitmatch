@@ -1132,6 +1132,42 @@ class AuthService {
     } catch (_) {}
   }
 
+  // ✅ PRESENÇA — marca usuário como offline imediatamente
+  static Future<void> setOffline() async {
+    try {
+      await http.put(
+        Uri.parse('$_baseUrl/presence/offline'),
+        headers: await _headers(),
+      );
+    } catch (_) {}
+  }
+
+  // ✅ PRESENÇA — envia sinal de "está digitando" para o destinatário
+  static Future<void> sendTyping(int receiverId) async {
+    try {
+      await http.put(
+        Uri.parse('$_baseUrl/presence/typing'),
+        headers: await _headers(json: true),
+        body: jsonEncode({'receiverId': receiverId}),
+      );
+    } catch (_) {}
+  }
+
+  // ✅ PRESENÇA — verifica se um usuário está digitando
+  static Future<bool> getPeerTyping(int userId, int observerId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_baseUrl/presence/$userId/typing?observerId=$observerId'),
+        headers: await _headers(),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return data['typing'] == true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   // ✅ PRESENÇA — verifica se um usuário está online
   static Future<bool> getUserPresence(int userId) async {
     try {
