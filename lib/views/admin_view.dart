@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../services/admin_service.dart';
+import '../services/auth_service.dart';
 import 'admin_history_view.dart';
 import 'admin_ticket_view.dart';
 
@@ -744,7 +745,12 @@ class _AdminViewState extends State<AdminView> {
           Padding(
             padding: const EdgeInsets.only(right: 56),
             child: OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                await AuthService.clearSession();
+                if (mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
+              },
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF0B4DBA),
                 side: const BorderSide(color: Color(0xFF98A2B3)),

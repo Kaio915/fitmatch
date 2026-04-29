@@ -2639,7 +2639,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               Padding(
                 padding: const EdgeInsets.only(right: 56),
                 child: IconButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () async {
+                    await AuthService.clearSession();
+                    if (mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                    }
+                  },
                   icon: Container(
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(

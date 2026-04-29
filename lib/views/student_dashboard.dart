@@ -780,6 +780,8 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   @override
   Widget build(BuildContext context) {
+    final tabHeight =
+        (MediaQuery.of(context).size.height * 0.65).clamp(400.0, double.infinity);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FB),
       body: SafeArea(
@@ -787,32 +789,38 @@ class _StudentDashboardState extends State<StudentDashboard>
           children: [
             _topBar(),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    _buildProfileCard(
-                      widget.studentId != null
-                          ? AuthService.getUserPhotoUrl(widget.studentId!)
-                          : null,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildTabs(),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _tabMeuPersonal(),
-                          _tabBuscar(),
-                          _tabSeguindo(),
-                          _tabSolicitacoes(),
-                        ],
+              child: Scrollbar(
+                controller: _pageScrollController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _pageScrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildProfileCard(
+                        widget.studentId != null
+                            ? AuthService.getUserPhotoUrl(widget.studentId!)
+                            : null,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      _buildTabs(),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: tabHeight,
+                        child: TabBarView(
+                          controller: _tabController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            _tabMeuPersonal(),
+                            _tabBuscar(),
+                            _tabSeguindo(),
+                            _tabSolicitacoes(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -841,7 +849,12 @@ class _StudentDashboardState extends State<StudentDashboard>
               Padding(
                 padding: const EdgeInsets.only(right: 56),
                 child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () async {
+                    await AuthService.clearSession();
+                    if (mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(

@@ -14,6 +14,7 @@ class AuthService {
   static List<Map<String, String>>? _ibgeMunicipiosCache;
 
   static const String _tokenKey = 'auth_token';
+  static const String _sessionKey = 'session_user';
   static String? _cachedToken;
 
   static Future<String?> _getToken() async {
@@ -31,6 +32,64 @@ class AuthService {
       await prefs.remove(_tokenKey);
     } else {
       await prefs.setString(_tokenKey, _cachedToken!);
+    }
+  }
+
+  /// Salva os dados do usuário logado para restaurar sessão ao recarregar.
+  static Future<void> saveSession(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionKey, jsonEncode(data));
+  }
+
+  /// Carrega a sessão salva. Retorna null se não houver sessão ou token expirado.
+  static Future<Map<String, dynamic>?> loadSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    if (token == null || token.isEmpty) return null;
+    if (_isTokenExpired(token)) {
+      await clearSession();
+      return null;
+    }
+    final raw = prefs.getString(_sessionKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Limpa token e dados de sessão (logout).
+  static Future<void> clearSession() async {
+    _cachedToken = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_sessionKey);
+  }
+
+  /// Decodifica o JWT localmente e verifica se está expirado.
+  static bool _isTokenExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+      // Adiciona padding base64 se necessário
+      var payload = parts[1];
+      switch (payload.length % 4) {
+        case 2:
+          payload += '==';
+          break;
+        case 3:
+          payload += '=';
+          break;
+      }
+      final decoded = utf8.decode(base64Url.decode(payload));
+      final data = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = data['exp'];
+      if (exp == null) return false;
+      final expTime = DateTime.fromMillisecondsSinceEpoch((exp as num).toInt() * 1000);
+      return DateTime.now().isAfter(expTime);
+    } catch (_) {
+      return true;
     }
   }
 
@@ -198,6 +257,7 @@ class AuthService {
     final token = data['token'];
     if (token is String && token.trim().isNotEmpty) {
       await setToken(token);
+      await saveSession(data);
     }
     return data;
   }

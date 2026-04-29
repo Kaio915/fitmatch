@@ -10,7 +10,6 @@ class AppRoutes {
   static const dietControl = '/diet-control';
 
   static Map<String, WidgetBuilder> routes = {
-    home: (_) => const HomeView(),
     registerStudent: (_) => const RegisterStudentView(),
     registerTrainer: (_) => const RegisterTrainerView(),
   };

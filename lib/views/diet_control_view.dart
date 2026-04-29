@@ -213,6 +213,40 @@ class _DietControlViewState extends State<DietControlView> {
     }
   }
 
+  /// Persiste apenas os dados de carryover/supressão — nunca os IDs de
+  /// entradas excluídas. Usado pelo [_loadAll] para não sobrescrever o estado
+  /// de exclusão que foi restaurado do SharedPreferences antes de qualquer
+  /// chamada de rede.
+  Future<void> _persistCarryoverState() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final suppressedPayload = <String, List<String>>{};
+    _suppressedCarryoverByDate.forEach((dateIso, mealTypes) {
+      if (mealTypes.isEmpty) return;
+      final sorted = mealTypes.toList()..sort();
+      suppressedPayload[dateIso] = sorted;
+    });
+
+    final carryoverPayload = <String, Map<String, List<Map<String, dynamic>>>>{};
+    _carryoverByDate.forEach((dateIso, mealMap) {
+      if (mealMap.isEmpty) return;
+      final normalizedMealMap = <String, List<Map<String, dynamic>>>{};
+      mealMap.forEach((mealType, entries) {
+        if (entries.isEmpty) return;
+        normalizedMealMap[mealType] = entries.map((e) => Map<String, dynamic>.from(e)).toList();
+      });
+      if (normalizedMealMap.isNotEmpty) {
+        carryoverPayload[dateIso] = normalizedMealMap;
+      }
+    });
+
+    await prefs.setString(_suppressedCarryoverStateKey, jsonEncode(suppressedPayload));
+    await prefs.setString(_carryoverStateKey, jsonEncode(carryoverPayload));
+    if (_suppressedMealTypeSince.isNotEmpty) {
+      await prefs.setString(_suppressedMealTypeSinceKey, jsonEncode(Map<String, String>.from(_suppressedMealTypeSince)));
+    }
+  }
+
   List<String> _resolveMealChoices({
     required List<Map<String, dynamic>> meals,
     required List<Map<String, dynamic>> templates,
@@ -495,7 +529,7 @@ class _DietControlViewState extends State<DietControlView> {
           _selectedMeal = mealChoices.first;
         }
       });
-      unawaited(_persistLocalDietState());
+      unawaited(_persistCarryoverState());
     } catch (e) {
       _showSnack(
         e.toString().replaceFirst('Exception: ', ''),
@@ -2246,7 +2280,12 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () async {
+                      await AuthService.clearSession();
+                      if (mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFD5DEEE)),

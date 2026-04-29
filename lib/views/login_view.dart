@@ -26,6 +26,7 @@ class _LoginViewState extends State<LoginView> {
   final _passwordFocusNode = FocusNode();
 
   bool loading = false;
+  bool _passwordVisible = false;
 
   // controla borda vermelha
   String? _fieldError; // se != null, pinta os campos
@@ -224,7 +225,14 @@ class _LoginViewState extends State<LoginView> {
                     _input(
                       'Senha',
                       'Sua senha',
-                      obscure: true,
+                      obscure: !_passwordVisible,
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+                        icon: Icon(
+                          _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                          color: const Color(0xFF0B4DBA),
+                        ),
+                      ),
                       controller: _passwordController,
                       forceError: _fieldError != null,
                       focusNode: _passwordFocusNode,
@@ -320,6 +328,7 @@ class _LoginViewState extends State<LoginView> {
     String label,
     String hint, {
     bool obscure = false,
+    Widget? suffixIcon,
     required TextEditingController controller,
     bool forceError = false,
     FocusNode? focusNode,
@@ -338,6 +347,7 @@ class _LoginViewState extends State<LoginView> {
         onSubmitted: onSubmitted,
         decoration: InputDecoration(
           labelText: label,
+          suffixIcon: suffixIcon,
           hintText: hint,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           enabledBorder: OutlineInputBorder(
