@@ -352,18 +352,28 @@ class _DietControlViewState extends State<DietControlView> {
       if (mounted) setState(() => _loading = true);
     }
 
+    // Captura a data no início, antes de qualquer await, para evitar race condition:
+    // se _selectedDate mudar durante as chamadas assíncronas, ainda usamos a data
+    // correta em todos os cálculos e no setState final.
+    final capturedDateIso = _toDateIso(_selectedDate);
+
     try {
       final foods = await AuthService.getDietFoods(widget.userId);
       final daily = await AuthService.getDietEntriesByDate(
         userId: widget.userId,
-        dateIso: _toDateIso(_selectedDate),
+        dateIso: capturedDateIso,
       );
 
       // Busca os últimos 7 dias em paralelo para carryover robusto (sem depender de SP)
       const int carryoverWindowDays = 7;
       final lookbackDates = List.generate(
         carryoverWindowDays,
-        (i) => _toDateIso(_selectedDate.subtract(Duration(days: i + 1))),
+        (i) {
+          // Parseia capturedDateIso para evitar usar _selectedDate mutável
+          final parts = capturedDateIso.split('-');
+          final base = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          return _toDateIso(base.subtract(Duration(days: i + 1)));
+        },
       );
       final lookbackDailies = await Future.wait(
         lookbackDates.map((d) => AuthService.getDietEntriesByDate(userId: widget.userId, dateIso: d)),
@@ -380,7 +390,8 @@ class _DietControlViewState extends State<DietControlView> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
-      final selectedDateIso = _toDateIso(_selectedDate);
+      // Usa a data capturada no início (não relê _selectedDate para evitar race condition)
+      final selectedDateIso = capturedDateIso;
 
       // Verifica se há alguma entrada nos últimos 7 dias (para fallback além do window)
       final recentHasEntries = lookbackDailies
@@ -391,7 +402,11 @@ class _DietControlViewState extends State<DietControlView> {
       String? fallbackCarryoverDateIso;
       if (!recentHasEntries) {
         final fallback = await _findLatestPreviousDayWithMeals(
-          baseDate: _selectedDate.subtract(const Duration(days: carryoverWindowDays)),
+          baseDate: DateTime(
+            int.parse(capturedDateIso.split('-')[0]),
+            int.parse(capturedDateIso.split('-')[1]),
+            int.parse(capturedDateIso.split('-')[2]),
+          ).subtract(const Duration(days: carryoverWindowDays)),
         );
         if (!mounted) return;
         if (fallback != null) {
@@ -3124,6 +3139,18 @@ class _DietControlViewState extends State<DietControlView> {
     );
   }
 
+  /// Retorna o índice de ordenação de um tipo de refeição customizado,
+  /// baseado no índice do tipo-pai em [_mealTypes] (ex: "Almoço - Favorito"
+  /// → índice de "Almoço"). Tipos sem correspondência vão ao final.
+  int _customMealTypeSortKey(String mealType) {
+    final lower = mealType.trim().toLowerCase();
+    for (int i = 0; i < _mealTypes.length; i++) {
+      if (lower.startsWith(_mealTypes[i].toLowerCase())) return i;
+    }
+    // Sem prefixo padrão: ordena alfabeticamente após os tipos padrão
+    return _mealTypes.length;
+  }
+
   List<Widget> _buildMealSections() {
     final mealByType = <String, Map<String, dynamic>>{};
     for (final meal in _meals) {
@@ -3135,17 +3162,29 @@ class _DietControlViewState extends State<DietControlView> {
     final sections = <Widget>[];
     final orderedMealTypes = <String>[];
 
+    // Tipos padrão primeiro, na ordem definida em _mealTypes
     for (final mealType in _mealTypes) {
       if (!orderedMealTypes.contains(mealType)) {
         orderedMealTypes.add(mealType);
       }
     }
+
+    // Tipos customizados: coleta de meals e carryover, ordena de forma estável
+    final customTypes = <String>{};
     for (final mealType in mealByType.keys) {
-      if (!orderedMealTypes.contains(mealType)) {
-        orderedMealTypes.add(mealType);
-      }
+      if (!_mealTypes.contains(mealType)) customTypes.add(mealType);
     }
     for (final mealType in _carryoverByMealType.keys) {
+      if (!_mealTypes.contains(mealType)) customTypes.add(mealType);
+    }
+    final sortedCustom = customTypes.toList()
+      ..sort((a, b) {
+        final ka = _customMealTypeSortKey(a);
+        final kb = _customMealTypeSortKey(b);
+        if (ka != kb) return ka.compareTo(kb);
+        return a.compareTo(b); // Desempate alfabético
+      });
+    for (final mealType in sortedCustom) {
       if (!orderedMealTypes.contains(mealType)) {
         orderedMealTypes.add(mealType);
       }
