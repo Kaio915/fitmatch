@@ -80,11 +80,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   bool _loadingMessages = true;
   bool _hideProfileButtonForBlockedStudent = false;
   Timer? _refreshTimer;
-  Timer? _presenceTimer;
   Timer? _heartbeatTimer;
   Timer? _typingPollTimer;
   Timer? _typingDebounceTimer;
-  bool _peerIsOnline = false;
   bool _peerIsTyping = false;
   DateTime? _lastTypingSent;
   bool _isSessionReadOnly = false;
@@ -654,22 +652,17 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     _loadBlockedStateForProfileButton();
     _loadMessages();
     if (!_effectiveReadOnly) {
-      // Polling a cada 4 segundos para mensagens em tempo real
+      // Polling a cada 2 segundos para mensagens em tempo real
       _refreshTimer = Timer.periodic(
-        const Duration(seconds: 4),
+        const Duration(seconds: 2),
         (_) => _loadMessages(scrollToBottom: false),
       );
     }
-    // Presença: envia heartbeat próprio e busca status do peer
+    // Presença: envia heartbeat próprio
     _sendHeartbeatOnce();
-    _fetchPeerPresence();
     _heartbeatTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _sendHeartbeatOnce(),
-    );
-    _presenceTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _fetchPeerPresence(),
     );
     // Polling do indicador de digitação
     if (!_effectiveReadOnly && widget.receiverId != null && widget.senderId != null) {
@@ -728,12 +721,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     AuthService.sendHeartbeat();
   }
 
-  Future<void> _fetchPeerPresence() async {
-    if (widget.receiverId == null) return;
-    final online = await AuthService.getUserPresence(widget.receiverId!);
-    if (!mounted) return;
-    setState(() => _peerIsOnline = online);
-  }
+
 
   Future<void> _loadBlockedStateForProfileButton() async {
     if (widget.isTrainerSide) return;
@@ -1269,7 +1257,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _refreshTimer?.cancel();
-    _presenceTimer?.cancel();
     _heartbeatTimer?.cancel();
     _typingPollTimer?.cancel();
     _typingDebounceTimer?.cancel();
@@ -1298,6 +1285,11 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final text = _messageCtrl.text.trim();
     if (text.isEmpty) return;
     if (widget.senderId == null || widget.receiverId == null) return;
+
+    // Cancela imediatamente o indicador de digitação
+    _typingDebounceTimer?.cancel();
+    _lastTypingSent = null;
+    unawaited(AuthService.stopTyping());
 
     try {
       await AuthService.sendChatMessage(
@@ -1405,21 +1397,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                         ),
                 ),
               ),
-              Positioned(
-                bottom: 1,
-                right: 1,
-                child: Container(
-                  width: 11,
-                  height: 11,
-                  decoration: BoxDecoration(
-                    color: _peerIsOnline
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFF9CA3AF),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
+
             ],
           ),
           const SizedBox(width: 12),
@@ -1435,15 +1413,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                     color: Colors.black87,
                   ),
                 ),
-                Text(
-                  _peerIsOnline ? 'Online agora' : 'Offline',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _peerIsOnline
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFF9CA3AF),
-                  ),
-                ),
+
               ],
             ),
           ),

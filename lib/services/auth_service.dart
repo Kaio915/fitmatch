@@ -1213,6 +1213,17 @@ class AuthService {
     } catch (_) {}
   }
 
+  // ✅ PRESENÇA — limpa o indicador de "está digitando" (chamado ao enviar mensagem)
+  static Future<void> stopTyping() async {
+    try {
+      await http.put(
+        Uri.parse('$_baseUrl/presence/typing'),
+        headers: await _headers(json: true),
+        body: jsonEncode(<String, dynamic>{}),
+      );
+    } catch (_) {}
+  }
+
   // ✅ PRESENÇA — verifica se um usuário está digitando
   static Future<bool> getPeerTyping(int userId, int observerId) async {
     try {
