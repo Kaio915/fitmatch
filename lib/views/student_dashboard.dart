@@ -844,7 +844,7 @@ class _StudentDashboardState extends State<StudentDashboard>
         children: [
           Row(
             children: [
-              const FitMatchLogo(height: 40, onDarkBackground: true),
+              const FitMatchLogo(height: 56, assetPath: 'assets/images/logo_perfil.png'),
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.only(right: 56),
@@ -1038,7 +1038,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                         opacity: 0.75,
                         child: FitMatchLogo(
                           height: 28,
-                          onDarkBackground: true,
+                          assetPath: 'assets/images/logo_perfil.png',
                         ),
                       ),
                     ),

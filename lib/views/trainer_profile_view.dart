@@ -2207,7 +2207,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     size: 20, color: Colors.white),
               ),
-              const FitMatchLogo(height: 34, onDarkBackground: true),
+              const FitMatchLogo(height: 50, assetPath: 'assets/images/logo_perfil.png'),
               const Spacer(),
               if (_sendingRequest)
                 const Padding(

@@ -250,7 +250,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const FitMatchLogo(height: 48),
+                  const FitMatchLogo(height: 78, assetPath: 'assets/images/fitmatch_logo3.png'),
                   const SizedBox(height: 20),
                   const Text(
                     'Criar Conta',

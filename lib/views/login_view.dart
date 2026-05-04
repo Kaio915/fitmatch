@@ -196,7 +196,7 @@ class _LoginViewState extends State<LoginView> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const FitMatchLogo(height: 60),
+                    const FitMatchLogo(height: 90, assetPath: 'assets/images/fitmatch_logo3.png'),
                     const SizedBox(height: 20),
                     const Text(
                       'Entrar',

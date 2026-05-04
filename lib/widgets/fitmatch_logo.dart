@@ -14,27 +14,13 @@ class FitMatchLogo extends StatelessWidget {
     this.zoom = 1.0,
     this.widthFactor = 3.8,
     this.onDarkBackground = false,
-    this.assetPath = 'assets/images/fitmatch_logo.png',
+    this.assetPath = 'assets/images/fitmatch_logo3.png',
   });
 
   @override
   Widget build(BuildContext context) {
     final frameHeight = height * zoom;
     final frameWidth = frameHeight * widthFactor;
-    final highContrast = onDarkBackground;
-
-    Widget zoomed(Widget child) {
-      return ClipRect(
-        child: SizedBox(
-          height: frameHeight,
-          width: frameWidth,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: child,
-          ),
-        ),
-      );
-    }
 
     Widget textFallback() {
       return Text(
@@ -49,18 +35,15 @@ class FitMatchLogo extends StatelessWidget {
     }
 
     Widget logoRaster({required bool useNetwork}) {
-      final commonFit = BoxFit.cover;
+      final commonFit = BoxFit.contain;
       final commonAlignment = Alignment.centerLeft;
 
       if (useNetwork) {
         return Image.network(
           '/assets/$assetPath',
           height: frameHeight,
-          width: frameWidth,
           fit: commonFit,
           alignment: commonAlignment,
-          color: highContrast ? Colors.white : null,
-          colorBlendMode: highContrast ? BlendMode.srcIn : null,
           errorBuilder: (_, __, ___) => textFallback(),
         );
       }
@@ -68,11 +51,8 @@ class FitMatchLogo extends StatelessWidget {
       return Image.asset(
         assetPath,
         height: frameHeight,
-        width: frameWidth,
         fit: commonFit,
         alignment: commonAlignment,
-        color: highContrast ? Colors.white : null,
-        colorBlendMode: highContrast ? BlendMode.srcIn : null,
         errorBuilder: (_, __, ___) {
           if (kIsWeb) {
             return logoRaster(useNetwork: true);
@@ -82,9 +62,20 @@ class FitMatchLogo extends StatelessWidget {
       );
     }
 
-    final logo = zoomed(
-      logoRaster(useNetwork: false),
-    );
+    final logo = logoRaster(useNetwork: false);
+
+    if (onDarkBackground) {
+      // Força RGB → branco, preserva o alpha original do PNG transparente
+      return ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0, 0, 0, 0, 255, // R = 255
+          0, 0, 0, 0, 255, // G = 255
+          0, 0, 0, 0, 255, // B = 255
+          0, 0, 0, 1, 0,   // A = alpha original (preservado)
+        ]),
+        child: logo,
+      );
+    }
 
     return logo;
   }

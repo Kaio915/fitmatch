@@ -29,8 +29,8 @@ class StudentWorkoutView extends StatefulWidget {
 
 class _StudentWorkoutViewState extends State<StudentWorkoutView> {
   static const List<String> _pdfLogoAssetPaths = [
-    'assets/images/fitmatch_logo.png',
-    'assets/images/fitmatch_logo_original.png',
+    'assets/images/fitmatch_logo3.png',
+    'assets/images/nova_logo.png',
   ];
   bool _loading = true;
   List<Map<String, dynamic>> _plans = [];

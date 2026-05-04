@@ -2599,7 +2599,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         children: [
           Row(
             children: [
-              const FitMatchLogo(height: 38, onDarkBackground: true),
+              const FitMatchLogo(height: 56, assetPath: 'assets/images/logo_perfil.png'),
               const Spacer(),
               if (_totalPending > 0)
                 Container(

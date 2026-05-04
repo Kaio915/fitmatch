@@ -20,7 +20,8 @@ class HomeView extends StatelessWidget {
           children: [
             // ================= HEADER =================
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 16),
+              height: 92,
+              padding: const EdgeInsets.symmetric(horizontal: 60),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(
@@ -30,7 +31,7 @@ class HomeView extends StatelessWidget {
               child: Row(
                 children: [
                   // FitMatch totalmente à esquerda
-                  const FitMatchLogo(height: 54),
+                  const FitMatchLogo(height: 80, assetPath: 'assets/images/fitmatch_logo3.png'),
 
                   const Spacer(),
 

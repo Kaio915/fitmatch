@@ -649,6 +649,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     _inputFocusNode = FocusNode();
     _messageCtrl.addListener(_onTextChanged);
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
+    AppRefreshNotifier.hideFloating();
     _loadBlockedStateForProfileButton();
     _loadMessages();
     if (!_effectiveReadOnly) {
@@ -1256,6 +1257,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   @override
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
+    AppRefreshNotifier.showFloating();
     _refreshTimer?.cancel();
     _heartbeatTimer?.cancel();
     _typingPollTimer?.cancel();
@@ -1487,8 +1489,24 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                 ),
               ),
             ),
-            const SizedBox(width: 4),
           ],
+          IconButton(
+            onPressed: () => _loadMessages(scrollToBottom: false),
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B4DBA),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
     );
