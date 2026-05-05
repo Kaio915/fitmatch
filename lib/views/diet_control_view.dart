@@ -648,6 +648,120 @@ class _DietControlViewState extends State<DietControlView> {
     }
   }
 
+  Future<void> _showEditEntryQuantityDialog(Map<String, dynamic> entry) async {
+    if (_isPastDay) {
+      _showSnack(_onlyTodayEditableMessage);
+      return;
+    }
+
+    final entryId = _toInt(entry['id']);
+    final currentQty = _toDouble(entry['quantityGrams']);
+    final foodName = (entry['foodName'] ?? 'Alimento').toString();
+
+    final qtyCtrl = TextEditingController(
+      text: currentQty.toStringAsFixed(currentQty == currentQty.roundToDouble() ? 0 : 1),
+    );
+    String scope = 'TODAY';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Editar $foodName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: qtyCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Nova quantidade (g)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Aplicar alteração em:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Apenas hoje'),
+                    selected: scope == 'TODAY',
+                    onSelected: (_) => setDialogState(() => scope = 'TODAY'),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Hoje e dias futuros'),
+                    selected: scope == 'FUTURE',
+                    onSelected: (_) => setDialogState(() => scope = 'FUTURE'),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Todo o histórico'),
+                    selected: scope == 'ALL',
+                    onSelected: (_) => setDialogState(() => scope = 'ALL'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B4DBA),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final qty = _tryParseNumber(qtyCtrl.text);
+    if (qty == null || qty <= 0) {
+      _showSnack('Informe uma quantidade válida.');
+      return;
+    }
+
+    try {
+      await AuthService.updateDietEntryQuantity(
+        userId: widget.userId,
+        entryId: entryId,
+        quantityGrams: qty,
+        scope: scope,
+      );
+      await _loadAll(keepUi: true);
+      if (!mounted) return;
+      _showSnack(
+        scope == 'TODAY'
+            ? 'Quantidade atualizada para hoje.'
+            : scope == 'FUTURE'
+                ? 'Quantidade atualizada para hoje e dias futuros.'
+                : 'Quantidade atualizada em todo o histórico.',
+        color: const Color(0xFF16A34A),
+      );
+    } catch (e) {
+      _showSnack(
+        e.toString().replaceFirst('Exception: ', ''),
+        color: const Color(0xFFDC2626),
+      );
+    }
+  }
+
   Future<void> _saveMealAsFavorite(
     String mealType,
     List<Map<String, dynamic>> entries,
@@ -3415,6 +3529,11 @@ class _DietControlViewState extends State<DietControlView> {
                     ],
                   ),
                   const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Editar quantidade',
+                    icon: const Icon(Icons.edit_rounded, size: 20, color: Color(0xFF2563EB)),
+                    onPressed: _isPastDay ? null : () => _showEditEntryQuantityDialog(entry),
+                  ),
                   IconButton(
                     tooltip: 'Remover item',
                     icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),

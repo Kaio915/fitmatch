@@ -1527,6 +1527,25 @@ class AuthService {
     }
   }
 
+  // ✅ ATUALIZA QUANTIDADE DE UM REGISTRO DE DIETA (HOJE / FUTUROS / TODOS)
+  static Future<Map<String, dynamic>> updateDietEntryQuantity({
+    required int userId,
+    required int entryId,
+    required double quantityGrams,
+    required String scope, // 'TODAY' | 'FUTURE' | 'ALL'
+  }) async {
+    final res = await http.patch(
+      Uri.parse('$_baseUrl/diet/$userId/entries/$entryId/quantity'),
+      headers: await _headers(json: true),
+      body: jsonEncode({
+        'quantityGrams': quantityGrams,
+        'scope': scope,
+      }),
+    );
+    if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   // ✅ ENVIAR MENSAGEM DE CHAT
   static Future<Map<String, dynamic>> sendChatMessage({
     required int senderId,

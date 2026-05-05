@@ -60,6 +60,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   bool _applyingBlockRange = false;
   bool _applyingCloneDay = false;
   bool _clearingDayBlocks = false;
+  bool _undoingBlock = false;
+
+  // Histórico de bloqueios para desfazer: cada entrada é uma lista de slots bloqueados.
+  final List<List<Map<String, dynamic>>> _blockHistory = [];
+  static const int _blockHistoryMax = 10;
   final ScrollController _pageScrollController = ScrollController();
 
   List<Map<String, dynamic>> _allTrainerRequests = [];
@@ -1155,9 +1160,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         final slotStart = _slotStartAtForWeekly(slot, anchor);
         if (slotStart == null) continue;
 
-        if (!_sameMomentByMinute(candidate, slotStart)) {
-          continue;
-        }
+        if (candidate.isBefore(slotStart)) continue;
+        final diffDays = candidate.difference(slotStart).inDays;
+        if (diffDays % 7 != 0) continue;
 
         if (status == 'APPROVED') {
           final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
@@ -1464,10 +1469,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       return (_SlotState.unavailable, null);
     }
 
-    if (_hasOneTimeManualBlockFor(dayIndex, slot.time, weekOffset: weekOffset)) {
-      return (_SlotState.unavailable, null);
-    }
-
+    // Overlays de solicitações têm prioridade: um slot reservado por aluno
+    // não deve perder o nome do aluno mesmo que o personal bloqueie o horário.
     final monthlyOverlay = _monthlyRequestOverlayFor(
       dayIndex,
       slot.time,
@@ -1502,6 +1505,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
     if (dailyApprovedOverlay != null) {
       return dailyApprovedOverlay;
+    }
+
+    if (_hasOneTimeManualBlockFor(dayIndex, slot.time, weekOffset: weekOffset)) {
+      return (_SlotState.unavailable, null);
     }
 
     final isManualBlocked =
@@ -1725,6 +1732,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     dateIso: selectedMode == 'ONCE' ? dateIso : null,
                     blockFullDay: blockFullDay,
                   );
+                  setState(() {
+                    _blockHistory.add([{
+                      'dayName': dayName,
+                      'time': slot.time,
+                      'repeatMode': selectedMode,
+                      'dateIso': selectedMode == 'ONCE' ? dateIso : null,
+                      'blockFullDay': blockFullDay,
+                    }]);
+                    if (_blockHistory.length > _blockHistoryMax) {
+                      _blockHistory.removeAt(0);
+                    }
+                  });
                   await _loadSlots();
                 } catch (_) {
                   if (!mounted) return;
@@ -2225,6 +2244,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     }
 
     var changedCount = 0;
+    final blockedEntries = <Map<String, dynamic>>[];
 
     setState(() => _applyingBlockRange = true);
     try {
@@ -2237,7 +2257,23 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           repeatMode: repeatMode,
           dateIso: repeatMode == 'ONCE' ? dateIso : null,
         );
+        blockedEntries.add({
+          'dayName': dayName,
+          'time': time,
+          'repeatMode': repeatMode,
+          'dateIso': repeatMode == 'ONCE' ? dateIso : null,
+          'blockFullDay': false,
+        });
         changedCount++;
+      }
+
+      if (blockedEntries.isNotEmpty) {
+        setState(() {
+          _blockHistory.add(blockedEntries);
+          if (_blockHistory.length > _blockHistoryMax) {
+            _blockHistory.removeAt(0);
+          }
+        });
       }
 
       await _loadSlots();
@@ -2262,6 +2298,41 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       );
     } finally {
       if (mounted) setState(() => _applyingBlockRange = false);
+    }
+  }
+
+  Future<void> _undoLastBlock() async {
+    if (_blockHistory.isEmpty || _undoingBlock || widget.trainerId == null) return;
+    final lastAction = _blockHistory.last;
+    setState(() => _undoingBlock = true);
+    try {
+      for (final entry in lastAction) {
+        await AuthService.unblockSlot(
+          widget.trainerId!,
+          entry['dayName'] as String,
+          entry['time'] as String,
+          repeatMode: entry['repeatMode'] as String,
+          dateIso: entry['dateIso'] as String?,
+          blockFullDay: entry['blockFullDay'] as bool? ?? false,
+        );
+      }
+      setState(() => _blockHistory.removeLast());
+      await _loadSlots();
+      if (!mounted) return;
+      _showSnack(
+        'Último bloqueio desfeito.',
+        icon: Icons.undo_rounded,
+        color: const Color(0xFF2563EB),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(
+        'Não foi possível desfazer o bloqueio.',
+        icon: Icons.error_outline_rounded,
+        color: const Color(0xFFEF4444),
+      );
+    } finally {
+      if (mounted) setState(() => _undoingBlock = false);
     }
   }
 
@@ -4265,6 +4336,24 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
                   ),
                 ),
+                if (_blockHistory.isNotEmpty)
+                  OutlinedButton.icon(
+                    onPressed: (_undoingBlock || _applyingBlockRange) ? null : _undoLastBlock,
+                    icon: _undoingBlock
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.undo_rounded, size: 16),
+                    label: Text(
+                      'Desfazer (${_blockHistory.length})',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      side: const BorderSide(color: Color(0xFF93C5FD)),
+                    ),
+                  ),
               ],
             ),
           ),

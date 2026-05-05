@@ -59,7 +59,10 @@ class _TrainerWorkoutOrganizerViewState
 
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _favoriteNameCtrl = TextEditingController();
+  final TextEditingController _favoriteSearchCtrl = TextEditingController();
   final TextEditingController _customNameCtrl = TextEditingController();
+
+  String _favoriteSearchText = '';
 
   bool _loading = true;
   bool _savingPlan = false;
@@ -224,6 +227,12 @@ class _TrainerWorkoutOrganizerViewState
         ? _timeOptionsForSelectedDay.first
         : '';
     _selectedCustomCategory = _exerciseCategories.first;
+    _favoriteSearchCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {
+        _favoriteSearchText = _favoriteSearchCtrl.text.trim().toLowerCase();
+      });
+    });
     _loadData();
   }
 
@@ -232,6 +241,7 @@ class _TrainerWorkoutOrganizerViewState
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _searchCtrl.dispose();
     _favoriteNameCtrl.dispose();
+    _favoriteSearchCtrl.dispose();
     _customNameCtrl.dispose();
     super.dispose();
   }
@@ -1548,7 +1558,7 @@ class _TrainerWorkoutOrganizerViewState
                                   child: Text(
                                     (slot['time'] ?? '').toString().trim().isEmpty
                                         ? (slot['dayName'] ?? '').toString()
-                                        : '${slot['dayName']} ${slot['time']}',
+                                        : '${slot["dayName"]} ${slot["time"]}',
                                     style: const TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w700,
@@ -1971,7 +1981,7 @@ class _TrainerWorkoutOrganizerViewState
                                 .map(
                                   (ex) => Chip(
                                     label: Text(
-                                      '${ex['name']} (${ex['category']})',
+                                      '${ex["name"]} (${ex["category"]})',
                                     ),
                                     onDeleted: () => _toggleExercise(
                                       ex['name'] ?? '',
@@ -2112,9 +2122,45 @@ class _TrainerWorkoutOrganizerViewState
                               color: Colors.black54,
                             ),
                           )
-                        else
-                          Column(
-                            children: _favorites.map((favorite) {
+                        else ...[
+                          TextField(
+                            controller: _favoriteSearchCtrl,
+                            decoration: InputDecoration(
+                              hintText: 'Pesquisar favorito...',
+                              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                              suffixIcon: _favoriteSearchText.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      onPressed: () => _favoriteSearchCtrl.clear(),
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Builder(builder: (context) {
+                            final filtered = _favorites.where((f) {
+                              if (_favoriteSearchText.isEmpty) return true;
+                              final name = (f['name'] ?? '').toString().toLowerCase();
+                              return name.contains(_favoriteSearchText);
+                            }).toList();
+                            if (filtered.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  'Nenhum favorito encontrado.',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              );
+                            }
+                            return Column(
+                            children: filtered.map((favorite) {
                               final id = int.tryParse(
                                 (favorite['id'] ?? '').toString(),
                               );
@@ -2226,7 +2272,7 @@ class _TrainerWorkoutOrganizerViewState
                                                   ),
                                                 ),
                                                 child: Text(
-                                                  '${ex['name']} (${ex['category']})',
+                                                  '${ex["name"]} (${ex["category"]})',
                                                   style: const TextStyle(
                                                     fontSize: 11.5,
                                                     color: Colors.black87,
@@ -2241,7 +2287,9 @@ class _TrainerWorkoutOrganizerViewState
                                 ),
                               );
                             }).toList(),
-                          ),
+                          );
+                          }),
+                        ],
                       ],
                     ),
                   ),
@@ -2412,7 +2460,7 @@ class _TrainerWorkoutOrganizerViewState
                                                 ),
                                               ),
                                               child: Text(
-                                                '${ex['name']} (${ex['category']})',
+                                                '${ex["name"]} (${ex["category"]})',
                                                 style: const TextStyle(
                                                   fontSize: 11.5,
                                                   color: Color(0xFF334155),
