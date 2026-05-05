@@ -577,6 +577,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
     final blockedRecurring = <String>{};
     final blockedOneTime = <String>{};
+    final unblockOneTime = <String>{};
     for (final slot in blockedSlots) {
       final state = (slot['state'] ?? '').toString().toUpperCase();
       if (state == 'REQUEST') {
@@ -592,6 +593,11 @@ class _StudentDashboardState extends State<StudentDashboard>
       final repeatMode = (slot['repeatMode'] ?? '').toString().toUpperCase();
 
       if (day.isEmpty || time.isEmpty) continue;
+
+      if (state == 'UNBLOCK_ONCE' && dateIso.isNotEmpty) {
+        unblockOneTime.add('$dateIso|$day|$time');
+        continue;
+      }
 
       if (dateIso.isNotEmpty || repeatMode == 'ONCE') {
         if (dateIso.isNotEmpty) {
@@ -618,11 +624,13 @@ class _StudentDashboardState extends State<StudentDashboard>
         if (candidate.isBefore(now)) continue;
 
         final recurringKey = '$normalizedDay|$time';
-        if (blockedRecurring.contains(recurringKey)) {
+        final oneTimeKey = '$dateIso|$normalizedDay|$time';
+
+        if (blockedRecurring.contains(recurringKey) &&
+            !unblockOneTime.contains(oneTimeKey)) {
           continue;
         }
 
-        final oneTimeKey = '$dateIso|$normalizedDay|$time';
         if (blockedOneTime.contains(oneTimeKey)) {
           continue;
         }
