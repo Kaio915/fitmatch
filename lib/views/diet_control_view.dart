@@ -2247,8 +2247,11 @@ class _DietControlViewState extends State<DietControlView> {
                     onPressed: _onGlobalRefresh,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xFF1D4ED8),
-                      side: const BorderSide(color: Color(0xFF1D4ED8)),
+                      backgroundColor: const Color(0xFF0B4DBA),
+                      side: const BorderSide(color: Color(0xFF0B4DBA)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                     icon: const Icon(Icons.refresh_rounded, size: 17),

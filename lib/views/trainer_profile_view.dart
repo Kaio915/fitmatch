@@ -2211,7 +2211,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               const Spacer(),
               if (_sendingRequest)
                 const Padding(
-                  padding: EdgeInsets.only(right: 56),
+                  padding: EdgeInsets.only(right: 8),
                   child: SizedBox(
                     width: 20,
                     height: 20,
@@ -2220,7 +2220,22 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   ),
                 )
               else
-                const SizedBox(width: 56),
+                IconButton(
+                  onPressed: _onGlobalRefresh,
+                  tooltip: 'Atualizar',
+                  icon: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Icon(
+                      Icons.refresh_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

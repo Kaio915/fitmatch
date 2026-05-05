@@ -846,36 +846,50 @@ class _StudentDashboardState extends State<StudentDashboard>
             children: [
               const FitMatchLogo(height: 56, assetPath: 'assets/images/logo_perfil.png'),
               const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(right: 56),
-                child: GestureDetector(
-                  onTap: () async {
-                    await AuthService.clearSession();
-                    if (mounted) {
-                      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.logout, color: Colors.white, size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          'Sair',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+              GestureDetector(
+                onTap: () async {
+                  await AuthService.clearSession();
+                  if (mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.logout, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        'Sair',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _onGlobalRefresh,
+                tooltip: 'Atualizar',
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: Colors.white,
                   ),
                 ),
               ),

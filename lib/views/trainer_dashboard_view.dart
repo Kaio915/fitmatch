@@ -2636,28 +2636,41 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     ],
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(right: 56),
-                child: IconButton(
-                  onPressed: () async {
-                    await AuthService.clearSession();
-                    if (mounted) {
-                      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                    }
-                  },
-                  icon: Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.logout_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+              IconButton(
+                onPressed: () async {
+                  await AuthService.clearSession();
+                  if (mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                  }
+                },
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  tooltip: 'Sair',
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+                tooltip: 'Sair',
+              ),
+              IconButton(
+                onPressed: _onGlobalRefresh,
+                tooltip: 'Atualizar',
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],

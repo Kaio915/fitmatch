@@ -1293,6 +1293,25 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         backgroundColor: const Color(0xFF0B4DBA),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _onGlobalRefresh,
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: _loading
           ? const Center(

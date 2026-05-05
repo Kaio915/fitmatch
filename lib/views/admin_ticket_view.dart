@@ -251,6 +251,25 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
+        actions: [
+          IconButton(
+            onPressed: _handleRefresh,
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B4DBA),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
         title: Wrap(
           spacing: 10,
           runSpacing: 6,

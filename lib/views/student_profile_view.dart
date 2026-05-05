@@ -257,6 +257,23 @@ class _StudentProfileViewState extends State<StudentProfileView> {
               fontSize: 17,
             ),
           ),
+          const Spacer(),
+          IconButton(
+            onPressed: _onGlobalRefresh,
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ],
       ),
     );

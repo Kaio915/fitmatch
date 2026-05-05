@@ -742,23 +742,37 @@ class _AdminViewState extends State<AdminView> {
             ),
           ),
           const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(right: 56),
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await AuthService.clearSession();
-                if (mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0B4DBA),
-                side: const BorderSide(color: Color(0xFF98A2B3)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await AuthService.clearSession();
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0B4DBA),
+              side: const BorderSide(color: Color(0xFF98A2B3)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            icon: const Icon(Icons.logout),
+            label: const Text('Sair'),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _onGlobalRefresh,
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B4DBA),
+                borderRadius: BorderRadius.circular(999),
               ),
-              icon: const Icon(Icons.logout),
-              label: const Text('Sair'),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
             ),
           ),
         ],

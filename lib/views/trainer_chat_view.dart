@@ -649,7 +649,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     _inputFocusNode = FocusNode();
     _messageCtrl.addListener(_onTextChanged);
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
-    AppRefreshNotifier.hideFloating();
     _loadBlockedStateForProfileButton();
     _loadMessages();
     if (!_effectiveReadOnly) {
@@ -1257,7 +1256,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   @override
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
-    AppRefreshNotifier.showFloating();
     _refreshTimer?.cancel();
     _heartbeatTimer?.cancel();
     _typingPollTimer?.cancel();
@@ -1424,7 +1422,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
               onPressed: () async {
                 if (widget.isTrainerSide) {
                   // Personal vendo perfil do aluno
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => StudentProfileView(
@@ -1454,7 +1452,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                     }
                   }
                   if (!mounted) return;
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => TrainerProfileView(

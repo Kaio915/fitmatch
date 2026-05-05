@@ -179,6 +179,26 @@ class _LoginViewState extends State<LoginView> {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                onPressed: _onGlobalRefresh,
+                tooltip: 'Atualizar',
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B4DBA),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
             Center(
               child: Container(
                 width: 420,

@@ -239,15 +239,33 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        '← Voltar',
-                        style: TextStyle(color: Colors.black),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          '← Voltar',
+                          style: TextStyle(color: Colors.black),
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _handleRefresh,
+                        tooltip: 'Atualizar',
+                        icon: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B4DBA),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Icon(
+                            Icons.refresh_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   const FitMatchLogo(height: 78, assetPath: 'assets/images/fitmatch_logo3.png'),
