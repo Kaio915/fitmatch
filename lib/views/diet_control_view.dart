@@ -281,9 +281,10 @@ class _DietControlViewState extends State<DietControlView> {
   String _entrySignature(String mealType, Map<String, dynamic> entry) {
     final foodId = _toInt(entry['foodId']);
     final foodName = (entry['foodName'] ?? '').toString().trim().toLowerCase();
-    final qty = _toDouble(entry['quantityGrams']).toStringAsFixed(1);
-    if (foodId > 0) return '${mealType.toLowerCase()}|id:$foodId|$qty';
-    return '${mealType.toLowerCase()}|name:$foodName|$qty';
+    // Não inclui quantidade: se o alimento já existe nessa refeição no dia,
+    // não deve ser duplicado como carryover mesmo que a qty seja diferente.
+    if (foodId > 0) return '${mealType.toLowerCase()}|id:$foodId';
+    return '${mealType.toLowerCase()}|name:$foodName';
   }
 
   @override
@@ -656,11 +657,17 @@ class _DietControlViewState extends State<DietControlView> {
 
     final entryId = _toInt(entry['id']);
     final currentQty = _toDouble(entry['quantityGrams']);
+    final currentProtein = _toDouble(entry['protein']);
+    final currentCarbs = _toDouble(entry['carbs']);
+    final currentFat = _toDouble(entry['fat']);
     final foodName = (entry['foodName'] ?? 'Alimento').toString();
 
-    final qtyCtrl = TextEditingController(
-      text: currentQty.toStringAsFixed(currentQty == currentQty.roundToDouble() ? 0 : 1),
-    );
+    String _fmt(double v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 1);
+
+    final qtyCtrl     = TextEditingController(text: _fmt(currentQty));
+    final proteinCtrl = TextEditingController(text: _fmt(currentProtein));
+    final carbsCtrl   = TextEditingController(text: _fmt(currentCarbs));
+    final fatCtrl     = TextEditingController(text: _fmt(currentFat));
     String scope = 'TODAY';
 
     final confirmed = await showDialog<bool>(
@@ -669,47 +676,94 @@ class _DietControlViewState extends State<DietControlView> {
         builder: (ctx, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Editar $foodName'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: qtyCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Nova quantidade (g)',
-                  border: OutlineInputBorder(),
-                  isDense: true,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: qtyCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Quantidade (g)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Aplicar alteração em:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Apenas hoje'),
-                    selected: scope == 'TODAY',
-                    onSelected: (_) => setDialogState(() => scope = 'TODAY'),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Hoje e dias futuros'),
-                    selected: scope == 'FUTURE',
-                    onSelected: (_) => setDialogState(() => scope = 'FUTURE'),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Todo o histórico'),
-                    selected: scope == 'ALL',
-                    onSelected: (_) => setDialogState(() => scope = 'ALL'),
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: proteinCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Proteína (g)',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: fatCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Gordura (g)',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: carbsCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Carbs (g)',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Macros informados atualizam o alimento para todos os dias.',
+                  style: TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Aplicar quantidade em:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Apenas hoje'),
+                      selected: scope == 'TODAY',
+                      onSelected: (_) => setDialogState(() => scope = 'TODAY'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Hoje e dias futuros'),
+                      selected: scope == 'FUTURE',
+                      onSelected: (_) => setDialogState(() => scope = 'FUTURE'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Todo o histórico'),
+                      selected: scope == 'ALL',
+                      onSelected: (_) => setDialogState(() => scope = 'ALL'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -729,6 +783,11 @@ class _DietControlViewState extends State<DietControlView> {
       ),
     );
 
+    qtyCtrl.dispose();
+    proteinCtrl.dispose();
+    carbsCtrl.dispose();
+    fatCtrl.dispose();
+
     if (confirmed != true) return;
 
     final qty = _tryParseNumber(qtyCtrl.text);
@@ -737,21 +796,28 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
+    final protein = _tryParseNumber(proteinCtrl.text);
+    final carbs   = _tryParseNumber(carbsCtrl.text);
+    final fat     = _tryParseNumber(fatCtrl.text);
+
     try {
       await AuthService.updateDietEntryQuantity(
         userId: widget.userId,
         entryId: entryId,
         quantityGrams: qty,
         scope: scope,
+        protein: protein,
+        carbs: carbs,
+        fat: fat,
       );
       await _loadAll(keepUi: true);
       if (!mounted) return;
       _showSnack(
         scope == 'TODAY'
-            ? 'Quantidade atualizada para hoje.'
+            ? 'Alimento atualizado para hoje.'
             : scope == 'FUTURE'
-                ? 'Quantidade atualizada para hoje e dias futuros.'
-                : 'Quantidade atualizada em todo o histórico.',
+                ? 'Alimento atualizado para hoje e dias futuros.'
+                : 'Alimento atualizado em todo o histórico.',
         color: const Color(0xFF16A34A),
       );
     } catch (e) {

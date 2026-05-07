@@ -1533,14 +1533,21 @@ class AuthService {
     required int entryId,
     required double quantityGrams,
     required String scope, // 'TODAY' | 'FUTURE' | 'ALL'
+    double? protein,
+    double? carbs,
+    double? fat,
   }) async {
+    final body = <String, dynamic>{
+      'quantityGrams': quantityGrams,
+      'scope': scope,
+    };
+    if (protein != null) body['protein'] = protein;
+    if (carbs != null) body['carbs'] = carbs;
+    if (fat != null) body['fat'] = fat;
     final res = await http.patch(
       Uri.parse('$_baseUrl/diet/$userId/entries/$entryId/quantity'),
       headers: await _headers(json: true),
-      body: jsonEncode({
-        'quantityGrams': quantityGrams,
-        'scope': scope,
-      }),
+      body: jsonEncode(body),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     return jsonDecode(res.body) as Map<String, dynamic>;
