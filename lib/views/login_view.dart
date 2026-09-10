@@ -35,6 +35,7 @@ class _LoginViewState extends State<LoginView> {
 
   bool loading = false;
   bool _passwordVisible = false;
+  late bool _editingCadastro;
 
   // controla borda vermelha
   String? _fieldError; // se != null, pinta os campos
@@ -53,6 +54,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   void initState() {
     super.initState();
+    _editingCadastro = widget.isEditingCadastro;
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
   }
 
@@ -106,7 +108,7 @@ class _LoginViewState extends State<LoginView> {
       final type = (user['type'] ?? '').toString().toLowerCase();
       final status = (user['status'] ?? '').toString().toUpperCase();
 
-      if (widget.isEditingCadastro) {
+      if (_editingCadastro) {
         if (status == 'APPROVED') {
           _showSnack('Seu cadastro já foi aprovado e não pode ser editado.');
           return;
@@ -267,7 +269,7 @@ class _LoginViewState extends State<LoginView> {
                     const FitMatchLogo(height: 90, assetPath: 'assets/images/fitmatch_logo3.png'),
                     const SizedBox(height: 20),
                     Text(
-                      widget.isEditingCadastro ? 'Editar cadastro' : 'Entrar',
+                      _editingCadastro ? 'Editar cadastro' : 'Entrar',
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 26,
@@ -276,7 +278,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      widget.isEditingCadastro
+                      _editingCadastro
                           ? 'Entre para corrigir os seus dados'
                           : 'Acesse sua conta FitMatch',
                       style: const TextStyle(color: Colors.black),
@@ -331,14 +333,37 @@ class _LoginViewState extends State<LoginView> {
                               ),
                             )
                           : Text(
-                              widget.isEditingCadastro ? 'Editar cadastro' : 'Entrar',
+                              _editingCadastro ? 'Editar cadastro' : 'Entrar',
                               style: const TextStyle(color: Colors.white),
                             ),
                     ),
 
+                    if (_editingCadastro)
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _editingCadastro = false;
+                          _fieldError = null;
+                        }),
+                        child: const Text('Voltar'),
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: () => setState(() => _editingCadastro = true),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Editar cadastro'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0B4DBA),
+                          side: const BorderSide(color: Color(0xFF0B4DBA)),
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+
                     const SizedBox(height: 16),
 
-                    if (!widget.isEditingCadastro)
+                    if (!_editingCadastro)
                       MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(

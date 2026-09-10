@@ -25,16 +25,31 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
   late final TextEditingController _cpfCtrl;
   late final TextEditingController _crefCtrl;
   late final TextEditingController _cidadeCtrl;
-  late final TextEditingController _especialidadeCtrl;
   late final TextEditingController _valorHoraCtrl;
   late final TextEditingController _bioCtrl;
   final _passwordCtrl = TextEditingController();
+  final _especialidadeOutroCtrl = TextEditingController();
 
   List<Map<String, dynamic>> cidades = [];
   Timer? _cidadeDebounce;
 
   XFile? _photo;
   bool _loading = false;
+
+  String? _especialidadeSelecionada;
+
+  final List<String> _especialidades = const [
+    'Perda de peso',
+    'Hipertrofia',
+    'Definição muscular',
+    'Ganho de força',
+    'Condicionamento físico',
+    'Saúde e bem-estar',
+    'Postura e mobilidade',
+    'Reabilitação e prevenção de lesões',
+    'Preparação para provas físicas',
+    'Outro',
+  ];
 
   String get _statusTitle {
     final status = (widget.user['status'] ?? '').toString().toUpperCase();
@@ -62,8 +77,16 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
     _cpfCtrl = TextEditingController(text: (widget.user['cpf'] ?? '').toString());
     _crefCtrl = TextEditingController(text: (widget.user['cref'] ?? '').toString());
     _cidadeCtrl = TextEditingController(text: (widget.user['cidade'] ?? '').toString());
-    _especialidadeCtrl =
-        TextEditingController(text: (widget.user['especialidade'] ?? '').toString());
+    final especialidadeAtual =
+        (widget.user['especialidade'] ?? '').toString().trim();
+    if (especialidadeAtual.isNotEmpty) {
+      _especialidadeSelecionada = _especialidades.contains(especialidadeAtual)
+          ? especialidadeAtual
+          : 'Outro';
+      if (_especialidadeSelecionada == 'Outro') {
+        _especialidadeOutroCtrl.text = especialidadeAtual;
+      }
+    }
     _valorHoraCtrl = TextEditingController(
       text: _CurrencyInputFormatter.format(
         (widget.user['valorHora'] ?? '').toString(),
@@ -79,7 +102,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
     _cpfCtrl.dispose();
     _crefCtrl.dispose();
     _cidadeCtrl.dispose();
-    _especialidadeCtrl.dispose();
+    _especialidadeOutroCtrl.dispose();
     _valorHoraCtrl.dispose();
     _bioCtrl.dispose();
     _passwordCtrl.dispose();
@@ -102,6 +125,13 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
     );
   }
 
+  String _especialidadeFinal() {
+    if ((_especialidadeSelecionada ?? '').trim() == 'Outro') {
+      return _especialidadeOutroCtrl.text.trim();
+    }
+    return (_especialidadeSelecionada ?? '').trim();
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -114,7 +144,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         cpf: _cpfCtrl.text,
         cref: _crefCtrl.text,
         cidade: _cidadeCtrl.text,
-        especialidade: _especialidadeCtrl.text,
+        especialidade: _especialidadeFinal(),
         valorHora: _valorHoraCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''),
         bio: _bioCtrl.text,
         password: _passwordCtrl.text,
@@ -192,7 +222,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                       _input('CPF *', _cpfCtrl),
                       _input('CREF *', _crefCtrl),
                       _cidadeAutocomplete(),
-                      _input('Especialidade', _especialidadeCtrl, required: false),
+                      _especialidadeDropdown(),
                       _input('Valor por hora', _valorHoraCtrl,
                           required: false,
                           inputFormatters: [_CurrencyInputFormatter()]),
@@ -300,6 +330,57 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                 },
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _especialidadeDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _especialidadeSelecionada,
+            decoration: const InputDecoration(
+              labelText: 'Especialidade',
+              border: OutlineInputBorder(),
+            ),
+            items: _especialidades
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
+            onChanged: (value) {
+              setState(() => _especialidadeSelecionada = value);
+              if (value != 'Outro') {
+                _especialidadeOutroCtrl.clear();
+              }
+            },
+            validator: (value) {
+              if (value == 'Outro' &&
+                  _especialidadeOutroCtrl.text.trim().isEmpty) {
+                return 'Descreva a especialidade';
+              }
+              return null;
+            },
+          ),
+          if (_especialidadeSelecionada == 'Outro') ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _especialidadeOutroCtrl,
+              validator: (value) {
+                if (_especialidadeSelecionada == 'Outro' &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'Campo obrigatório';
+                }
+                return null;
+              },
+              decoration: const InputDecoration(
+                labelText: 'Digite sua especialidade',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ],
       ),
     );

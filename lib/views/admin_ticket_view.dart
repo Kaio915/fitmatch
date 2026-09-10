@@ -95,21 +95,14 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     final base = <String>[
       'Olá! Identificamos alguns pontos no seu cadastro. Por favor, revise e atualize os dados para prosseguirmos.',
-      'Poderia confirmar se o e-mail informado está correto e ativo? Precisamos dele para validações.',
       'Seu nome precisa estar completo (nome e sobrenome) e sem abreviações. Ajuste e envie novamente.',
-      'Detectamos inconsistência na cidade/UF. Ajuste o campo "Cidade" para o formato correto.',
+      'Revise o campo "Cidade" do seu cadastro e confirme se está realmente correto.',
     ];
 
     if (type == 'personal') {
       base.addAll([
         'Seu CREF parece inconsistente. Verifique o número/UF e atualize o cadastro.',
-        'A especialidade está muito genérica. Informe algo mais específico (ex: Musculação, Funcional, Corrida...).',
         'A biografia precisa de mais detalhes (experiência, anos de atuação, foco de atendimento).',
-      ]);
-    } else {
-      base.addAll([
-        'Descreva melhor seus objetivos (ex: perder gordura, ganhar massa, melhorar condicionamento).',
-        'Confirme seu nível de condicionamento. Isso ajuda a sugerir treinos adequados.',
       ]);
     }
 
@@ -117,24 +110,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   }
 
   List<String> get _rejectTemplates {
-    final type = (widget.user['type'] ?? '').toString().toLowerCase();
-
-    final base = <String>[
-      'Dados obrigatórios ausentes ou inválidos.',
-      'Não foi possível validar as informações fornecidas.',
+    return <String>[
+      'Não foi possível validar as informações fornecidas (e-mail inválido).',
       'Não houve retorno dentro do prazo para correção das informações.',
     ];
-
-    if (type == 'personal') {
-      base.addAll([
-        'CREF inválido ou não confirmável.',
-        'Informações profissionais insuficientes para validação.',
-      ]);
-    } else {
-      base.addAll(['Informações inconsistentes no cadastro.']);
-    }
-
-    return base;
   }
 
   void _applyTemplate(String text) {
@@ -460,9 +439,13 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final normalizedStatus = status.trim().toUpperCase();
     final isApproved = normalizedStatus == 'APPROVED';
     final isRejected = normalizedStatus == 'REJECTED';
-    final statusLabel = normalizedStatus == 'TEMPORARILY_REJECTED'
-        ? 'Rejeitado temporariamente'
-        : normalizedStatus;
+    final statusLabel = switch (normalizedStatus) {
+      'PENDING' => 'Pendente',
+      'TEMPORARILY_REJECTED' => 'Rejeitado temporariamente',
+      'APPROVED' => 'Aprovado',
+      'REJECTED' => 'Rejeitado',
+      _ => normalizedStatus,
+    };
     final statusBg = isApproved
         ? const Color(0xFFDCFCE7)
         : isRejected

@@ -22,16 +22,30 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _cpfCtrl;
-  late final TextEditingController _objetivosCtrl;
   late final TextEditingController _cidadeCtrl;
   final _passwordCtrl = TextEditingController();
+  final _objetivoOutroCtrl = TextEditingController();
 
   List<Map<String, dynamic>> cidades = [];
   Timer? _cidadeDebounce;
 
   String? _nivel;
+  String? _objetivoSelecionado;
   XFile? _photo;
   bool _loading = false;
+
+  final List<String> _objetivos = const [
+    'Perder peso',
+    'Ganhar massa muscular',
+    'Definir / Hipertrofia',
+    'Aumentar força',
+    'Melhorar condicionamento',
+    'Melhorar saúde e disposição',
+    'Melhorar postura',
+    'Reabilitação / Fortalecimento',
+    'Preparação para prova (corrida, TAF, etc.)',
+    'Outro',
+  ];
 
   String get _statusTitle {
     final status = (widget.user['status'] ?? '').toString().toUpperCase();
@@ -57,8 +71,15 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
     _nameCtrl = TextEditingController(text: (widget.user['name'] ?? '').toString());
     _emailCtrl = TextEditingController(text: (widget.user['email'] ?? '').toString());
     _cpfCtrl = TextEditingController(text: (widget.user['cpf'] ?? '').toString());
-    _objetivosCtrl =
-        TextEditingController(text: (widget.user['objetivos'] ?? '').toString());
+    final objetivoAtual = (widget.user['objetivos'] ?? '').toString().trim();
+    if (objetivoAtual.isEmpty) {
+      _objetivoSelecionado = null;
+    } else if (_objetivos.contains(objetivoAtual)) {
+      _objetivoSelecionado = objetivoAtual;
+    } else {
+      _objetivoSelecionado = 'Outro';
+      _objetivoOutroCtrl.text = objetivoAtual;
+    }
     _cidadeCtrl = TextEditingController(text: (widget.user['cidade'] ?? '').toString());
 
     final nivel = (widget.user['nivel'] ?? '').toString().trim();
@@ -70,7 +91,7 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _cpfCtrl.dispose();
-    _objetivosCtrl.dispose();
+    _objetivoOutroCtrl.dispose();
     _cidadeCtrl.dispose();
     _passwordCtrl.dispose();
     _cidadeDebounce?.cancel();
@@ -102,7 +123,9 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
         name: _nameCtrl.text,
         email: _emailCtrl.text,
         cpf: _cpfCtrl.text,
-        objetivos: _objetivosCtrl.text,
+        objetivos: _objetivoSelecionado == 'Outro'
+            ? _objetivoOutroCtrl.text
+            : (_objetivoSelecionado ?? ''),
         nivel: _nivel ?? '',
         cidade: _cidadeCtrl.text,
         password: _passwordCtrl.text,
@@ -178,7 +201,7 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
                       _input('Nome *', _nameCtrl),
                       _input('Email *', _emailCtrl, isEmail: true),
                       _input('CPF *', _cpfCtrl),
-                      _input('Objetivos *', _objetivosCtrl),
+                      _objetivoDropdown(),
                       _cidadeAutocomplete(required: false),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
@@ -237,6 +260,55 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _objetivoDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _objetivoSelecionado,
+            decoration: const InputDecoration(
+              labelText: 'Objetivos *',
+              border: OutlineInputBorder(),
+            ),
+            items: _objetivos
+                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                .toList(),
+            onChanged: (value) {
+              setState(() => _objetivoSelecionado = value);
+              if (value != 'Outro') _objetivoOutroCtrl.clear();
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Selecione uma opção';
+              if (value == 'Outro' && _objetivoOutroCtrl.text.trim().isEmpty) {
+                return 'Escreva seu objetivo';
+              }
+              return null;
+            },
+          ),
+          if (_objetivoSelecionado == 'Outro') ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _objetivoOutroCtrl,
+              validator: (value) {
+                if (_objetivoSelecionado == 'Outro' &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'Campo obrigatório';
+                }
+                return null;
+              },
+              decoration: const InputDecoration(
+                labelText: 'Descreva seu objetivo',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

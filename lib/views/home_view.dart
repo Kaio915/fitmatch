@@ -3,68 +3,11 @@ import 'package:flutter/material.dart';
 import '../views/register_student_view.dart';
 import '../views/login_view.dart';
 import '../core/user_type.dart';
-import '../services/auth_service.dart';
-import 'edit_cadastro_choice_view.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../routes/app_routes.dart';
 
 class HomeView extends StatelessWidget {
-  static bool editMode = false;
-
   const HomeView({super.key});
-
-  Future<void> _editCadastro(BuildContext context) async {
-    final session = await AuthService.loadSession();
-
-    if (!context.mounted) return;
-
-    if (session == null) {
-      HomeView.editMode = true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Faça login para editar o seu cadastro.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final status = (session['status'] ?? '').toString().toUpperCase();
-
-    if (status == 'APPROVED') {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Cadastro aprovado'),
-          content: const Text(
-            'Seu cadastro já foi aprovado e não pode ser editado.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Entendi'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    if (status == 'REJECTED') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seu cadastro foi rejeitado e não pode ser editado.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => EditCadastroChoiceView(user: session)),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,14 +118,11 @@ class HomeView extends StatelessWidget {
                         title: 'Aluno',
                         icon: Icons.person_outline,
                         onTap: () {
-                          final editMode = HomeView.editMode;
-                          HomeView.editMode = false;
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => LoginView(
                                 userType: UserType.aluno,
-                                isEditingCadastro: editMode,
                               ),
                             ),
                           );
@@ -192,31 +132,17 @@ class HomeView extends StatelessWidget {
                         title: 'Personal Trainer',
                         icon: Icons.assignment_outlined,
                         onTap: () {
-                          final editMode = HomeView.editMode;
-                          HomeView.editMode = false;
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => LoginView(
                                 userType: UserType.personal,
-                                isEditingCadastro: editMode,
                               ),
                             ),
                           );
                         },
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () => _editCadastro(context),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Editar cadastro'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0B4DBA),
-                      side: const BorderSide(color: Color(0xFF0B4DBA)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    ),
                   ),
                 ],
               ),
