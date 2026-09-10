@@ -4654,6 +4654,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   for (final req in visibleRequests)
                     _RequestRow(
                       studentName: (req['studentName'] ?? 'Aluno').toString(),
+                      studentCidade: (req['studentCidade'] ?? '').toString(),
                       requestId: req['id'] is int
                           ? req['id'] as int
                           : int.tryParse(req['id'].toString()) ?? 0,
@@ -4875,6 +4876,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
 class _RequestRow extends StatelessWidget {
   final String studentName;
+  final String? studentCidade;
   final int requestId;
   final String dayName;
   final String time;
@@ -4893,6 +4895,7 @@ class _RequestRow extends StatelessWidget {
 
   const _RequestRow({
     required this.studentName,
+    this.studentCidade,
     required this.requestId,
     required this.dayName,
     required this.time,
@@ -5387,6 +5390,29 @@ class _RequestRow extends StatelessWidget {
                           color: Colors.black87,
                         ),
                       ),
+                      if (studentCidade != null &&
+                          studentCidade!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 13,
+                              color: Color(0xFF667085),
+                            ),
+                            const SizedBox(width: 3),
+                            Expanded(
+                              child: Text(
+                                studentCidade!.trim(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF667085),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,

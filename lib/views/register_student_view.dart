@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -31,6 +32,10 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   final _passCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
   final _cpfCtrl = TextEditingController();
+  final _cidadeCtrl = TextEditingController();
+
+  List<Map<String, dynamic>> cidades = [];
+  Timer? _cidadeDebounce;
 
   bool _showPassword = false;
   bool _showConfirmPassword = false;
@@ -38,6 +43,15 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   // ✅ Objetivo: dropdown + "Outro" com campo livre
   String? _objetivoSelecionado;
   final _objetivoOutroCtrl = TextEditingController();
+
+  // Focus nodes para navegação por Enter (teclado abre automaticamente)
+  final _nameFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _passFocus = FocusNode();
+  final _confirmPassFocus = FocusNode();
+  final _cidadeFocus = FocusNode();
+  final _cpfFocus = FocusNode();
+  final _objetivoOutroFocus = FocusNode();
 
   String? nivelSelecionado;
   bool loading = false;
@@ -83,6 +97,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
       _confirmPassCtrl.clear();
       _cpfCtrl.clear();
       _cpfMask.clear();
+      _cidadeCtrl.clear();
+      cidades = [];
       _objetivoOutroCtrl.clear();
       _objetivoSelecionado = null;
       nivelSelecionado = null;
@@ -101,7 +117,16 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     _passCtrl.dispose();
     _confirmPassCtrl.dispose();
     _cpfCtrl.dispose();
+    _cidadeDebounce?.cancel();
+    _cidadeCtrl.dispose();
     _objetivoOutroCtrl.dispose();
+    _nameFocus.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
+    _confirmPassFocus.dispose();
+    _cidadeFocus.dispose();
+    _cpfFocus.dispose();
+    _objetivoOutroFocus.dispose();
     super.dispose();
   }
 
@@ -198,6 +223,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
         photo: _photo!, // XFile
         objetivos: objetivo,
         nivel: (nivelSelecionado ?? '').trim(),
+        cidade: _cidadeCtrl.text.trim(),
       );
 
       if (!mounted) return;
@@ -357,12 +383,16 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     'Nome Completo *',
                     'Seu nome',
                     controller: _nameCtrl,
+                    focusNode: _nameFocus,
+                    nextFocus: _emailFocus,
                   ),
                   _input(
                     'Email *',
                     'seu@email.com',
                     controller: _emailCtrl,
                     isEmail: true,
+                    focusNode: _emailFocus,
+                    nextFocus: _passFocus,
                   ),
                   _input(
                     'Senha *',
@@ -370,6 +400,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     controller: _passCtrl,
                     obscure: !_showPassword,
                     isPassword: true,
+                    focusNode: _passFocus,
+                    nextFocus: _confirmPassFocus,
                     suffixIcon: IconButton(
                       onPressed: () =>
                           setState(() => _showPassword = !_showPassword),
@@ -383,6 +415,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     'Repita a senha',
                     controller: _confirmPassCtrl,
                     obscure: !_showConfirmPassword,
+                    focusNode: _confirmPassFocus,
+                    nextFocus: _cidadeFocus,
                     customValidator: (value) {
                       final v = (value ?? '').trim();
                       if (v.isEmpty) return 'Campo obrigatório';
@@ -403,14 +437,26 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                     ),
                   ),
 
+                  _cidadeAutocomplete(
+                    focusNode: _cidadeFocus,
+                    nextFocus: _cpfFocus,
+                  ),
+
                   // CPF
-                  _cpfField(),
+                  _cpfField(
+                    focusNode: _cpfFocus,
+                    onNext: () {
+                      if (_objetivoSelecionado == 'Outro') {
+                        _objetivoOutroFocus.requestFocus();
+                      }
+                    },
+                  ),
 
                   // Foto
                   _photoField(),
 
                   // ✅ Objetivos (dropdown + "Outro")
-                  _objetivosDropdown(),
+                  _objetivosDropdown(outroFocus: _objetivoOutroFocus),
 
                   _dropdownNivel(),
 
@@ -465,7 +511,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     );
   }
 
-  Widget _cpfField() {
+  Widget _cpfField({FocusNode? focusNode, VoidCallback? onNext}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -480,8 +526,11 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: _cpfCtrl,
+          focusNode: focusNode,
           inputFormatters: [_cpfMask],
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => onNext?.call(),
           validator: (value) {
             final v = (value ?? '').trim();
             if (v.isEmpty) return 'Campo obrigatório';
@@ -556,7 +605,7 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   }
 
   // ✅ Objetivo com dropdown + campo quando selecionar "Outro"
-  Widget _objetivosDropdown() {
+  Widget _objetivosDropdown({FocusNode? outroFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -593,6 +642,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _objetivoOutroCtrl,
+              focusNode: outroFocus,
+              textInputAction: TextInputAction.done,
               validator: (value) {
                 if (_objetivoSelecionado == 'Outro' &&
                     (value == null || value.trim().isEmpty)) {
@@ -603,6 +654,86 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
               decoration: _decoration('Descreva seu objetivo'),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cidadeAutocomplete({FocusNode? focusNode, FocusNode? nextFocus}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cidade *',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _cidadeCtrl,
+            focusNode: focusNode,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
+            onChanged: (value) async {
+              _cidadeDebounce?.cancel();
+
+              final query = value.trim();
+              if (query.length < 2) {
+                if (mounted) {
+                  setState(() => cidades = []);
+                }
+                return;
+              }
+
+              _cidadeDebounce =
+                  Timer(const Duration(milliseconds: 300), () async {
+                final typedAtRequest = _cidadeCtrl.text.trim();
+                final resultado =
+                    await AuthService.buscarCidadesIbge(typedAtRequest);
+
+                if (!mounted) return;
+
+                // Evita exibir resultados antigos quando o usuário digita rápido.
+                if (typedAtRequest == _cidadeCtrl.text.trim()) {
+                  setState(() => cidades = resultado);
+                }
+              });
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Campo obrigatório';
+              return null;
+            },
+            decoration: _decoration('Sua cidade'),
+          ),
+          if (cidades.isNotEmpty)
+            Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.white,
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: cidades.length,
+                itemBuilder: (context, index) {
+                  final cidade = cidades[index];
+                  return ListTile(
+                    title: Text("${cidade['nome']} - ${cidade['uf']}"),
+                    onTap: () {
+                      _cidadeCtrl.text = "${cidade['nome']} - ${cidade['uf']}";
+                      setState(() => cidades = []);
+                    },
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -651,6 +782,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     String? Function(String?)? customValidator,
     Widget? suffixIcon,
     required TextEditingController controller,
+    FocusNode? focusNode,
+    FocusNode? nextFocus,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -669,6 +802,9 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
           TextFormField(
             controller: controller,
             obscureText: obscure,
+            focusNode: focusNode,
+            textInputAction: nextFocus == null ? TextInputAction.done : TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
             validator: (value) {
               if (customValidator != null) return customValidator(value);
               final v = (value ?? '').trim();

@@ -167,6 +167,7 @@ class AuthService {
     required XFile photo,
     required String objetivos,
     required String nivel,
+    required String cidade,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register/student');
 
@@ -176,7 +177,8 @@ class AuthService {
       ..fields['password'] = password.trim()
       ..fields['cpf'] = cpf.trim()
       ..fields['objetivos'] = objetivos.trim()
-      ..fields['nivel'] = nivel.trim();
+      ..fields['nivel'] = nivel.trim()
+      ..fields['cidade'] = cidade.trim();
 
     request.files.add(await _photoToMultipart(photo));
 
@@ -215,6 +217,86 @@ class AuthService {
       ..fields['bio'] = bio.trim();
 
     request.files.add(await _photoToMultipart(photo));
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ EDITAR CADASTRO DO ALUNO (MULTIPART) — liberado quando TEMPORARILY_REJECTED
+  static Future<void> editStudentCadastro({
+    required String name,
+    required String email,
+    required String cpf,
+    required String objetivos,
+    required String nivel,
+    required String cidade,
+    String? password,
+    XFile? photo,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/cadastro/student');
+
+    final request = http.MultipartRequest('PUT', uri)
+      ..fields['name'] = name.trim()
+      ..fields['email'] = email.trim()
+      ..fields['cpf'] = cpf.trim()
+      ..fields['objetivos'] = objetivos.trim()
+      ..fields['nivel'] = nivel.trim()
+      ..fields['cidade'] = cidade.trim();
+
+    request.headers.addAll(await authHeaders());
+
+    if (password != null && password.trim().isNotEmpty) {
+      request.fields['password'] = password.trim();
+    }
+    if (photo != null) {
+      request.files.add(await _photoToMultipart(photo));
+    }
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ EDITAR CADASTRO DO PERSONAL (MULTIPART) — liberado quando TEMPORARILY_REJECTED
+  static Future<void> editTrainerCadastro({
+    required String name,
+    required String email,
+    required String cpf,
+    required String cref,
+    required String cidade,
+    required String especialidade,
+    required String valorHora,
+    required String bio,
+    String? password,
+    XFile? photo,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/cadastro/trainer');
+
+    final request = http.MultipartRequest('PUT', uri)
+      ..fields['name'] = name.trim()
+      ..fields['email'] = email.trim()
+      ..fields['cpf'] = cpf.trim()
+      ..fields['cref'] = cref.trim()
+      ..fields['cidade'] = cidade.trim()
+      ..fields['especialidade'] = especialidade.trim()
+      ..fields['valorHora'] = valorHora.trim()
+      ..fields['bio'] = bio.trim();
+
+    request.headers.addAll(await authHeaders());
+
+    if (password != null && password.trim().isNotEmpty) {
+      request.fields['password'] = password.trim();
+    }
+    if (photo != null) {
+      request.files.add(await _photoToMultipart(photo));
+    }
 
     final streamed = await request.send();
     final res = await http.Response.fromStream(streamed);
@@ -1558,6 +1640,7 @@ class AuthService {
     required int senderId,
     required int receiverId,
     required String text,
+    bool temporaryRejection = false,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/chat/send'),
@@ -1566,6 +1649,7 @@ class AuthService {
         'senderId': senderId,
         'receiverId': receiverId,
         'text': text,
+        'temporaryRejection': temporaryRejection,
       }),
     );
     if (res.statusCode != 200 && res.statusCode != 201) {

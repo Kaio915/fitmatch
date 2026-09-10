@@ -38,6 +38,17 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   final valorController = TextEditingController();
   final bioController = TextEditingController();
 
+  // Focus nodes para navegação por Enter (teclado abre automaticamente)
+  final _nameFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _confirmPasswordFocus = FocusNode();
+  final _cpfFocus = FocusNode();
+  final _crefFocus = FocusNode();
+  final _cidadeFocus = FocusNode();
+  final _especialidadeOutroFocus = FocusNode();
+  final _valorFocus = FocusNode();
+
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
@@ -169,6 +180,15 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     especialidadeOutroController.dispose();
     valorController.dispose();
     bioController.dispose();
+    _nameFocus.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
+    _cpfFocus.dispose();
+    _crefFocus.dispose();
+    _cidadeFocus.dispose();
+    _especialidadeOutroFocus.dispose();
+    _valorFocus.dispose();
     super.dispose();
   }
 
@@ -206,7 +226,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         cref: crefController.text.trim().toUpperCase(),
         cidade: cidadeController.text.trim(),
         especialidade: _especialidadeFinal(),
-        valorHora: valorController.text.trim(),
+        valorHora: valorController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         bio: bioController.text.trim(),
       );
 
@@ -354,22 +374,40 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
 
                   const SizedBox(height: 24),
 
-                  _input('Nome Completo *', 'Seu nome completo', nameController),
+                  _input('Nome Completo *', 'Seu nome completo', nameController,
+                      focusNode: _nameFocus, nextFocus: _emailFocus),
                   _input('Email *', 'seuemail@email.com', emailController,
-                      isEmail: true),
-                    _passwordField(),
-                    _confirmPasswordField(),
+                      isEmail: true,
+                      focusNode: _emailFocus, nextFocus: _passwordFocus),
+                    _passwordField(
+                        focusNode: _passwordFocus,
+                        nextFocus: _confirmPasswordFocus),
+                    _confirmPasswordField(
+                        focusNode: _confirmPasswordFocus, nextFocus: _cpfFocus),
 
-                  _cpfField(),
+                  _cpfField(focusNode: _cpfFocus, nextFocus: _crefFocus),
                   _photoField(),
 
-                  _crefField(),
+                  _crefField(focusNode: _crefFocus, nextFocus: _cidadeFocus),
 
-                  _cidadeAutocomplete(),
+                  _cidadeAutocomplete(
+                    focusNode: _cidadeFocus,
+                    onNext: () {
+                      if (_especialidadeSelecionada == 'Outro') {
+                        _especialidadeOutroFocus.requestFocus();
+                      } else {
+                        _valorFocus.requestFocus();
+                      }
+                    },
+                  ),
 
-                    _especialidadeDropdown(),
+                    _especialidadeDropdown(
+                        outroFocus: _especialidadeOutroFocus,
+                        outroNextFocus: _valorFocus),
                     _input('Valor por Hora', 'Ex: 120', valorController,
-                      required: false),
+                      required: false,
+                      inputFormatters: [_CurrencyInputFormatter()],
+                      focusNode: _valorFocus),
 
                   // ✅ BIO COM LIMITE REAL
                   _textarea(
@@ -454,7 +492,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _cidadeAutocomplete() {
+  Widget _cidadeAutocomplete({FocusNode? focusNode, VoidCallback? onNext}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -465,6 +503,9 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
           const SizedBox(height: 6),
           TextFormField(
             controller: cidadeController,
+            focusNode: focusNode,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => onNext?.call(),
             onChanged: (value) async {
               _cidadeDebounce?.cancel();
 
@@ -535,7 +576,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _cpfField() {
+  Widget _cpfField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -544,8 +585,11 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: cpfController,
+          focusNode: focusNode,
           inputFormatters: [_cpfMask],
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
           validator: (value) {
             final v = (value ?? '').trim();
             if (v.isEmpty) return 'Campo obrigatório';
@@ -558,7 +602,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _crefField() {
+  Widget _crefField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -567,8 +611,11 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: crefController,
+          focusNode: focusNode,
           inputFormatters: [_crefMask],
           textCapitalization: TextCapitalization.characters,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
           validator: (value) {
             final v = (value ?? '').trim().toUpperCase();
             if (v.isEmpty) return 'Campo obrigatório';
@@ -583,7 +630,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _passwordField() {
+  Widget _passwordField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -592,7 +639,10 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: passwordController,
+          focusNode: focusNode,
           obscureText: !_showPassword,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
           validator: (value) {
             final v = (value ?? '').trim();
             if (v.isEmpty) return 'Campo obrigatório';
@@ -612,7 +662,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _confirmPasswordField() {
+  Widget _confirmPasswordField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -621,7 +671,10 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: confirmPasswordController,
+          focusNode: focusNode,
           obscureText: !_showConfirmPassword,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
           validator: (value) {
             final v = (value ?? '').trim();
             if (v.isEmpty) return 'Campo obrigatório';
@@ -644,7 +697,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     );
   }
 
-  Widget _especialidadeDropdown() {
+  Widget _especialidadeDropdown({FocusNode? outroFocus, FocusNode? outroNextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -674,6 +727,9 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
           const SizedBox(height: 12),
           TextFormField(
             controller: especialidadeOutroController,
+            focusNode: outroFocus,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => outroNextFocus?.requestFocus(),
             validator: (value) {
               if (_especialidadeSelecionada == 'Outro' &&
                   (value == null || value.trim().isEmpty)) {
@@ -748,6 +804,9 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
     bool isEmail = false,
     bool isPassword = false,
     bool required = true,
+    List<TextInputFormatter>? inputFormatters,
+    FocusNode? focusNode,
+    FocusNode? nextFocus,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -758,6 +817,10 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         TextFormField(
           controller: controller,
           obscureText: obscure,
+          inputFormatters: inputFormatters,
+          focusNode: focusNode,
+          textInputAction: nextFocus == null ? TextInputAction.done : TextInputAction.next,
+          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
           validator: (value) {
             final v = (value ?? '').trim();
             if (required && v.isEmpty) return 'Campo obrigatório';
@@ -832,5 +895,41 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
         borderSide: const BorderSide(color: Colors.red, width: 2),
       ),
     );
+  }
+}
+
+// ─── Máscara de moeda (R$) para o campo "Valor por Hora" ─────────────────────
+// Conforme o usuário digita, o "R$" aparece automaticamente e o número é
+// formatado com separador de milhar (ex.: 1200 -> "R$ 1.200").
+class _CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+
+    final parsed = int.tryParse(digits);
+    final formatted = parsed == null ? digits : _withThousandSeparators(parsed);
+    final text = 'R\$ $formatted';
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  static String _withThousandSeparators(int number) {
+    final s = number.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(s[i]);
+    }
+    return buffer.toString();
   }
 }

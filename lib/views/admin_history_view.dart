@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
+import '../core/date_utils.dart';
 import '../services/admin_service.dart';
 
 class AdminHistoryView extends StatefulWidget {
@@ -496,9 +497,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                   .toString()
                                   .toUpperCase();
                               final created = (u['createdAt'] ?? '').toString();
-                              final date = created.length >= 10
-                                  ? created.substring(0, 10)
-                                  : '-';
+                              final date = formatIsoDateToPtBr(created);
                               final isDeleting =
                                   id != null && _deletingIds.contains(id);
                               final displayName = (u['name'] ?? '')
@@ -564,6 +563,20 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 18,
                                             ),
                                           ),
+                                          if ((u['cref'] ?? '')
+                                              .toString()
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'CREF: ${(u['cref'] ?? '').toString()}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF0B4DBA),
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
                                           const SizedBox(height: 6),
                                           Text(
                                             'Cadastro: $date',

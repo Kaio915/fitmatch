@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
+import '../core/date_utils.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import 'admin_history_view.dart';
@@ -481,9 +482,11 @@ class _AdminViewState extends State<AdminView> {
 
   Widget _userCard(dynamic u) {
     final type = (u['type'] ?? '').toString().toLowerCase();
+    final status = (u['status'] ?? '').toString().toUpperCase();
+    final isTemporarilyRejected = status == 'TEMPORARILY_REJECTED';
     final cpf = (u['cpf'] ?? '-').toString();
     final createdAt = u['createdAt']?.toString();
-    final createdDate = (createdAt != null && createdAt.length >= 10) ? createdAt.substring(0, 10) : '-';
+    final createdDate = formatIsoDateToPtBr(createdAt);
     final name = (u['name'] ?? '').toString();
     final email = (u['email'] ?? '').toString();
 
@@ -604,30 +607,24 @@ class _AdminViewState extends State<AdminView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Analisar'),
+              icon: Icon(isTemporarilyRejected ? Icons.warning_amber_rounded : Icons.search),
+              label: Text(isTemporarilyRejected ? 'Rejeitado temporariamente' : 'Analisar'),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
-                backgroundColor: const Color(0xFF0B4DBA),
+                backgroundColor: isTemporarilyRejected
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF0B4DBA),
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(46),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
-                final removed = await Navigator.push<bool>(
+                await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(builder: (_) => AdminTicketView(user: Map<String, dynamic>.from(u))),
                 );
-
-                if (removed == true) {
-                  setState(() {
-                    if (type == 'personal') {
-                      trainers.removeWhere((x) => x['id'] == u['id']);
-                    } else {
-                      alunos.removeWhere((x) => x['id'] == u['id']);
-                    }
-                  });
-                }
+                if (!mounted) return;
+                await _load();
               },
             ),
           ),

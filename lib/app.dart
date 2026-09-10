@@ -6,6 +6,8 @@ import 'views/home_view.dart';
 import 'views/student_dashboard.dart';
 import 'views/trainer_dashboard_view.dart';
 import 'views/admin_view.dart';
+import 'views/edit_student_cadastro_view.dart';
+import 'views/edit_trainer_cadastro_view.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -51,6 +53,22 @@ class _SessionRouterState extends State<_SessionRouter> {
     }
 
     final type = (session['type'] ?? '').toString().toLowerCase();
+
+    final status = (session['status'] ?? '').toString().toUpperCase();
+    if (status == 'PENDING' || status == 'TEMPORARILY_REJECTED') {
+      if (type == 'aluno') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => EditStudentCadastroView(user: session)),
+        );
+      } else if (type == 'personal') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => EditTrainerCadastroView(user: session)),
+        );
+      }
+      return;
+    }
 
     if (type == 'admin') {
       Navigator.pushReplacement(

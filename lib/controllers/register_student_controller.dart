@@ -11,6 +11,7 @@ class RegisterStudentController {
   String senha = '';
   String objetivos = '';
   String nivel = '';
+  String cidade = '';
 
   // ✅ NOVOS CAMPOS
   String cpf = '';
@@ -41,6 +42,7 @@ class RegisterStudentController {
         photo: photo!, // aqui garantimos que não é null
         objetivos: objetivos,
         nivel: nivel,
+        cidade: cidade,
       );
 
       if (!context.mounted) return;

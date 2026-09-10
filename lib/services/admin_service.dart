@@ -51,6 +51,18 @@ class AdminService {
     }
   }
 
+  // ✅ REJEITAR TEMPORARIAMENTE (libera edição para o usuário)
+  static Future<void> temporarilyRejectUser(int id) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/temporary-reject/$id'),
+      headers: await AuthService.authHeaders(),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao rejeitar temporariamente o usuário');
+    }
+  }
+
   static Future<List<dynamic>> getUsersByType(String type, {String? status}) async {
     final uri = Uri.parse(
       status == null || status.isEmpty

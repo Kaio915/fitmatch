@@ -5,15 +5,23 @@ import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'register_student_view.dart';
 import 'register_trainer_view.dart';
+import 'edit_student_cadastro_view.dart';
+import 'edit_trainer_cadastro_view.dart';
 import '../routes/app_routes.dart';
+import 'home_view.dart';
 import 'admin_view.dart';
 import 'student_dashboard.dart';
 import 'trainer_dashboard_view.dart';
 
 class LoginView extends StatefulWidget {
   final UserType userType;
+  final bool isEditingCadastro;
 
-  const LoginView({super.key, required this.userType});
+  const LoginView({
+    super.key,
+    required this.userType,
+    this.isEditingCadastro = false,
+  });
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -96,12 +104,46 @@ class _LoginViewState extends State<LoginView> {
       if (!mounted) return;
 
       final type = (user['type'] ?? '').toString().toLowerCase();
+      final status = (user['status'] ?? '').toString().toUpperCase();
+
+      if (widget.isEditingCadastro) {
+        if (status == 'APPROVED') {
+          _showSnack('Seu cadastro já foi aprovado e não pode ser editado.');
+          return;
+        }
+        if (status == 'REJECTED') {
+          _showSnack('Seu cadastro foi rejeitado e não pode ser editado.');
+          return;
+        }
+        if (type == 'aluno') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => EditStudentCadastroView(user: user)),
+          );
+        } else if (type == 'personal') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => EditTrainerCadastroView(user: user)),
+          );
+        } else {
+          _showSnack('Tipo de usuário inválido para edição.');
+        }
+        return;
+      }
 
       if (type == 'admin') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminView()),
         );
+        return;
+      }
+
+      if (status == 'PENDING' || status == 'TEMPORARILY_REJECTED') {
+        await AuthService.clearSession();
+        _showSnack(status == 'PENDING'
+            ? 'Seu cadastro está em análise. Para editar seus dados, use a opção "Editar cadastro".'
+            : 'Seu cadastro foi rejeitado temporariamente. Para corrigir, use a opção "Editar cadastro".');
         return;
       }
 
@@ -176,7 +218,13 @@ class _LoginViewState extends State<LoginView> {
               left: 16,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeView()),
+                    (route) => false,
+                  );
+                },
               ),
             ),
             Positioned(
@@ -218,18 +266,20 @@ class _LoginViewState extends State<LoginView> {
                   children: [
                     const FitMatchLogo(height: 90, assetPath: 'assets/images/fitmatch_logo3.png'),
                     const SizedBox(height: 20),
-                    const Text(
-                      'Entrar',
-                      style: TextStyle(
+                    Text(
+                      widget.isEditingCadastro ? 'Editar cadastro' : 'Entrar',
+                      style: const TextStyle(
                         color: Colors.black,
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Acesse sua conta FitMatch',
-                      style: TextStyle(color: Colors.black),
+                    Text(
+                      widget.isEditingCadastro
+                          ? 'Entre para corrigir os seus dados'
+                          : 'Acesse sua conta FitMatch',
+                      style: const TextStyle(color: Colors.black),
                     ),
                     const SizedBox(height: 24),
 
@@ -280,18 +330,19 @@ class _LoginViewState extends State<LoginView> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Entrar',
-                              style: TextStyle(color: Colors.white),
+                          : Text(
+                              widget.isEditingCadastro ? 'Editar cadastro' : 'Entrar',
+                              style: const TextStyle(color: Colors.white),
                             ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () {
+                    if (!widget.isEditingCadastro)
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
                           if (widget.userType == UserType.aluno) {
                             Navigator.pushReplacement(
                               context,

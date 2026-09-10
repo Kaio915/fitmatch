@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
+import '../services/auth_service.dart';
 import '../core/app_refresh_notifier.dart';
+import '../core/date_utils.dart';
 
 class AdminTicketView extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -20,11 +22,52 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   final List<_TicketMessage> _messages = [];
 
   String? _selectedAnalysisTemplate;
+  int? _adminId;
+  bool _hasSentMessage = false;
 
   @override
   void initState() {
     super.initState();
     AppRefreshNotifier.signal.addListener(_handleRefresh);
+    _msgController.addListener(_onTextChanged);
+    _initChat();
+  }
+
+  Future<void> _initChat() async {
+    final session = await AuthService.loadSession();
+    final adminId = session?['id'] != null ? (session!['id'] as num).toInt() : null;
+    final userId = widget.user['id'];
+
+    if (adminId != null && userId != null) {
+      try {
+        final msgs = await AuthService.getChatMessages(
+          userId1: adminId,
+          userId2: (userId as num).toInt(),
+        );
+        if (!mounted) return;
+
+        final loaded = msgs.map((m) {
+          final fromAdmin = (m['senderId'] is num) &&
+              (m['senderId'] as num).toInt() == adminId;
+          return _TicketMessage(
+            text: (m['text'] ?? '').toString(),
+            fromAdmin: fromAdmin,
+          );
+        }).toList();
+
+        setState(() {
+          _messages
+            ..clear()
+            ..addAll(loaded);
+          _hasSentMessage = loaded.any((m) => m.fromAdmin);
+        });
+      } catch (_) {
+        // Sem histórico ainda ou falha silenciosa ao carregar o chat.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _adminId = adminId);
   }
 
   void _handleRefresh() {
@@ -35,9 +78,14 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     });
   }
 
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_handleRefresh);
+    _msgController.removeListener(_onTextChanged);
     _msgController.dispose();
     super.dispose();
   }
@@ -98,14 +146,64 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     });
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      _showSnack('Escreva uma mensagem antes de enviar.');
+      return;
+    }
+
+    final adminId = _adminId;
+    final receiverId = widget.user['id'];
+    if (adminId == null || receiverId == null) {
+      _showSnack('Não foi possível identificar os participantes do chat.');
+      return;
+    }
 
     setState(() {
       _messages.add(_TicketMessage(text: text, fromAdmin: true));
       _msgController.clear();
     });
+
+    try {
+      await AuthService.sendChatMessage(
+        senderId: adminId,
+        receiverId: (receiverId as num).toInt(),
+        text: text,
+      );
+      if (mounted) {
+        setState(() => _hasSentMessage = true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _temporarilyReject() async {
+    final userId = widget.user['id'];
+    if (userId == null) {
+      _showSnack('Não foi possível identificar o usuário.');
+      return;
+    }
+
+    try {
+      await AdminService.temporarilyRejectUser((userId as num).toInt());
+      if (!mounted) return;
+      widget.user['status'] = 'TEMPORARILY_REJECTED';
+      setState(() {});
+      _showSnack('Usuário rejeitado temporariamente e notificado por e-mail.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   Future<void> _approve() async {
@@ -347,9 +445,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
     final status = (widget.user['status'] ?? '-').toString();
     final createdAt = (widget.user['createdAt'] ?? '').toString();
-    final createdDate = createdAt.length >= 10
-        ? createdAt.substring(0, 10)
-        : createdAt;
+    final createdDate = createdAt.isEmpty
+        ? ''
+        : formatIsoDateToPtBr(createdAt);
     final cidade = (widget.user['cidade'] ?? '').toString();
     final cref = (widget.user['cref'] ?? '').toString();
     final especialidade = (widget.user['especialidade'] ?? '').toString();
@@ -362,6 +460,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final normalizedStatus = status.trim().toUpperCase();
     final isApproved = normalizedStatus == 'APPROVED';
     final isRejected = normalizedStatus == 'REJECTED';
+    final statusLabel = normalizedStatus == 'TEMPORARILY_REJECTED'
+        ? 'Rejeitado temporariamente'
+        : normalizedStatus;
     final statusBg = isApproved
         ? const Color(0xFFDCFCE7)
         : isRejected
@@ -443,7 +544,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        'Status: $normalizedStatus',
+                        'Status: $statusLabel',
                         style: TextStyle(
                           color: statusFg,
                           fontWeight: FontWeight.w800,
@@ -732,32 +833,52 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       color: Colors.white,
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
+          SizedBox(
+            width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _approve,
-              icon: const Icon(Icons.check),
-              label: const Text('Aprovar'),
+              onPressed: _hasSentMessage ? _temporarilyReject : null,
+              icon: const Icon(Icons.block),
+              label: const Text('Rejeitar temporariamente'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B4DBA),
+                backgroundColor: const Color(0xFFF59E0B),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFFDE7C8),
+                disabledForegroundColor: const Color(0xFF9A6B2B),
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _showRejectReasonSheet,
-              icon: const Icon(Icons.close),
-              label: const Text('Rejeitar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(48),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _approve,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Aprovar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B4DBA),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showRejectReasonSheet,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Rejeitar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
