@@ -338,6 +338,8 @@ class _LoginViewState extends State<LoginView> {
                             ),
                     ),
 
+                    const SizedBox(height: 12),
+
                     if (_editingCadastro)
                       TextButton(
                         onPressed: () => setState(() {
