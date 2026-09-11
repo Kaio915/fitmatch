@@ -52,14 +52,15 @@ class AdminService {
   }
 
   // ✅ REJEITAR TEMPORARIAMENTE (libera edição para o usuário)
-  static Future<void> temporarilyRejectUser(int id) async {
+  static Future<void> temporarilyRejectUser(int id, {required String reason}) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/admin/temporary-reject/$id'),
-      headers: await AuthService.authHeaders(),
+      headers: await AuthService.authHeaders(json: true),
+      body: jsonEncode({'reason': reason}),
     );
 
     if (res.statusCode != 200) {
-      throw Exception('Erro ao rejeitar temporariamente o usuário');
+      throw Exception(_extractErrorMessage(res));
     }
   }
 
@@ -87,5 +88,24 @@ class AdminService {
     if (res.statusCode != 200) {
       throw Exception('Erro ao excluir usuário');
     }
+  }
+
+  static String _extractErrorMessage(http.Response res) {
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        final msg = data['message'] ?? data['error'] ?? data['msg'];
+        if (msg != null && msg.toString().trim().isNotEmpty) {
+          return msg.toString();
+        }
+      }
+    } catch (_) {
+      // ignora se não for JSON
+    }
+
+    final raw = res.body.toString().trim();
+    if (raw.isNotEmpty) return raw;
+
+    return 'Erro (${res.statusCode})';
   }
 }

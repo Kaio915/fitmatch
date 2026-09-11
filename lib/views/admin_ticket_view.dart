@@ -173,8 +173,24 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       return;
     }
 
+    final reason = _messages
+        .reversed
+        .firstWhere(
+          (m) => m.fromAdmin,
+          orElse: () => _TicketMessage(text: '', fromAdmin: true),
+        )
+        .text
+        .trim();
+    if (reason.isEmpty) {
+      _showSnack('Envie uma mensagem antes de rejeitar temporariamente.');
+      return;
+    }
+
     try {
-      await AdminService.temporarilyRejectUser((userId as num).toInt());
+      await AdminService.temporarilyRejectUser(
+        (userId as num).toInt(),
+        reason: reason,
+      );
       if (!mounted) return;
       widget.user['status'] = 'TEMPORARILY_REJECTED';
       setState(() {});
