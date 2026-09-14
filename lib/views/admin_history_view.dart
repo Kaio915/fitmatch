@@ -27,6 +27,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   String sortBy = 'DATA'; // DATA | NOME
 
   final Set<int> _deletingIds = <int>{};
+  bool _clearing = false;
 
   void _onGlobalRefresh() {
     _load();
@@ -136,17 +137,15 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     if (id is! int) return;
 
     final name = (user['name'] ?? 'Usuário').toString();
-    final alreadyDeleted = (user['deleted'] == true) ||
-        (user['status'] ?? '').toString().toUpperCase() == 'DELETED';
-    if (alreadyDeleted) return;
 
-    final shouldDelete =
-        await showDialog<bool>(
+    final shouldDelete = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Excluir usuário'),
             content: Text(
-              'Deseja excluir $name? Após a exclusão, esse usuário não conseguirá mais fazer login.',
+              'Você tem certeza que deseja excluir $name?\n\n'
+              'Essa ação não poderá ser desfeita. O usuário será removido e o '
+              'histórico de conversa entre o admin e o usuário também será apagado.',
             ),
             actions: [
               TextButton(
@@ -178,6 +177,105 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     } finally {
       if (mounted) {
         setState(() => _deletingIds.remove(id));
+      }
+    }
+  }
+
+  String _clearHistoryLabel(String status, String singularSegment) {
+    switch (status) {
+      case 'APPROVED':
+        return 'o histórico dos usuários aprovados';
+      case 'REJECTED':
+        return 'o histórico dos usuários rejeitados';
+      case 'DELETED':
+        return 'o histórico dos usuários excluídos';
+      default:
+        return 'todo o histórico de usuários $singularSegment';
+    }
+  }
+
+  Future<void> _showClearHistoryOptions() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_sweep_outlined),
+              title: const Text('Limpar todo o histórico'),
+              onTap: () => Navigator.pop(context, 'ALL'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('Limpar só aprovados'),
+              onTap: () => Navigator.pop(context, 'APPROVED'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined),
+              title: const Text('Limpar só rejeitados'),
+              onTap: () => Navigator.pop(context, 'REJECTED'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_off_outlined),
+              title: const Text('Limpar só excluídos'),
+              onTap: () => Navigator.pop(context, 'DELETED'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+    final status = choice == 'ALL' ? null : choice;
+    await _confirmClearHistory(status);
+  }
+
+  Future<void> _confirmClearHistory(String? status) async {
+    final singularSegment = widget.userType == 'personal' ? 'Personal' : 'Aluno';
+    final label = _clearHistoryLabel(status ?? 'ALL', singularSegment);
+
+    final shouldClear = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Limpar histórico'),
+            content: Text(
+              'Você tem certeza que deseja excluir $label?\n\n'
+              'Essa ação não poderá ser desfeita. O histórico de conversa entre o '
+              'admin e o usuário também será apagado.\n\n'
+              'Os usuários que estão com status "Aprovado" não serão excluídos — '
+              'apenas o histórico deles será removido.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Limpar histórico'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldClear) return;
+
+    setState(() => _clearing = true);
+    try {
+      await AdminService.clearHistory(widget.userType, status: status);
+      await _load();
+      _showSnack('Histórico limpo com sucesso.');
+    } catch (_) {
+      _showSnack('Não foi possível limpar o histórico.', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _clearing = false);
       }
     }
   }
@@ -493,6 +591,49 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed:
+                                _clearing ? null : _showClearHistoryOptions,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white70),
+                              minimumSize: const Size.fromHeight(44),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_clearing)
+                                  const SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.delete_sweep_outlined,
+                                    size: 18,
+                                  ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _clearing ? 'Limpando...' : 'Limpar histórico',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -634,7 +775,44 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
-                                        _statusChip(status, deleted: deleted),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _statusChip(status, deleted: deleted),
+                                            if (status == 'REJECTED' ||
+                                                deleted) ...[
+                                              const SizedBox(width: 6),
+                                              if (isDeleting)
+                                                const SizedBox(
+                                                  height: 18,
+                                                  width: 18,
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(2),
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                InkWell(
+                                                  onTap: id == null
+                                                      ? null
+                                                      : () => _confirmDelete(u),
+                                                  borderRadius:
+                                                      BorderRadius.circular(999),
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.all(4),
+                                                    child: Icon(
+                                                      Icons.delete_outline,
+                                                      size: 20,
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ],
+                                        ),
                                         const SizedBox(height: 10),
                                         if (status == 'DELETED')
                                           const Text(
@@ -642,38 +820,6 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             style: TextStyle(
                                               color: Color(0xFF98A2B3),
                                               fontSize: 12,
-                                            ),
-                                          )
-                                        else if (status == 'APPROVED' && deleted)
-                                          const SizedBox.shrink()
-                                        else if (status == 'REJECTED')
-                                          const SizedBox.shrink()
-                                        else
-                                          TextButton.icon(
-                                            onPressed:
-                                                (isDeleting || id == null)
-                                                ? null
-                                                : () => _confirmDelete(u),
-                                            icon: isDeleting
-                                                ? const SizedBox(
-                                                    height: 14,
-                                                    width: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.delete_outline,
-                                                    size: 18,
-                                                    color: Colors.red,
-                                                  ),
-                                            label: const Text(
-                                              'Excluir usuário',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.w600,
-                                              ),
                                             ),
                                           ),
                                       ],

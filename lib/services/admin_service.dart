@@ -90,6 +90,17 @@ class AdminService {
     }
   }
 
+  static Future<void> clearHistory(String type, {String? status}) async {
+    final query = (status == null || status.isEmpty) ? '' : '?status=$status';
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/admin/history/$type$query'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
   static String _extractErrorMessage(http.Response res) {
     try {
       final data = jsonDecode(res.body);
