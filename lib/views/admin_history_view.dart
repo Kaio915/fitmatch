@@ -72,12 +72,17 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
       final name = (u['name'] ?? '').toString().toLowerCase();
       final email = (u['email'] ?? '').toString().toLowerCase();
       final status = (u['status'] ?? '').toString().toUpperCase();
+      final deleted = (u['deleted'] == true) || status == 'DELETED';
 
       final matchesSearch = s.isEmpty || name.contains(s) || email.contains(s);
 
       final matchesStatus = statusFilter == 'ALL'
           ? true
-          : status == statusFilter;
+          : statusFilter == 'DELETED'
+              ? deleted
+              : statusFilter == 'APPROVED'
+                  ? (status == 'APPROVED' && !deleted)
+                  : status == statusFilter;
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -131,7 +136,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     if (id is! int) return;
 
     final name = (user['name'] ?? 'Usuário').toString();
-    final alreadyDeleted =
+    final alreadyDeleted = (user['deleted'] == true) ||
         (user['status'] ?? '').toString().toUpperCase() == 'DELETED';
     if (alreadyDeleted) return;
 
@@ -178,9 +183,13 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   }
 
   int _countByStatus(String status) {
-    return users
-        .where((u) => (u['status'] ?? '').toString().toUpperCase() == status)
-        .length;
+    return users.where((u) {
+      final s = (u['status'] ?? '').toString().toUpperCase();
+      final deleted = (u['deleted'] == true) || s == 'DELETED';
+      if (status == 'APPROVED') return s == 'APPROVED' && !deleted;
+      if (status == 'DELETED') return deleted;
+      return s == status;
+    }).length;
   }
 
   Widget _metricCard({
@@ -234,8 +243,23 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     );
   }
 
-  Widget _statusChip(String status) {
+  Widget _statusChip(String status, {bool deleted = false}) {
+    if (status == 'APPROVED' && deleted) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _statusBadge('Aprovado', Colors.grey),
+          const SizedBox(width: 6),
+          _statusBadge('Excluído', Colors.red),
+        ],
+      );
+    }
+
     final color = _statusColor(status);
+    return _statusBadge(_statusText(status), color);
+  }
+
+  Widget _statusBadge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -244,7 +268,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         border: Border.all(color: color.withValues(alpha: .24)),
       ),
       child: Text(
-        _statusText(status),
+        label,
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w700,
@@ -496,6 +520,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                               final status = (u['status'] ?? '')
                                   .toString()
                                   .toUpperCase();
+                              final deleted =
+                                  (u['deleted'] == true) || status == 'DELETED';
                               final created = (u['createdAt'] ?? '').toString();
                               final date = formatIsoDateToPtBr(created);
                               final isDeleting =
@@ -585,6 +611,21 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 16,
                                             ),
                                           ),
+                                          if (status == 'REJECTED' &&
+                                              (u['rejectionReason'] ?? '')
+                                                  .toString()
+                                                  .trim()
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Motivo: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                              style: const TextStyle(
+                                                color: Color(0xFFB42318),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -593,7 +634,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
-                                        _statusChip(status),
+                                        _statusChip(status, deleted: deleted),
                                         const SizedBox(height: 10),
                                         if (status == 'DELETED')
                                           const Text(
@@ -603,6 +644,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 12,
                                             ),
                                           )
+                                        else if (status == 'APPROVED' && deleted)
+                                          const SizedBox.shrink()
+                                        else if (status == 'REJECTED')
+                                          const SizedBox.shrink()
                                         else
                                           TextButton.icon(
                                             onPressed:
