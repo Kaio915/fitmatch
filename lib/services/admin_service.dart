@@ -90,6 +90,16 @@ class AdminService {
     }
   }
 
+  static Future<void> excludeAccount(int id) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/users/$id/exclude'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
   static Future<void> clearHistory(String type, {String? status}) async {
     final query = (status == null || status.isEmpty) ? '' : '?status=$status';
     final res = await http.delete(

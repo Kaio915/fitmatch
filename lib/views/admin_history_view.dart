@@ -27,6 +27,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   String sortBy = 'DATA'; // DATA | NOME
 
   final Set<int> _deletingIds = <int>{};
+  final Set<int> _excludingIds = <int>{};
   bool _clearing = false;
 
   void _onGlobalRefresh() {
@@ -181,6 +182,97 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     }
   }
 
+  Future<void> _confirmExclude(Map<String, dynamic> user) async {
+    final id = user['id'];
+    if (id is! int) return;
+
+    final name = (user['name'] ?? 'Usuário').toString();
+
+    final shouldExclude = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Excluir conta'),
+            content: Text(
+              'Tem certeza que deseja excluir a conta de $name?\n\n'
+              'O usuário não conseguirá mais fazer login. A conta ficará '
+              'marcada como "Excluído" no histórico e poderá ser limpa depois.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Excluir conta'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldExclude) return;
+
+    setState(() => _excludingIds.add(id));
+    try {
+      await AdminService.excludeAccount(id);
+      await _load();
+      _showSnack('Conta excluída com sucesso.');
+    } catch (_) {
+      _showSnack('Não foi possível excluir a conta.', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _excludingIds.remove(id));
+      }
+    }
+  }
+
+  Widget _excludeAccountButton(Map<String, dynamic> u) {
+    final id = u['id'];
+    final isExcluding = id is int && _excludingIds.contains(id);
+    if (isExcluding) {
+      return const SizedBox(
+        height: 18,
+        width: 18,
+        child: Padding(
+          padding: EdgeInsets.all(2),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: id is int ? () => _confirmExclude(u) : null,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.red.withValues(alpha: .3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_remove_outlined, size: 14, color: Colors.red),
+            SizedBox(width: 4),
+            Text(
+              'Excluir conta',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _clearHistoryLabel(String status, String singularSegment) {
     switch (status) {
       case 'APPROVED':
@@ -205,11 +297,6 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
               leading: const Icon(Icons.delete_sweep_outlined),
               title: const Text('Limpar todo o histórico'),
               onTap: () => Navigator.pop(context, 'ALL'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.check_circle_outline),
-              title: const Text('Limpar só aprovados'),
-              onTap: () => Navigator.pop(context, 'APPROVED'),
             ),
             ListTile(
               leading: const Icon(Icons.cancel_outlined),
@@ -243,8 +330,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
               'Você tem certeza que deseja excluir $label?\n\n'
               'Essa ação não poderá ser desfeita. O histórico de conversa entre o '
               'admin e o usuário também será apagado.\n\n'
-              'Os usuários que estão com status "Aprovado" não serão excluídos — '
-              'apenas o histórico deles será removido.',
+              'Os usuários com status "Aprovado" não serão afetados.',
             ),
             actions: [
               TextButton(
@@ -779,7 +865,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             _statusChip(status, deleted: deleted),
-                                            if (status == 'REJECTED' ||
+                                            if (status == 'APPROVED' && !deleted) ...[
+                                              const SizedBox(width: 6),
+                                              _excludeAccountButton(u),
+                                            ] else if (status == 'REJECTED' ||
                                                 deleted) ...[
                                               const SizedBox(width: 6),
                                               if (isDeleting)

@@ -95,6 +95,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     final base = <String>[
       'Olá! Identificamos alguns pontos no seu cadastro. Por favor, revise e atualize os dados para prosseguirmos.',
+      'Sua foto de perfil não está adequada. Envie uma nova foto em um ambiente claro, com o rosto totalmente visível, sem boné, sem óculos escuros e sem outras pessoas na imagem.',
       'Seu nome precisa estar completo (nome e sobrenome) e sem abreviações. Ajuste e envie novamente.',
       'Revise o campo "Cidade" do seu cadastro e confirme se está realmente correto.',
     ];
