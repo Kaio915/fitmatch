@@ -9,8 +9,9 @@ import '../core/date_utils.dart';
 
 class AdminTicketView extends StatefulWidget {
   final Map<String, dynamic> user;
+  final bool readOnly;
 
-  const AdminTicketView({super.key, required this.user});
+  const AdminTicketView({super.key, required this.user, this.readOnly = false});
 
   @override
   State<AdminTicketView> createState() => _AdminTicketViewState();
@@ -20,10 +21,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   final TextEditingController _msgController = TextEditingController();
 
   final List<_TicketMessage> _messages = [];
+  final ScrollController _scrollController = ScrollController();
 
   String? _selectedAnalysisTemplate;
   int? _adminId;
   bool _hasSentMessage = false;
+
+  // Rejeição anterior do mesmo email (motivo + última mensagem do admin).
+  Map<String, dynamic>? _previousRejection;
+
+  // Conta excluída anteriormente do mesmo email (motivo da exclusão).
+  Map<String, dynamic>? _previousExclusion;
 
   @override
   void initState() {
@@ -43,15 +51,34 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         final msgs = await AuthService.getChatMessages(
           userId1: adminId,
           userId2: (userId as num).toInt(),
+          // Chat ativo: mostra apenas a tentativa atual (cada novo cadastro
+          // redefine o createdAt). Histórico (somente leitura): mostra as
+          // mensagens até o evento terminal daquela tentativa (recordedAt).
+          since: widget.readOnly
+              ? null
+              : (widget.user['createdAt'] ?? '').toString(),
+          until: widget.readOnly
+              ? (widget.user['recordedAt'] ?? '').toString()
+              : null,
+          limit: widget.readOnly ? 2000 : null,
         );
         if (!mounted) return;
 
+        final createdAt = (widget.user['createdAt'] ?? '').toString();
         final loaded = msgs.map((m) {
           final fromAdmin = (m['senderId'] is num) &&
               (m['senderId'] as num).toInt() == adminId;
+          final sentAt = (m['sentAt'] ?? '').toString();
+          // No histórico (somente leitura), mensagens anteriores ao createdAt
+          // desta tentativa pertencem a tentativas de cadastro anteriores.
+          final fromPreviousAttempt = widget.readOnly &&
+              createdAt.isNotEmpty &&
+              sentAt.isNotEmpty &&
+              sentAt.compareTo(createdAt) < 0;
           return _TicketMessage(
             text: (m['text'] ?? '').toString(),
             fromAdmin: fromAdmin,
+            fromPreviousAttempt: fromPreviousAttempt,
           );
         }).toList();
 
@@ -61,6 +88,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             ..addAll(loaded);
           _hasSentMessage = loaded.any((m) => m.fromAdmin);
         });
+        _scrollToBottom();
       } catch (_) {
         // Sem histórico ainda ou falha silenciosa ao carregar o chat.
       }
@@ -68,6 +96,46 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     if (!mounted) return;
     setState(() => _adminId = adminId);
+
+    _loadPreviousRejection();
+    _loadPreviousExclusion();
+  }
+
+  Future<void> _loadPreviousRejection() async {
+    // No histórico (somente leitura) a conversa completa já é exibida no chat,
+    // então não é necessário mostrar o resumo da rejeição anterior.
+    if (widget.readOnly) return;
+
+    final email = (widget.user['email'] ?? '').toString().trim();
+    if (email.isEmpty) return;
+
+    try {
+      final data = await AdminService.getPreviousRejection(email);
+      if (!mounted) return;
+      if (data['found'] == true) {
+        setState(() => _previousRejection = data);
+      }
+    } catch (_) {
+      // Falha silenciosa: apenas não exibe o histórico anterior.
+    }
+  }
+
+  Future<void> _loadPreviousExclusion() async {
+    // No histórico (somente leitura) a conversa completa já é exibida no chat.
+    if (widget.readOnly) return;
+
+    final email = (widget.user['email'] ?? '').toString().trim();
+    if (email.isEmpty) return;
+
+    try {
+      final data = await AdminService.getPreviousExclusion(email);
+      if (!mounted) return;
+      if (data['found'] == true) {
+        setState(() => _previousExclusion = data);
+      }
+    } catch (_) {
+      // Falha silenciosa: apenas não exibe o aviso.
+    }
   }
 
   void _handleRefresh() {
@@ -82,11 +150,19 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     if (mounted) setState(() {});
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    });
+  }
+
   @override
   void dispose() {
     AppRefreshNotifier.signal.removeListener(_handleRefresh);
     _msgController.removeListener(_onTextChanged);
     _msgController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -114,6 +190,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     return <String>[
       'Não foi possível validar as informações fornecidas (e-mail inválido).',
       'Não houve retorno dentro do prazo para correção das informações.',
+      'Usuário com histórico de contas excluídas por desrespeitar as diretrizes, entre outros.',
     ];
   }
 
@@ -144,6 +221,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       _messages.add(_TicketMessage(text: text, fromAdmin: true));
       _msgController.clear();
     });
+    _scrollToBottom();
 
     try {
       await AuthService.sendChatMessage(
@@ -206,6 +284,55 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     await AdminService.approveUser(widget.user['id']);
     if (!mounted) return;
     Navigator.pop(context, true);
+  }
+
+  Future<void> _ban() async {
+    final userId = widget.user['id'];
+    if (userId == null) {
+      _showSnack('Não foi possível identificar o usuário.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Banir usuário'),
+            content: const Text(
+              'O usuário será banido da plataforma e o cadastro será '
+              'rejeitado automaticamente. Ele não poderá mais acessar ou '
+              'criar uma nova conta.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7F1D1D),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Banir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      await AdminService.banUser(
+        (userId as num).toInt(),
+        reason: AdminService.banReason,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   Future<void> _reject(String reason) async {
@@ -397,6 +524,33 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 ),
               ),
             ),
+            if (widget.readOnly)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: .3),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_outline, size: 14, color: Color(0xFFB45309)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Somente leitura',
+                      style: TextStyle(
+                        color: Color(0xFFB45309),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -406,14 +560,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             _headerCard(name: name, email: email),
             Expanded(
               child: _messages.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
+                        widget.readOnly
+                            ? 'Nenhuma mensagem nesta conversa.'
+                            : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length,
                       itemBuilder: (_, i) => _bubble(_messages[i]),
@@ -421,7 +578,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             ),
             _templateBar(),
             _composer(),
-            _actionsBar(),
+            if (!widget.readOnly) _actionsBar(),
           ],
         ),
       ),
@@ -452,7 +609,6 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final objetivos = (widget.user['objetivos'] ?? '').toString();
     final nivel = (widget.user['nivel'] ?? '').toString();
     final bio = (widget.user['bio'] ?? '').toString();
-    final rejectionReason = (widget.user['rejectionReason'] ?? '').toString();
     final normalizedStatus = status.trim().toUpperCase();
     final isApproved = normalizedStatus == 'APPROVED';
     final isRejected = normalizedStatus == 'REJECTED';
@@ -489,7 +645,6 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFFFFFF), Color(0xFFF3F7FF)],
@@ -506,9 +661,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.35,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             children: [
               avatar,
@@ -658,26 +819,98 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               ),
             ),
           ],
-          if (rejectionReason.isNotEmpty) ...[
+          if (_previousRejection != null) ...[
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.history, size: 16, color: Color(0xFF92400E)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Cadastro anterior (mesmo email)',
+                        style: TextStyle(
+                          color: Color(0xFF92400E),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((_previousRejection!['rejectionReason'] ?? '')
+                      .toString()
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Motivo da rejeição: ${(_previousRejection!['rejectionReason'] ?? '').toString().trim()}',
+                      style: const TextStyle(
+                        color: Color(0xFFB45309),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (_previousExclusion != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF2F2),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFFECACA)),
               ),
-              child: Text(
-                'Motivo anterior: $rejectionReason',
-                style: const TextStyle(
-                  color: Color(0xFFB91C1C),
-                  fontSize: 12.5,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.person_off_outlined,
+                          size: 16, color: Color(0xFFB91C1C)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Conta excluída anteriormente',
+                        style: TextStyle(
+                          color: Color(0xFFB91C1C),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((_previousExclusion!['exclusionReason'] ?? '')
+                      .toString()
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Motivo da exclusão: ${(_previousExclusion!['exclusionReason'] ?? '').toString().trim()}',
+                      style: const TextStyle(
+                        color: Color(0xFFB91C1C),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -766,11 +999,13 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                   ),
                 )
                 .toList(),
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _selectedAnalysisTemplate = v);
-              _applyTemplate(v);
-            },
+            onChanged: widget.readOnly
+                ? null
+                : (v) {
+                    if (v == null) return;
+                    setState(() => _selectedAnalysisTemplate = v);
+                    _applyTemplate(v);
+                  },
             decoration: InputDecoration(
               hintText: 'Selecione uma mensagem pronta',
               filled: true,
@@ -799,10 +1034,13 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           Expanded(
             child: TextField(
               controller: _msgController,
+              enabled: !widget.readOnly,
               minLines: 1,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Escreva uma mensagem para o usuário...',
+                hintText: widget.readOnly
+                    ? 'Somente leitura'
+                    : 'Escreva uma mensagem para o usuário...',
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -815,7 +1053,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           SizedBox(
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: _sendMessage,
+              onPressed: widget.readOnly ? null : _sendMessage,
               icon: const Icon(Icons.send),
               label: const Text('Enviar'),
               style: ElevatedButton.styleFrom(
@@ -831,64 +1069,113 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
   Widget _actionsBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
       color: Colors.white,
-      child: Column(
+      child: Row(
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _hasSentMessage ? _temporarilyReject : null,
-              icon: const Icon(Icons.block),
-              label: const Text('Rejeitar temporariamente'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFFDE7C8),
-                disabledForegroundColor: const Color(0xFF9A6B2B),
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
+          _actionButton(
+            label: 'Aprovar',
+            icon: Icons.check,
+            color: const Color(0xFF0B4DBA),
+            onPressed: _approve,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _approve,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Aprovar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0B4DBA),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _showRejectReasonSheet,
-                  icon: const Icon(Icons.close),
-                  label: const Text('Rejeitar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-              ),
-            ],
+          _actionButton(
+            label: 'Rejeitar',
+            icon: Icons.close,
+            color: Colors.red,
+            onPressed: _showRejectReasonSheet,
+          ),
+          _actionButton(
+            label: 'Rejeitar temporariamente',
+            icon: Icons.block,
+            color: const Color(0xFFF59E0B),
+            onPressed: _hasSentMessage ? _temporarilyReject : null,
+            disabledColor: const Color(0xFFFDE7C8),
+            disabledForegroundColor: const Color(0xFF9A6B2B),
+          ),
+          _actionButton(
+            label: 'Banir usuário',
+            icon: Icons.gavel,
+            color: const Color(0xFF7F1D1D),
+            onPressed: _ban,
           ),
         ],
       ),
     );
   }
 
+  Widget _actionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+    Color? disabledColor,
+    Color? disabledForegroundColor,
+  }) {
+    final enabled = onPressed != null;
+    final bg = enabled
+        ? color
+        : (disabledColor ?? color.withValues(alpha: .35));
+    final fg = enabled
+        ? Colors.white
+        : (disabledForegroundColor ?? Colors.white);
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Material(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 58,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 19, color: fg),
+                    const SizedBox(height: 3),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _bubble(_TicketMessage m) {
     final align = m.fromAdmin ? Alignment.centerRight : Alignment.centerLeft;
-    final bg = m.fromAdmin ? const Color(0xFF0B4DBA) : Colors.white;
-    final fg = m.fromAdmin ? Colors.white : Colors.black;
+
+    final Color bg;
+    final Color fg;
+    if (m.fromPreviousAttempt) {
+      bg = const Color(0xFFF3F4F6);
+      fg = const Color(0xFF6B7280);
+    } else if (m.fromAdmin) {
+      bg = const Color(0xFF0B4DBA);
+      fg = Colors.white;
+    } else {
+      bg = Colors.white;
+      fg = Colors.black;
+    }
 
     return Align(
       alignment: align,
@@ -899,11 +1186,30 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(14),
+          border: m.fromPreviousAttempt
+              ? Border.all(color: const Color(0xFFE5E7EB))
+              : null,
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 6),
           ],
         ),
-        child: Text(m.text, style: TextStyle(color: fg)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (m.fromPreviousAttempt) ...[
+              const Text(
+                'Tentativa anterior',
+                style: TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            Text(m.text, style: TextStyle(color: fg)),
+          ],
+        ),
       ),
     );
   }
@@ -912,5 +1218,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 class _TicketMessage {
   final String text;
   final bool fromAdmin;
-  _TicketMessage({required this.text, required this.fromAdmin});
+  final bool fromPreviousAttempt;
+  _TicketMessage({
+    required this.text,
+    required this.fromAdmin,
+    this.fromPreviousAttempt = false,
+  });
 }

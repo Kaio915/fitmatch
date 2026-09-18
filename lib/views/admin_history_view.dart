@@ -2,6 +2,17 @@ import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../core/date_utils.dart';
 import '../services/admin_service.dart';
+import 'admin_ticket_view.dart';
+
+const List<String> _exclusionReasons = [
+  'Informações falsas ou fraudulentas no cadastro.',
+  'Comportamento inadequado com outros usuários.',
+  'Tentativa de fraude ou golpe.',
+  'Conta duplicada.',
+  'Uso indevido da plataforma (spam/propaganda).',
+];
+
+const String _otherExclusionReason = 'Outro';
 
 class AdminHistoryView extends StatefulWidget {
   final String userType;
@@ -28,6 +39,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
   final Set<int> _deletingIds = <int>{};
   final Set<int> _excludingIds = <int>{};
+  final Set<int> _banningIds = <int>{};
   bool _clearing = false;
 
   void _onGlobalRefresh() {
@@ -75,6 +87,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
       final email = (u['email'] ?? '').toString().toLowerCase();
       final status = (u['status'] ?? '').toString().toUpperCase();
       final deleted = (u['deleted'] == true) || status == 'DELETED';
+      final banned = (u['banned'] == true);
 
       final matchesSearch = s.isEmpty || name.contains(s) || email.contains(s);
 
@@ -82,9 +95,11 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
           ? true
           : statusFilter == 'DELETED'
               ? deleted
-              : statusFilter == 'APPROVED'
-                  ? (status == 'APPROVED' && !deleted)
-                  : status == statusFilter;
+              : statusFilter == 'BANNED'
+                  ? banned
+                  : statusFilter == 'APPROVED'
+                      ? (status == 'APPROVED' && !deleted)
+                      : status == statusFilter;
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -188,38 +203,84 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
     final name = (user['name'] ?? 'Usuário').toString();
 
+    String? selectedReason;
+    String otherReason = '';
+
     final shouldExclude = await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Excluir conta'),
-            content: Text(
-              'Tem certeza que deseja excluir a conta de $name?\n\n'
-              'O usuário não conseguirá mais fazer login. A conta ficará '
-              'marcada como "Excluído" no histórico e poderá ser limpa depois.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar'),
+          builder: (context) => StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('Excluir conta'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tem certeza que deseja excluir a conta de $name?\n'
+                    'O usuário não conseguirá mais fazer login.',
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedReason,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo da exclusão',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      ..._exclusionReasons.map(
+                        (r) => DropdownMenuItem(value: r, child: Text(r)),
+                      ),
+                      const DropdownMenuItem(
+                        value: _otherExclusionReason,
+                        child: Text('Outro'),
+                      ),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedReason = v),
+                  ),
+                  if (selectedReason == _otherExclusionReason) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Descreva o motivo',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) =>
+                          setDialogState(() => otherReason = v),
+                    ),
+                  ],
+                ],
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
                 ),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Excluir conta'),
-              ),
-            ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _canConfirmExclusion(selectedReason, otherReason)
+                      ? () => Navigator.pop(context, true)
+                      : null,
+                  child: const Text('Excluir conta'),
+                ),
+              ],
+            ),
           ),
         ) ??
         false;
 
     if (!shouldExclude) return;
 
+    final String finalReason = selectedReason == _otherExclusionReason
+        ? otherReason.trim()
+        : (selectedReason ?? '').trim();
+
     setState(() => _excludingIds.add(id));
     try {
-      await AdminService.excludeAccount(id);
+      await AdminService.excludeAccount(id, reason: finalReason);
       await _load();
       _showSnack('Conta excluída com sucesso.');
     } catch (_) {
@@ -229,6 +290,223 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         setState(() => _excludingIds.remove(id));
       }
     }
+  }
+
+  bool _canConfirmExclusion(String? selectedReason, String otherReason) {
+    if (selectedReason == null) return false;
+    if (selectedReason == _otherExclusionReason) {
+      return otherReason.trim().isNotEmpty;
+    }
+    return true;
+  }
+
+  Future<void> _confirmBan(Map<String, dynamic> user) async {
+    final id = user['id'];
+    if (id is! int) return;
+
+    final name = (user['name'] ?? 'Usuário').toString();
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Banir usuário'),
+            content: Text(
+              'Tem certeza que deseja banir $name?\n\n'
+              'O usuário será banido da plataforma e a conta será excluída '
+              'automaticamente. Ele não poderá mais acessar ou criar uma nova '
+              'conta.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7F1D1D),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Banir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    setState(() => _banningIds.add(id));
+    try {
+      await AdminService.banUser(id, reason: AdminService.banReason);
+      await _load();
+      _showSnack('Usuário banido com sucesso.');
+    } catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _showSnack('Não foi possível banir: $msg', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _banningIds.remove(id));
+      }
+    }
+  }
+
+  Widget _banAccountButton(Map<String, dynamic> u) {
+    final id = u['id'];
+    final isBanning = id is int && _banningIds.contains(id);
+    if (isBanning) {
+      return const SizedBox(
+        height: 18,
+        width: 18,
+        child: Padding(
+          padding: EdgeInsets.all(2),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: id is int ? () => _confirmBan(u) : null,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF7F1D1D).withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFF7F1D1D).withValues(alpha: .3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.gavel, size: 14, color: Color(0xFF7F1D1D)),
+            SizedBox(width: 4),
+            Text(
+              'Banir',
+              style: TextStyle(
+                color: Color(0xFF7F1D1D),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmUnban(Map<String, dynamic> user) async {
+    final id = user['id'];
+    if (id is! int) return;
+
+    final name = (user['name'] ?? 'Usuário').toString();
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Desbanir usuário'),
+            content: Text(
+              'Tem certeza que deseja desbanir $name?\n\n'
+              'O usuário voltará a poder fazer login e criar uma nova conta.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0B4DBA),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Desbanir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    setState(() => _banningIds.add(id));
+    try {
+      await AdminService.unbanUser(id);
+      await _load();
+      _showSnack('Usuário desbanido com sucesso.');
+    } catch (e) {
+      _showSnack('Não foi possível desbanir o usuário.', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _banningIds.remove(id));
+      }
+    }
+  }
+
+  Widget _unbanButton(Map<String, dynamic> u) {
+    final id = u['id'];
+    final isBanning = id is int && _banningIds.contains(id);
+    if (isBanning) {
+      return const SizedBox(
+        height: 18,
+        width: 18,
+        child: Padding(
+          padding: EdgeInsets.all(2),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: id is int ? () => _confirmUnban(u) : null,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B4DBA).withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFF0B4DBA).withValues(alpha: .3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_open, size: 14, color: Color(0xFF0B4DBA)),
+            SizedBox(width: 4),
+            Text(
+              'Desbanir',
+              style: TextStyle(
+                color: Color(0xFF0B4DBA),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deleteIconButton(Map<String, dynamic> u, bool isDeleting) {
+    final id = u['id'];
+    if (isDeleting) {
+      return const SizedBox(
+        height: 18,
+        width: 18,
+        child: Padding(
+          padding: EdgeInsets.all(2),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: id == null ? null : () => _confirmDelete(u),
+      borderRadius: BorderRadius.circular(999),
+      child: const Padding(
+        padding: EdgeInsets.all(4),
+        child: Icon(
+          Icons.delete_outline,
+          size: 20,
+          color: Colors.red,
+        ),
+      ),
+    );
   }
 
   Widget _excludeAccountButton(Map<String, dynamic> u) {
@@ -281,6 +559,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         return 'o histórico dos usuários rejeitados';
       case 'DELETED':
         return 'o histórico dos usuários excluídos';
+      case 'BANNED':
+        return 'o histórico dos usuários banidos';
       default:
         return 'todo o histórico de usuários $singularSegment';
     }
@@ -307,6 +587,11 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
               leading: const Icon(Icons.person_off_outlined),
               title: const Text('Limpar só excluídos'),
               onTap: () => Navigator.pop(context, 'DELETED'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.gavel, color: Color(0xFF7F1D1D)),
+              title: const Text('Limpar só banidos'),
+              onTap: () => Navigator.pop(context, 'BANNED'),
             ),
           ],
         ),
@@ -370,8 +655,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     return users.where((u) {
       final s = (u['status'] ?? '').toString().toUpperCase();
       final deleted = (u['deleted'] == true) || s == 'DELETED';
+      final banned = (u['banned'] == true);
       if (status == 'APPROVED') return s == 'APPROVED' && !deleted;
       if (status == 'DELETED') return deleted;
+      if (status == 'BANNED') return banned;
       return s == status;
     }).length;
   }
@@ -427,7 +714,11 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     );
   }
 
-  Widget _statusChip(String status, {bool deleted = false}) {
+  Widget _statusChip(String status, {bool deleted = false, bool banned = false}) {
+    if (banned) {
+      return _statusBadge('Banido', const Color(0xFF7F1D1D));
+    }
+
     if (status == 'APPROVED' && deleted) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -458,6 +749,14 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
+      ),
+    );
+  }
+
+  void _openChat(Map<String, dynamic> u) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminTicketView(user: u, readOnly: true),
       ),
     );
   }
@@ -611,6 +910,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                       value: 'DELETED',
                                       child: Text('Excluídos'),
                                     ),
+                                    DropdownMenuItem(
+                                      value: 'BANNED',
+                                      child: Text('Banidos'),
+                                    ),
                                   ],
                                   onChanged: (v) {
                                     if (v == null) return;
@@ -749,6 +1052,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                   .toUpperCase();
                               final deleted =
                                   (u['deleted'] == true) || status == 'DELETED';
+                              final banned = (u['banned'] == true);
                               final created = (u['createdAt'] ?? '').toString();
                               final date = formatIsoDateToPtBr(created);
                               final isDeleting =
@@ -861,44 +1165,41 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
+                                        InkWell(
+                                          onTap: () => _openChat(u),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4),
+                                            child: Icon(
+                                              Icons.chat_outlined,
+                                              size: 20,
+                                              color: Color(0xFF0B4DBA),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            _statusChip(status, deleted: deleted),
-                                            if (status == 'APPROVED' && !deleted) ...[
+                                            _statusChip(status,
+                                                deleted: deleted, banned: banned),
+                                            if (status == 'APPROVED' &&
+                                                !deleted &&
+                                                !banned) ...[
                                               const SizedBox(width: 6),
                                               _excludeAccountButton(u),
-                                            ] else if (status == 'REJECTED' ||
+                                            ],
+                                            const SizedBox(width: 6),
+                                            if (banned)
+                                              _unbanButton(u)
+                                            else
+                                              _banAccountButton(u),
+                                            if (banned ||
+                                                status == 'REJECTED' ||
                                                 deleted) ...[
                                               const SizedBox(width: 6),
-                                              if (isDeleting)
-                                                const SizedBox(
-                                                  height: 18,
-                                                  width: 18,
-                                                  child: Padding(
-                                                    padding: EdgeInsets.all(2),
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  ),
-                                                )
-                                              else
-                                                InkWell(
-                                                  onTap: id == null
-                                                      ? null
-                                                      : () => _confirmDelete(u),
-                                                  borderRadius:
-                                                      BorderRadius.circular(999),
-                                                  child: const Padding(
-                                                    padding: EdgeInsets.all(4),
-                                                    child: Icon(
-                                                      Icons.delete_outline,
-                                                      size: 20,
-                                                      color: Colors.red,
-                                                    ),
-                                                  ),
-                                                ),
+                                              _deleteIconButton(u, isDeleting),
                                             ],
                                           ],
                                         ),

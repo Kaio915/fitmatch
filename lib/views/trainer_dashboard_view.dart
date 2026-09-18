@@ -9,6 +9,7 @@ import 'trainer_workout_organizer_view.dart';
 import 'trainer_chat_view.dart';
 import 'diet_control_view.dart';
 import '../widgets/fitmatch_logo.dart';
+import '../widgets/report_user_dialog.dart';
 
 // ─── Estado dos horários ──────────────────────────────────────────────────────
 // O personal GERENCIA os próprios horários.
@@ -3860,6 +3861,19 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                     );
                                   }
                                 : null,
+                            onReport: () {
+                              final sid = student['studentId'] != null
+                                  ? (student['studentId'] as num).toInt()
+                                  : null;
+                              if (widget.trainerId == null || sid == null) {
+                                return;
+                              }
+                              showReportUserDialog(
+                                context,
+                                reporterId: widget.trainerId!,
+                                reportedUserId: sid,
+                              );
+                            },
                           );
                         },
                       ),
@@ -4864,6 +4878,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           );
                         }
                       },
+                      onReport: () {
+                        final sid = int.tryParse(
+                          (req['studentId'] ?? '').toString(),
+                        );
+                        if (widget.trainerId == null || sid == null) return;
+                        showReportUserDialog(
+                          context,
+                          reporterId: widget.trainerId!,
+                          reportedUserId: sid,
+                        );
+                      },
                     ),
                 ],
               );
@@ -4892,6 +4917,7 @@ class _RequestRow extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onConfirm;
   final VoidCallback onReject;
+  final VoidCallback? onReport;
 
   const _RequestRow({
     required this.studentName,
@@ -4911,6 +4937,7 @@ class _RequestRow extends StatelessWidget {
     required this.onDelete,
     required this.onConfirm,
     required this.onReject,
+    this.onReport,
   });
 
   static (Color fg, Color bg, String label, IconData icon) _planStyle(
@@ -5544,6 +5571,20 @@ class _RequestRow extends StatelessWidget {
                     ),
                   ),
                 ),
+                OutlinedButton.icon(
+                  onPressed: onReport,
+                  icon: const Icon(Icons.flag_outlined, size: 15),
+                  label: const Text('Denunciar', style: TextStyle(fontSize: 12.5)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    backgroundColor: const Color(0xFFFFF1F0),
+                    side: const BorderSide(color: Color(0xFFFCA5A5)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
                 if (showChat)
                   OutlinedButton.icon(
                     onPressed: onChat,
@@ -5616,6 +5657,7 @@ class _StudentRow extends StatelessWidget {
   final VoidCallback? onUnblock;
   final VoidCallback? onRemove;
   final VoidCallback? onOrganizeWorkout;
+  final VoidCallback? onReport;
 
   const _StudentRow({
     required this.studentName,
@@ -5633,6 +5675,7 @@ class _StudentRow extends StatelessWidget {
     this.onUnblock,
     this.onRemove,
     this.onOrganizeWorkout,
+    this.onReport,
   });
 
   @override
@@ -5795,6 +5838,23 @@ class _StudentRow extends StatelessWidget {
                   side: const BorderSide(color: Color(0xFF0B4DBA)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
+                    vertical: 9,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: onReport,
+                icon: const Icon(Icons.flag_outlined, size: 15),
+                label: const Text('Denunciar', style: TextStyle(fontSize: 11.5)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB42318),
+                  side: const BorderSide(color: Color(0xFFFCA5A5)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
                     vertical: 9,
                   ),
                   shape: RoundedRectangleBorder(

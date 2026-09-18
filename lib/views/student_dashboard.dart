@@ -9,6 +9,7 @@ import 'student_workout_view.dart';
 import 'diet_control_view.dart';
 import '../routes/app_routes.dart';
 import '../widgets/fitmatch_logo.dart';
+import '../widgets/report_user_dialog.dart';
 
 // ─── Student Dashboard ────────────────────────────────────────────────────────
 
@@ -2106,6 +2107,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                   .map(
                     (t) => _TrainerCard(
                       data: t,
+                      studentId: widget.studentId,
                       onTap: () =>
                           Navigator.push(
                             context,
@@ -3829,6 +3831,33 @@ class _ApprovedTrainerItem extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: (studentId != null && trainerId != null)
+                  ? () => showReportUserDialog(
+                        context,
+                        reporterId: studentId!,
+                        reportedUserId: trainerId,
+                      )
+                  : null,
+              icon: const Icon(Icons.flag_outlined, size: 15),
+              label: const Text('Denunciar usuário'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFB42318),
+                side: const BorderSide(color: Color(0xFFFCA5A5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -4111,7 +4140,12 @@ class _TrainerStarRating extends StatelessWidget {
 class _TrainerCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onTap;
-  const _TrainerCard({required this.data, required this.onTap});
+  final int? studentId;
+  const _TrainerCard({
+    required this.data,
+    required this.onTap,
+    this.studentId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -4398,6 +4432,32 @@ class _TrainerCard extends StatelessWidget {
                               ],
                             ),
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: (studentId != null && trainerId != null)
+                          ? () => showReportUserDialog(
+                                context,
+                                reporterId: studentId!,
+                                reportedUserId: trainerId,
+                              )
+                          : null,
+                      icon: const Icon(Icons.flag_outlined, size: 14),
+                      label: const Text(
+                        'Denunciar',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB42318),
+                        side: const BorderSide(color: Color(0xFFFCA5A5)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),

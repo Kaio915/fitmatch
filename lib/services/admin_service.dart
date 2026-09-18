@@ -6,6 +6,10 @@ import 'package:fitmatch/services/auth_service.dart';
 class AdminService {
   static const String _baseUrl = AppEnv.apiBaseUrl;
 
+  // Motivo padrão aplicado ao banir um usuário.
+  static const String banReason =
+      'Usuário banido da plataforma por violar as diretrizes.';
+
   static Future<List<dynamic>> getPendingStudents() async {
     final res = await http.get(
       Uri.parse('$_baseUrl/admin/pending/aluno'),
@@ -90,14 +94,66 @@ class AdminService {
     }
   }
 
-  static Future<void> excludeAccount(int id) async {
+  static Future<void> excludeAccount(int id, {required String reason}) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/admin/users/$id/exclude'),
+      headers: await AuthService.authHeaders(json: true),
+      body: jsonEncode({'reason': reason}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ Banir usuário (rejeita ou exclui a conta automaticamente)
+  static Future<void> banUser(int id, {required String reason}) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/ban/$id'),
+      headers: await AuthService.authHeaders(json: true),
+      body: jsonEncode({'reason': reason}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ Desbanir usuário (volta a permitir login/cadastro)
+  static Future<void> unbanUser(int id) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/unban/$id'),
       headers: await AuthService.authHeaders(),
     );
     if (res.statusCode != 200) {
       throw Exception(_extractErrorMessage(res));
     }
+  }
+
+  // ✅ Busca a rejeição anterior de um email (motivo + última mensagem do admin)
+  static Future<Map<String, dynamic>> getPreviousRejection(String email) async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/previous-rejection').replace(
+        queryParameters: {'email': email.trim()},
+      ),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  // ✅ Busca a exclusão de conta anterior de um email (motivo da exclusão)
+  static Future<Map<String, dynamic>> getPreviousExclusion(String email) async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/previous-exclusion').replace(
+        queryParameters: {'email': email.trim()},
+      ),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   static Future<void> clearHistory(String type, {String? status}) async {
@@ -107,6 +163,57 @@ class AdminService {
       headers: await AuthService.authHeaders(),
     );
     if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ USUÁRIOS REPORTADOS — contagem de não visualizados
+  static Future<int> getReportCount() async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/reports/count'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao buscar contagem de usuários reportados');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return (data['count'] as num?)?.toInt() ?? 0;
+  }
+
+  // ✅ USUÁRIOS REPORTADOS — lista (marca como visto no servidor)
+  static Future<List<dynamic>> getReportedUsers() async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/reports'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao buscar usuários reportados');
+    }
+    return jsonDecode(res.body);
+  }
+
+  // ✅ Denunciar um usuário ao admin (usado por aluno/personal no chat)
+  static Future<void> reportUser({
+    required int reporterId,
+    required int reportedUserId,
+    required String reason,
+    String? details,
+  }) async {
+    final body = <String, dynamic>{
+      'reporterId': reporterId,
+      'reportedUserId': reportedUserId,
+      'reason': reason,
+    };
+    if (details != null && details.trim().isNotEmpty) {
+      body['details'] = details.trim();
+    }
+
+    final res = await http.post(
+      Uri.parse('$_baseUrl/reports'),
+      headers: await AuthService.authHeaders(json: true),
+      body: jsonEncode(body),
+    );
+    if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(_extractErrorMessage(res));
     }
   }

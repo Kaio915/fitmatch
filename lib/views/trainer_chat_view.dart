@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_refresh_notifier.dart';
+import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import 'student_profile_view.dart';
 import 'trainer_profile_view.dart';
@@ -1346,6 +1347,119 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     );
   }
 
+  Future<void> _showReportDialog() async {
+    final reporterId = widget.senderId;
+    final reportedUserId = widget.receiverId;
+    if (reporterId == null || reportedUserId == null) return;
+
+    const reasons = [
+      'Conteúdo ofensivo ou assédio',
+      'Perfil falso ou enganoso',
+      'Tentativa de golpe',
+      'Comportamento inadequado',
+      'Outro',
+    ];
+
+    String? selectedReason;
+    String explanation = '';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Denunciar usuário'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Denunciar este usuário ao administrador?\nEscolha um motivo:',
+                ),
+                const SizedBox(height: 12),
+                for (final reason in reasons)
+                  RadioListTile<String>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(reason),
+                    value: reason,
+                    groupValue: selectedReason,
+                    onChanged: (v) => setDialogState(() => selectedReason = v),
+                  ),
+                if (selectedReason != null)
+                  TextField(
+                    autofocus: true,
+                    maxLines: 3,
+                    onChanged: (v) => setDialogState(() => explanation = v),
+                    decoration: InputDecoration(
+                      hintText: selectedReason == 'Outro'
+                          ? 'Descreva o motivo'
+                          : 'Explique melhor o que aconteceu',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFB42318),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: (selectedReason == null ||
+                      (selectedReason == 'Outro' && explanation.trim().isEmpty))
+                  ? null
+                  : () => Navigator.pop(context, true),
+              child: const Text('Denunciar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final isOther = selectedReason == 'Outro';
+    final reason = isOther
+        ? explanation.trim()
+        : (selectedReason ?? '');
+    final details = isOther
+        ? null
+        : (explanation.trim().isEmpty ? null : explanation.trim());
+
+    try {
+      await AdminService.reportUser(
+        reporterId: reporterId,
+        reportedUserId: reportedUserId,
+        reason: reason,
+        details: details,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Denúncia enviada ao administrador.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+
   // ── Top bar ──────────────────────────────────────────────────────────────
 
   Widget _buildTopBar(String? peerPhotoUrl) {
@@ -1488,6 +1602,24 @@ class _TrainerChatViewState extends State<TrainerChatView> {
               ),
             ),
           ],
+          if (widget.senderId != null && widget.receiverId != null)
+            IconButton(
+              onPressed: _showReportDialog,
+              tooltip: 'Denunciar usuário',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: const Icon(
+                  Icons.flag_outlined,
+                  size: 18,
+                  color: Color(0xFFB42318),
+                ),
+              ),
+            ),
           IconButton(
             onPressed: () => _loadMessages(scrollToBottom: false),
             tooltip: 'Atualizar',

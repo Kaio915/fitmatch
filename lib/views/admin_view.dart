@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -7,6 +8,7 @@ import '../core/date_utils.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import 'admin_history_view.dart';
+import 'admin_reported_users_view.dart';
 import 'admin_ticket_view.dart';
 
 class AdminView extends StatefulWidget {
@@ -20,6 +22,8 @@ class _AdminViewState extends State<AdminView> {
   List<dynamic> alunos = [];
   List<dynamic> trainers = [];
   bool loading = true;
+  int _reportedCount = 0;
+  Timer? _reportPollTimer;
 
   // ✅ Scroll + âncoras
   final ScrollController _scrollController = ScrollController();
@@ -36,16 +40,23 @@ class _AdminViewState extends State<AdminView> {
     super.initState();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _load();
+    _loadReportCount();
+    _reportPollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _loadReportCount(),
+    );
   }
 
   @override
   void dispose() {
+    _reportPollTimer?.cancel();
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
+    _loadReportCount();
     try {
       final a = await AdminService.getPendingStudents();
       final t = await AdminService.getPendingTrainers();
@@ -60,6 +71,16 @@ class _AdminViewState extends State<AdminView> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
+    }
+  }
+
+  Future<void> _loadReportCount() async {
+    try {
+      final count = await AdminService.getReportCount();
+      if (!mounted) return;
+      setState(() => _reportedCount = count);
+    } catch (_) {
+      // Falha silenciosa: mantém a última contagem conhecida.
     }
   }
 
@@ -151,6 +172,8 @@ class _AdminViewState extends State<AdminView> {
 
                         // ✅ Cards do topo
                         _topCards(),
+                        const SizedBox(height: 14),
+                        _reportedUsersCard(context),
                         const SizedBox(height: 18),
 
                         // ===== PERSONAL =====
@@ -298,6 +321,92 @@ class _AdminViewState extends State<AdminView> {
           itemBuilder: (context, index) => _userCard(items[index]),
         );
       },
+    );
+  }
+
+  Widget _reportedUsersCard(BuildContext context) {
+    final hasReports = _reportedCount > 0;
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminReportedUsersView()),
+        ).then((_) => _loadReportCount());
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: hasReports ? const Color(0xFFFFF7ED) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasReports
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFE7ECF3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: hasReports
+                    ? const Color(0xFFF59E0B).withValues(alpha: .14)
+                    : const Color(0xFFE8EEFF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.flag_outlined,
+                color: hasReports
+                    ? const Color(0xFFB45309)
+                    : const Color(0xFF0B4DBA),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Usuários Reportados',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hasReports
+                        ? '$_reportedCount usuário(s) aguardando análise'
+                        : 'Nenhuma denúncia pendente',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _reportedCount.toString(),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, size: 24),
+          ],
+        ),
+      ),
     );
   }
 

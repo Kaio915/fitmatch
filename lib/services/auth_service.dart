@@ -1663,12 +1663,18 @@ class AuthService {
     required int userId1,
     required int userId2,
     int? requestId,
+    String? since,
+    String? until,
+    int? limit,
   }) async {
     final uri = Uri.parse('$_baseUrl/chat/conversation').replace(
       queryParameters: {
         'userId1': userId1.toString(),
         'userId2': userId2.toString(),
         if (requestId != null) 'requestId': requestId.toString(),
+        if (since != null && since.isNotEmpty) 'since': since,
+        if (until != null && until.isNotEmpty) 'until': until,
+        if (limit != null) 'limit': limit.toString(),
       },
     );
 
