@@ -38,6 +38,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   String sortBy = 'DATA'; // DATA | NOME
 
   final Set<int> _deletingIds = <int>{};
+  final Set<int> _deletingHistoryIds = <int>{};
   final Set<int> _excludingIds = <int>{};
   final Set<int> _banningIds = <int>{};
   bool _clearing = false;
@@ -153,15 +154,105 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     if (id is! int) return;
 
     final name = (user['name'] ?? 'Usuário').toString();
+    final typeLabel = widget.userType == 'personal' ? 'Personal' : 'Aluno';
 
     final shouldDelete = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Excluir usuário'),
+            title: const Text('Excluir todos os cadastros'),
             content: Text(
-              'Você tem certeza que deseja excluir $name?\n\n'
-              'Essa ação não poderá ser desfeita. O usuário será removido e o '
-              'histórico de conversa entre o admin e o usuário também será apagado.',
+              'Você tem certeza que deseja excluir todos os cadastros de $name?\n\n'
+              'Essa ação não poderá ser desfeita. Apenas os cadastros de '
+              '$typeLabel deste usuário serão removidos. A conta e as '
+              'conversas serão mantidas.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Excluir tudo'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldDelete) return;
+
+    setState(() => _deletingIds.add(id));
+    try {
+      await AdminService.deleteUserHistory(id, widget.userType);
+      await _load();
+      _showSnack('Cadastros excluídos com sucesso.');
+    } catch (_) {
+      _showSnack('Não foi possível excluir os cadastros.', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _deletingIds.remove(id));
+      }
+    }
+  }
+
+  Future<void> _showDeleteOptions(Map<String, dynamic> user) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Excluir apenas este cadastro'),
+              subtitle: const Text(
+                'Remove somente esta tentativa do histórico.',
+              ),
+              onTap: () => Navigator.pop(context, 'ENTRY'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_sweep_outlined),
+              title: const Text('Excluir todos os cadastros deste usuário'),
+              subtitle: const Text(
+                'Remove todas as tentativas deste usuário neste tipo de '
+                'cadastro.',
+              ),
+              onTap: () => Navigator.pop(context, 'ALL'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'ENTRY') {
+      await _confirmDeleteEntry(user);
+    } else {
+      await _confirmDelete(user);
+    }
+  }
+
+  Future<void> _confirmDeleteEntry(Map<String, dynamic> user) async {
+    final historyId = user['historyId'];
+    if (historyId is! int) return;
+
+    final name = (user['name'] ?? 'Usuário').toString();
+
+    final shouldDelete = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Excluir cadastro'),
+            content: Text(
+              'Você tem certeza que deseja excluir apenas este cadastro de '
+              '$name?\n\n'
+              'Essa ação não poderá ser desfeita. Os demais cadastros deste '
+              'usuário serão mantidos.',
             ),
             actions: [
               TextButton(
@@ -183,16 +274,16 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
     if (!shouldDelete) return;
 
-    setState(() => _deletingIds.add(id));
+    setState(() => _deletingHistoryIds.add(historyId));
     try {
-      await AdminService.deleteUser(id);
+      await AdminService.deleteHistoryEntry(historyId);
       await _load();
-      _showSnack('Usuário excluído com sucesso.');
+      _showSnack('Cadastro excluído com sucesso.');
     } catch (_) {
-      _showSnack('Não foi possível excluir o usuário.', error: true);
+      _showSnack('Não foi possível excluir o cadastro.', error: true);
     } finally {
       if (mounted) {
-        setState(() => _deletingIds.remove(id));
+        setState(() => _deletingHistoryIds.remove(historyId));
       }
     }
   }
@@ -496,7 +587,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
       );
     }
     return InkWell(
-      onTap: id == null ? null : () => _confirmDelete(u),
+      onTap: id == null ? null : () => _showDeleteOptions(u),
       borderRadius: BorderRadius.circular(999),
       child: const Padding(
         padding: EdgeInsets.all(4),
@@ -1047,6 +1138,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                 filtered[index] as Map,
                               );
                               final id = u['id'] as int?;
+                              final historyId = u['historyId'] as int?;
                               final status = (u['status'] ?? '')
                                   .toString()
                                   .toUpperCase();
@@ -1057,6 +1149,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                               final date = formatIsoDateToPtBr(created);
                               final isDeleting =
                                   id != null && _deletingIds.contains(id);
+                              final isDeletingEntry = historyId != null &&
+                                  _deletingHistoryIds.contains(historyId);
                               final displayName = (u['name'] ?? '')
                                   .toString()
                                   .trim();
@@ -1199,7 +1293,11 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                                 status == 'REJECTED' ||
                                                 deleted) ...[
                                               const SizedBox(width: 6),
-                                              _deleteIconButton(u, isDeleting),
+                                              _deleteIconButton(
+                                                  u,
+                                                  isDeleting ||
+                                                      isDeletingEntry,
+                                              ),
                                             ],
                                           ],
                                         ),

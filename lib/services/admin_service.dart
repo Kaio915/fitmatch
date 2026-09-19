@@ -94,6 +94,29 @@ class AdminService {
     }
   }
 
+  // Exclui apenas um cadastro (um único registro do histórico).
+  static Future<void> deleteHistoryEntry(int historyId) async {
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/admin/history-entry/$historyId'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao excluir cadastro');
+    }
+  }
+
+  // Exclui todos os cadastros de um usuário para um tipo específico
+  // (aluno/personal), mantendo o histórico do outro tipo separado.
+  static Future<void> deleteUserHistory(int id, String type) async {
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/admin/users/$id/history?type=$type'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao excluir cadastros');
+    }
+  }
+
   static Future<void> excludeAccount(int id, {required String reason}) async {
     final res = await http.put(
       Uri.parse('$_baseUrl/admin/users/$id/exclude'),

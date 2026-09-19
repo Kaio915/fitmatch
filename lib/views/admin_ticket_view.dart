@@ -138,6 +138,50 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     }
   }
 
+  List<Widget> _buildExclusionReasons() {
+    final raw = _previousExclusion?['exclusions'];
+    final exclusions = raw is List ? raw : const <dynamic>[];
+    final reasons = <String>[];
+    for (final e in exclusions) {
+      if (e is Map) {
+        final reason = (e['exclusionReason'] ?? '').toString().trim();
+        if (reason.isNotEmpty) reasons.add(reason);
+      }
+    }
+    if (reasons.isEmpty) return const [];
+
+    if (reasons.length == 1) {
+      return [
+        const SizedBox(height: 8),
+        Text(
+          'Motivo da exclusão: ${reasons.first}',
+          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+        ),
+      ];
+    }
+
+    return [
+      const SizedBox(height: 8),
+      Text(
+        'Motivos das exclusões:',
+        style: const TextStyle(
+          color: Color(0xFFB91C1C),
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+        ),
+      ),
+      const SizedBox(height: 4),
+      for (final reason in reasons)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            '• $reason',
+            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+          ),
+        ),
+    ];
+  }
+
   void _handleRefresh() {
     if (!mounted) return;
     setState(() {
@@ -891,19 +935,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       ),
                     ],
                   ),
-                  if ((_previousExclusion!['exclusionReason'] ?? '')
-                      .toString()
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Motivo da exclusão: ${(_previousExclusion!['exclusionReason'] ?? '').toString().trim()}',
-                      style: const TextStyle(
-                        color: Color(0xFFB91C1C),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
+                  ..._buildExclusionReasons(),
                 ],
               ),
             ),
