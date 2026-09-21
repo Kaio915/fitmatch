@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../core/date_utils.dart';
@@ -78,6 +81,36 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     setState(() {
       loading = false;
     });
+  }
+
+  // ✅ Mostra a foto (base64) como avatar, com fallback para a inicial do nome.
+  Widget _avatar(Map<String, dynamic> u, String fallbackLetter) {
+    final base64 = (u['photoBase64'] ?? '').toString();
+
+    if (base64.isNotEmpty) {
+      try {
+        final Uint8List bytes = base64Decode(base64);
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: MemoryImage(bytes),
+        );
+      } catch (_) {
+        // base64 inválido → usa a inicial abaixo
+      }
+    }
+
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: const Color(0xFFE6EEFF),
+      child: Text(
+        fallbackLetter,
+        style: const TextStyle(
+          color: Color(0xFF0B4DBA),
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+    );
   }
 
   void _applyFilter() {
@@ -1178,18 +1211,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                 ),
                                 child: Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: const Color(0xFFE6EEFF),
-                                      child: Text(
-                                        avatarLetter,
-                                        style: const TextStyle(
-                                          color: Color(0xFF0B4DBA),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                        ),
-                                      ),
-                                    ),
+                                    _avatar(u, avatarLetter),
                                     const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
