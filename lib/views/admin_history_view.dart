@@ -1354,11 +1354,18 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             const SizedBox(width: 6),
                                             if (banned)
                                               _unbanButton(u)
-                                            else
+                                            else if (currentBanned) ...[
+                                              _statusBadge(
+                                                'Banido',
+                                                const Color(0xFF7F1D1D),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              _unbanButton(u),
+                                            ] else
                                               _banAccountButton(
                                                 u,
-                                                disabled: _isCurrentlyPending(u) ||
-                                                    currentBanned,
+                                                disabled:
+                                                    _isCurrentlyPending(u),
                                               ),
                                             if (banned ||
                                                 status == 'REJECTED' ||
