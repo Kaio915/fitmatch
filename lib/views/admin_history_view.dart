@@ -1206,6 +1206,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                               final deleted =
                                   (u['deleted'] == true) || status == 'DELETED';
                               final banned = (u['banned'] == true);
+                              final currentBanned = (u['currentBanned'] == true);
                               final created = (u['createdAt'] ?? '').toString();
                               final date = formatIsoDateToPtBr(created);
                               final isDeleting =
@@ -1356,8 +1357,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             else
                                               _banAccountButton(
                                                 u,
-                                                disabled:
-                                                    _isCurrentlyPending(u),
+                                                disabled: _isCurrentlyPending(u) ||
+                                                    currentBanned,
                                               ),
                                             if (banned ||
                                                 status == 'REJECTED' ||
