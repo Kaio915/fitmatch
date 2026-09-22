@@ -476,15 +476,15 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   }
 
   // Um usuário que voltou a ficar PENDENTE/em análise ainda aparece no
-  // histórico (registro antigo). Nesse caso o botão "Banir" é ocultado, pois o
-  // banimento deve ser feito pelo chat (onde o botão já existe).
+  // histórico (registro antigo). Nesse caso o botão "Banir" fica desabilitado
+  // (cinza), pois o banimento deve ser feito pelo chat (onde o botão já existe).
   bool _isCurrentlyPending(Map<String, dynamic> u) {
     final currentStatus = (u['currentStatus'] ?? '').toString().toUpperCase();
     return currentStatus == 'PENDING' ||
         currentStatus == 'TEMPORARILY_REJECTED';
   }
 
-  Widget _banAccountButton(Map<String, dynamic> u) {
+  Widget _banAccountButton(Map<String, dynamic> u, {bool disabled = false}) {
     final id = u['id'];
     final isBanning = id is int && _banningIds.contains(id);
     if (isBanning) {
@@ -497,25 +497,29 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         ),
       );
     }
+
+    final color =
+        disabled ? const Color(0xFF98A2B3) : const Color(0xFF7F1D1D);
+
     return InkWell(
-      onTap: id is int ? () => _confirmBan(u) : null,
+      onTap: (id is int && !disabled) ? () => _confirmBan(u) : null,
       borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF7F1D1D).withValues(alpha: .12),
+          color: color.withValues(alpha: .12),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFF7F1D1D).withValues(alpha: .3)),
+          border: Border.all(color: color.withValues(alpha: .3)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.gavel, size: 14, color: Color(0xFF7F1D1D)),
-            SizedBox(width: 4),
+            Icon(Icons.gavel, size: 14, color: color),
+            const SizedBox(width: 4),
             Text(
               'Banir',
               style: TextStyle(
-                color: Color(0xFF7F1D1D),
+                color: color,
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
@@ -1349,8 +1353,12 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             const SizedBox(width: 6),
                                             if (banned)
                                               _unbanButton(u)
-                                            else if (!_isCurrentlyPending(u))
-                                              _banAccountButton(u),
+                                            else
+                                              _banAccountButton(
+                                                u,
+                                                disabled:
+                                                    _isCurrentlyPending(u),
+                                              ),
                                             if (banned ||
                                                 status == 'REJECTED' ||
                                                 deleted) ...[
