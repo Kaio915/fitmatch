@@ -1302,7 +1302,21 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 16,
                                             ),
                                           ),
-                                          if (!banned &&
+                                          if (banned &&
+                                              (u['rejectionReason'] ?? '')
+                                                  .toString()
+                                                  .trim()
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Motivo do banimento: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF7F1D1D),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ] else if (!banned &&
                                               status == 'REJECTED' &&
                                               (u['rejectionReason'] ?? '')
                                                   .toString()
