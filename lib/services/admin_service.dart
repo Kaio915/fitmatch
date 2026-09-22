@@ -179,6 +179,20 @@ class AdminService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  // ✅ Busca o banimento anterior de um email (motivo do banimento)
+  static Future<Map<String, dynamic>> getPreviousBan(String email) async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/previous-ban').replace(
+        queryParameters: {'email': email.trim()},
+      ),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   static Future<void> clearHistory(String type, {String? status}) async {
     final query = (status == null || status.isEmpty) ? '' : '?status=$status';
     final res = await http.delete(

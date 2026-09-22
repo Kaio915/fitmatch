@@ -33,6 +33,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   // Conta excluída anteriormente do mesmo email (motivo da exclusão).
   Map<String, dynamic>? _previousExclusion;
 
+  // Banimento anterior do mesmo email (motivo do banimento).
+  Map<String, dynamic>? _previousBan;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +102,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
     _loadPreviousRejection();
     _loadPreviousExclusion();
+    _loadPreviousBan();
   }
 
   Future<void> _loadPreviousRejection() async {
@@ -132,6 +136,24 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       if (!mounted) return;
       if (data['found'] == true) {
         setState(() => _previousExclusion = data);
+      }
+    } catch (_) {
+      // Falha silenciosa: apenas não exibe o aviso.
+    }
+  }
+
+  Future<void> _loadPreviousBan() async {
+    // No histórico (somente leitura) a conversa completa já é exibida no chat.
+    if (widget.readOnly) return;
+
+    final email = (widget.user['email'] ?? '').toString().trim();
+    if (email.isEmpty) return;
+
+    try {
+      final data = await AdminService.getPreviousBan(email);
+      if (!mounted) return;
+      if (data['found'] == true) {
+        setState(() => _previousBan = data);
       }
     } catch (_) {
       // Falha silenciosa: apenas não exibe o aviso.
@@ -245,6 +267,62 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           child: Text(
             _formatReasonWithDate(item['reason'] ?? '', item['date'] ?? ''),
             style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5),
+          ),
+        ),
+    ];
+  }
+
+  List<Widget> _buildBanReasons() {
+    final raw = _previousBan?['bans'];
+    final bans = raw is List ? raw : const <dynamic>[];
+    final items = <Map<String, String>>[];
+    for (final e in bans) {
+      if (e is Map) {
+        final reason = (e['banReason'] ?? '').toString().trim();
+        if (reason.isNotEmpty) {
+          items.add({
+            'reason': reason,
+            'date': (e['recordedAt'] ?? '').toString(),
+          });
+        }
+      }
+    }
+    if (items.isEmpty) return const [];
+
+    if (items.length == 1) {
+      return [
+        const SizedBox(height: 8),
+        Text(
+          'Motivo do banimento: ${items.first['reason']}',
+          style: const TextStyle(color: Color(0xFF6D28D9), fontSize: 12.5),
+        ),
+        if ((items.first['date'] ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Data: ${formatIsoDateToPtBr(items.first['date'])}',
+            style: const TextStyle(color: Color(0xFF6D28D9), fontSize: 12.5),
+          ),
+        ],
+      ];
+    }
+
+    return [
+      const SizedBox(height: 8),
+      const Text(
+        'Motivos dos banimentos:',
+        style: TextStyle(
+          color: Color(0xFF6D28D9),
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+        ),
+      ),
+      const SizedBox(height: 4),
+      for (final item in items)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            _formatReasonWithDate(item['reason'] ?? '', item['date'] ?? ''),
+            style: const TextStyle(color: Color(0xFF6D28D9), fontSize: 12.5),
           ),
         ),
     ];
@@ -997,6 +1075,38 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                     ],
                   ),
                   ..._buildExclusionReasons(),
+                ],
+              ),
+            ),
+          ],
+          if (_previousBan != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F3FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFDDD6FE)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.gavel, size: 16, color: Color(0xFF6D28D9)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Usuário banido anteriormente',
+                        style: TextStyle(
+                          color: Color(0xFF6D28D9),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  ..._buildBanReasons(),
                 ],
               ),
             ),
