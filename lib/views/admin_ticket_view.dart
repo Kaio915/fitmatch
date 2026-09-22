@@ -389,6 +389,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     ];
   }
 
+  List<String> get _banTemplates {
+    return <String>[
+      'Excesso de solicitações de cadastro.',
+      'Violação das diretrizes da plataforma.',
+      'Tentativa de fraude ou golpe.',
+      'Comportamento inadequado com outros usuários.',
+      'Conta duplicada.',
+      'Uso indevido da plataforma (spam/propaganda).',
+    ];
+  }
+
   void _applyTemplate(String text) {
     setState(() {
       _msgController.text = text;
@@ -488,39 +499,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Banir usuário'),
-            content: const Text(
-              'O usuário será banido da plataforma e o cadastro será '
-              'rejeitado automaticamente. Ele não poderá mais acessar ou '
-              'criar uma nova conta.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7F1D1D),
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Banir'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    await _showBanReasonSheet();
+  }
 
-    if (!confirmed) return;
+  Future<void> _banUser(String reason) async {
+    final userId = widget.user['id'];
+    if (userId == null) return;
 
     try {
       await AdminService.banUser(
         (userId as num).toInt(),
-        reason: AdminService.banReason,
+        reason: reason,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -528,6 +517,123 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       if (!mounted) return;
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  Future<void> _showBanReasonSheet() async {
+    String? selectedReason;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDCE6F5)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 18),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.gavel, color: Color(0xFF7F1D1D)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Selecione o motivo do banimento',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: _banTemplates.map((reason) {
+                          final checked = selectedReason == reason;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => setModalState(() {
+                              selectedReason = checked ? null : reason;
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Checkbox(
+                                    value: checked,
+                                    onChanged: (_) => setModalState(() {
+                                      selectedReason = checked ? null : reason;
+                                    }),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 11),
+                                      child: Text(reason),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final reason = (selectedReason ?? '').trim();
+                        if (reason.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Selecione um motivo de banimento'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(sheetCtx);
+                        await _banUser(reason);
+                      },
+                      icon: const Icon(Icons.gavel),
+                      label: const Text('Banir usuário'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7F1D1D),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _reject(String reason) async {
