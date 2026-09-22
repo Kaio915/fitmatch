@@ -1080,27 +1080,42 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        Row(
+                        Column(
                           children: [
-                            _metricCard(
-                              label: 'Aprovados',
-                              value: _countByStatus('APPROVED'),
-                              icon: Icons.check_circle,
-                              color: Colors.green,
+                            Row(
+                              children: [
+                                _metricCard(
+                                  label: 'Aprovados',
+                                  value: _countByStatus('APPROVED'),
+                                  icon: Icons.check_circle,
+                                  color: Colors.green,
+                                ),
+                                const SizedBox(width: 10),
+                                _metricCard(
+                                  label: 'Rejeitados',
+                                  value: _countByStatus('REJECTED'),
+                                  icon: Icons.cancel,
+                                  color: Colors.red,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            _metricCard(
-                              label: 'Rejeitados',
-                              value: _countByStatus('REJECTED'),
-                              icon: Icons.cancel,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(width: 10),
-                            _metricCard(
-                              label: 'Excluídos',
-                              value: _countByStatus('DELETED'),
-                              icon: Icons.person_off,
-                              color: Colors.blueGrey,
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                _metricCard(
+                                  label: 'Excluídos',
+                                  value: _countByStatus('DELETED'),
+                                  icon: Icons.person_off,
+                                  color: Colors.blueGrey,
+                                ),
+                                const SizedBox(width: 10),
+                                _metricCard(
+                                  label: 'Banidos',
+                                  value: _countByStatus('BANNED'),
+                                  icon: Icons.block,
+                                  color: const Color(0xFF7F1D1D),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1236,6 +1251,21 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 18,
                                             ),
                                           ),
+                                          if (deleted &&
+                                              (u['rejectionReason'] ?? '')
+                                                  .toString()
+                                                  .trim()
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Motivo da exclusão: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                              style: const TextStyle(
+                                                color: Color(0xFFB42318),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                           if ((u['cref'] ?? '')
                                               .toString()
                                               .trim()
@@ -1258,7 +1288,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                               fontSize: 16,
                                             ),
                                           ),
-                                          if (status == 'REJECTED' &&
+                                          if (!banned &&
+                                              status == 'REJECTED' &&
                                               (u['rejectionReason'] ?? '')
                                                   .toString()
                                                   .trim()
