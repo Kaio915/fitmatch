@@ -141,45 +141,118 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   List<Widget> _buildExclusionReasons() {
     final raw = _previousExclusion?['exclusions'];
     final exclusions = raw is List ? raw : const <dynamic>[];
-    final reasons = <String>[];
+    final items = <Map<String, String>>[];
     for (final e in exclusions) {
       if (e is Map) {
         final reason = (e['exclusionReason'] ?? '').toString().trim();
-        if (reason.isNotEmpty) reasons.add(reason);
+        if (reason.isNotEmpty) {
+          items.add({
+            'reason': reason,
+            'date': ((e['excludedAt'] ?? e['recordedAt']) ?? '').toString(),
+          });
+        }
       }
     }
-    if (reasons.isEmpty) return const [];
+    if (items.isEmpty) return const [];
 
-    if (reasons.length == 1) {
+    if (items.length == 1) {
       return [
         const SizedBox(height: 8),
         Text(
-          'Motivo da exclusão: ${reasons.first}',
+          'Motivo da exclusão: ${items.first['reason']}',
           style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
         ),
+        if ((items.first['date'] ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Data: ${formatIsoDateToPtBr(items.first['date'])}',
+            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+          ),
+        ],
       ];
     }
 
     return [
       const SizedBox(height: 8),
-      Text(
+      const Text(
         'Motivos das exclusões:',
-        style: const TextStyle(
+        style: TextStyle(
           color: Color(0xFFB91C1C),
           fontWeight: FontWeight.w700,
           fontSize: 12.5,
         ),
       ),
       const SizedBox(height: 4),
-      for (final reason in reasons)
+      for (final item in items)
         Padding(
           padding: const EdgeInsets.only(bottom: 2),
           child: Text(
-            '• $reason',
+            _formatReasonWithDate(item['reason'] ?? '', item['date'] ?? ''),
             style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
           ),
         ),
     ];
+  }
+
+  List<Widget> _buildRejectionReasons() {
+    final raw = _previousRejection?['rejections'];
+    final rejections = raw is List ? raw : const <dynamic>[];
+    final items = <Map<String, String>>[];
+    for (final e in rejections) {
+      if (e is Map) {
+        final reason = (e['rejectionReason'] ?? '').toString().trim();
+        if (reason.isNotEmpty) {
+          items.add({
+            'reason': reason,
+            'date': (e['recordedAt'] ?? '').toString(),
+          });
+        }
+      }
+    }
+    if (items.isEmpty) return const [];
+
+    if (items.length == 1) {
+      return [
+        const SizedBox(height: 8),
+        Text(
+          'Motivo da rejeição: ${items.first['reason']}',
+          style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5),
+        ),
+        if ((items.first['date'] ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Data: ${formatIsoDateToPtBr(items.first['date'])}',
+            style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5),
+          ),
+        ],
+      ];
+    }
+
+    return [
+      const SizedBox(height: 8),
+      const Text(
+        'Motivos das rejeições:',
+        style: TextStyle(
+          color: Color(0xFFB45309),
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+        ),
+      ),
+      const SizedBox(height: 4),
+      for (final item in items)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            _formatReasonWithDate(item['reason'] ?? '', item['date'] ?? ''),
+            style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5),
+          ),
+        ),
+    ];
+  }
+
+  String _formatReasonWithDate(String reason, String date) {
+    final formattedDate = date.trim().isEmpty ? null : formatIsoDateToPtBr(date);
+    return formattedDate == null ? '• $reason' : '• $reason ($formattedDate)';
   }
 
   void _handleRefresh() {
@@ -890,19 +963,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       ),
                     ],
                   ),
-                  if ((_previousRejection!['rejectionReason'] ?? '')
-                      .toString()
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Motivo da rejeição: ${(_previousRejection!['rejectionReason'] ?? '').toString().trim()}',
-                      style: const TextStyle(
-                        color: Color(0xFFB45309),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
+                  ..._buildRejectionReasons(),
                 ],
               ),
             ),
