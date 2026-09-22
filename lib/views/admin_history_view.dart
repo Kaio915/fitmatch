@@ -475,6 +475,15 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     }
   }
 
+  // Um usuário que voltou a ficar PENDENTE/em análise ainda aparece no
+  // histórico (registro antigo). Nesse caso o botão "Banir" é ocultado, pois o
+  // banimento deve ser feito pelo chat (onde o botão já existe).
+  bool _isCurrentlyPending(Map<String, dynamic> u) {
+    final currentStatus = (u['currentStatus'] ?? '').toString().toUpperCase();
+    return currentStatus == 'PENDING' ||
+        currentStatus == 'TEMPORARILY_REJECTED';
+  }
+
   Widget _banAccountButton(Map<String, dynamic> u) {
     final id = u['id'];
     final isBanning = id is int && _banningIds.contains(id);
@@ -1340,7 +1349,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             const SizedBox(width: 6),
                                             if (banned)
                                               _unbanButton(u)
-                                            else
+                                            else if (!_isCurrentlyPending(u))
                                               _banAccountButton(u),
                                             if (banned ||
                                                 status == 'REJECTED' ||
