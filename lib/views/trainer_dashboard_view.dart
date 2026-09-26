@@ -4005,6 +4005,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                 context,
                                 reporterId: widget.trainerId!,
                                 reportedUserId: sid,
+                                consequenceMessage:
+                                    'Ao denunciar, este aluno deixará de fazer parte de Meus Alunos.',
                               );
                             },
                           );
@@ -5042,6 +5044,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           context,
                           reporterId: widget.trainerId!,
                           reportedUserId: sid,
+                          consequenceMessage:
+                              (req['status'] ?? '').toString().toUpperCase() ==
+                                  'APPROVED'
+                              ? 'Ao denunciar, este aluno deixará de fazer parte de Meus Alunos.'
+                              : 'Ao denunciar, a solicitação deste aluno será recusada imediatamente.',
                         );
                       },
                     ),

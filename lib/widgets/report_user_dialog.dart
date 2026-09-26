@@ -9,6 +9,7 @@ Future<void> showReportUserDialog(
   BuildContext context, {
   required int reporterId,
   required int reportedUserId,
+  String? consequenceMessage,
 }) async {
   const reasons = [
     'Conteúdo ofensivo ou assédio',
@@ -31,8 +32,10 @@ Future<void> showReportUserDialog(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Denunciar este usuário ao administrador?\nEscolha um motivo:',
+              Text(
+                consequenceMessage == null
+                    ? 'Denunciar este usuário ao administrador?\nEscolha um motivo:'
+                    : '$consequenceMessage\n\nEscolha um motivo para a denúncia:',
               ),
               const SizedBox(height: 12),
               for (final reason in reasons)
@@ -69,7 +72,8 @@ Future<void> showReportUserDialog(
               backgroundColor: const Color(0xFFB42318),
               foregroundColor: Colors.white,
             ),
-            onPressed: (selectedReason == null ||
+            onPressed:
+                (selectedReason == null ||
                     (selectedReason == 'Outro' && explanation.trim().isEmpty))
                 ? null
                 : () => Navigator.pop(context, true),
@@ -83,9 +87,7 @@ Future<void> showReportUserDialog(
   if (confirmed != true) return;
 
   final isOther = selectedReason == 'Outro';
-  final reason = isOther
-      ? explanation.trim()
-      : (selectedReason ?? '');
+  final reason = isOther ? explanation.trim() : (selectedReason ?? '');
   final details = isOther
       ? null
       : (explanation.trim().isEmpty ? null : explanation.trim());
