@@ -637,9 +637,19 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             ? 'Plano Mensal'
             : 'Plano Diário';
 
+    final orderedSlots = List<Map<String, String>>.from(selectedSlots)
+      ..sort((a, b) {
+        final dateA = _selectionDateTime(a);
+        final dateB = _selectionDateTime(b);
+        if (dateA != null && dateB != null) return dateA.compareTo(dateB);
+        if (dateA != null) return -1;
+        if (dateB != null) return 1;
+        return (a['time'] ?? '').compareTo(b['time'] ?? '');
+      });
+
     final slotsText = planType.toUpperCase() == 'MENSAL'
-        ? _monthlySelectionSummaryLabels(selectedSlots, forChat: true).join('\n')
-        : selectedSlots
+        ? _monthlySelectionSummaryLabels(orderedSlots, forChat: true).join('\n')
+        : orderedSlots
             .map((s) {
               final dayName = (s['dayName'] ?? '').trim();
               final time = (s['time'] ?? '').trim();
@@ -1449,7 +1459,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   // ── Lógica de toque num horário ──────────────────────────────────────────
 
-  void _onSlotTap(_Slot slot, String dayName) {
+  Future<void> _onSlotTap(_Slot slot, String dayName) async {
     if (widget.studentId == null) {
       if (slot.state == SlotState.requested) {
         _showSnack(
@@ -1501,7 +1511,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         return;
       case SlotState.available:
         final selectedDayIndex = _days.indexOf(dayName);
-        _toggleInlineSlot(
+        await _toggleInlineSlot(
           dayName,
           slot.time,
           slotDate: selectedDayIndex >= 0
@@ -1749,10 +1759,15 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       if (_inlinePlanType == 'DIARIO' && _inlineSelectedSlots.length > 1) {
-        final firstDay = _inlineSelectedSlots.first['dayName'];
-        _inlineSelectedSlots = _inlineSelectedSlots
-            .where((s) => s['dayName'] == firstDay)
-            .toList();
+        final firstIso =
+            (_inlineSelectedSlots.first['dateIso'] ?? '').toString().trim();
+        final firstDateIso =
+            firstIso.length >= 10 ? firstIso.substring(0, 10) : firstIso;
+        _inlineSelectedSlots = _inlineSelectedSlots.where((s) {
+          final iso = (s['dateIso'] ?? '').toString().trim();
+          final dateIso = iso.length >= 10 ? iso.substring(0, 10) : iso;
+          return dateIso == firstDateIso;
+        }).toList();
       }
     });
 
@@ -1765,7 +1780,142 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
   }
 
-  void _toggleInlineSlot(String dayName, String time, {DateTime? slotDate}) {
+  /// Retorna as datas em que o horário recorrente de um plano MENSAL vai
+  /// conflitar com solicitações DIÁRIAS (pontuais) de outros alunos,
+  /// dentro da janela de 1 mês do plano.
+  List<DateTime> _monthlyRecurringConflictDates(
+    String dayName,
+    String time, {
+    required DateTime anchor,
+    required DateTime slotDate,
+  }) {
+    final normalizedDay = _normalizeDayName(dayName);
+    if (!_days.contains(normalizedDay)) return [];
+
+    final hm = _parseHourMinute(time);
+    if (hm == null) return [];
+
+    final windowEnd = _selectionWindowEnd('MENSAL', anchor: anchor);
+    final start = _dateOnly(anchor);
+    final conflicts = <DateTime>[];
+
+    var occurrence = DateTime(
+      slotDate.year,
+      slotDate.month,
+      slotDate.day,
+      hm.$1,
+      hm.$2,
+    );
+    while (occurrence.isBefore(start)) {
+      occurrence = occurrence.add(const Duration(days: 7));
+    }
+
+    while (!occurrence.isAfter(windowEnd)) {
+      if (_isDateOccupiedByOtherDailyRequest(occurrence, normalizedDay, time)) {
+        conflicts.add(occurrence);
+      }
+      occurrence = occurrence.add(const Duration(days: 7));
+    }
+
+    return conflicts;
+  }
+
+  bool _isDateOccupiedByOtherDailyRequest(
+    DateTime occ,
+    String dayName,
+    String time,
+  ) {
+    final normalizedDay = _normalizeDayName(dayName);
+    final normalizedTime = _normalizeTime(time);
+    final selfId = widget.studentId?.toString() ?? '';
+
+    bool matches(List<Map<String, dynamic>> requests) {
+      for (final req in requests) {
+        if ((req['planType'] ?? 'DIARIO').toString().toUpperCase() != 'DIARIO') {
+          continue;
+        }
+        // Ignora a própria solicitação do aluno (não é "outro aluno").
+        if (selfId.isNotEmpty &&
+            (req['studentId']?.toString() ?? '') == selfId) {
+          continue;
+        }
+
+        final anchor = _requestAnchorForAvailability(req);
+        for (final slot in _requestSlotsFromData(req)) {
+          final reqDay = _normalizeDayName((slot['dayName'] ?? '').toString());
+          final reqTime = _normalizeTime((slot['time'] ?? '').toString());
+          if (reqDay != normalizedDay || reqTime != normalizedTime) continue;
+
+          final startAt = _requestSlotStartDateTime(slot, anchor);
+          if (startAt == null) continue;
+
+          if (startAt.year == occ.year &&
+              startAt.month == occ.month &&
+              startAt.day == occ.day &&
+              startAt.hour == occ.hour &&
+              startAt.minute == occ.minute) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    if (matches(_otherPendingRequests)) return true;
+    if (matches(_approvedRequests)) return true;
+    return false;
+  }
+
+  Future<bool?> _confirmMonthlyConflict(
+    String dayName,
+    String time,
+    List<DateTime> conflicts,
+  ) async {
+    final conflictLabels = conflicts
+        .map((d) => '$dayName ${_formatDateLabel(d)} às $time')
+        .toList();
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Conflito de horário'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'O horário $dayName às $time já está ocupado por outro aluno '
+              'nos seguintes dias:',
+            ),
+            const SizedBox(height: 10),
+            ...conflictLabels.map(
+              (label) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('• $label'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Você pode continuar, mas não treinará nesses dias específicos '
+              '(perderá essas aulas).',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleInlineSlot(String dayName, String time, {DateTime? slotDate}) async {
     final dayIndex = _days.indexOf(dayName);
     final resolvedDate = slotDate ??
         (dayIndex >= 0 ? _dateForDayIndex(dayIndex) : DateTime.now());
@@ -1794,8 +1944,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
 
     if (_inlinePlanType == 'DIARIO' && _inlineSelectedSlots.isNotEmpty) {
-      final selectedDay = _inlineSelectedSlots.first['dayName'];
-      if (selectedDay != dayName) {
+      final firstIso =
+          (_inlineSelectedSlots.first['dateIso'] ?? '').toString().trim();
+      final firstDateIso =
+          firstIso.length >= 10 ? firstIso.substring(0, 10) : firstIso;
+      if (firstDateIso.isNotEmpty && firstDateIso != resolvedDateIso) {
         _showSnack(
           'No Plano Diário, selecione horários apenas no mesmo dia.',
           icon: Icons.info_outline_rounded,
@@ -1807,18 +1960,20 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
     if (_inlinePlanType.toUpperCase() == 'MENSAL') {
       final normalizedTargetDay = _normalizeDayName(dayName);
-      final hasSameWeekday = _inlineSelectedSlots.any((s) {
-        return _normalizeDayName((s['dayName'] ?? '').toString()) ==
-            normalizedTargetDay;
-      });
+      for (final s in _inlineSelectedSlots) {
+        final sDay = _normalizeDayName((s['dayName'] ?? '').toString());
+        if (sDay != normalizedTargetDay) continue;
 
-      if (hasSameWeekday) {
-        _showSnack(
-          'No plano mensal, selecione cada dia da semana apenas uma vez.',
-          icon: Icons.info_outline_rounded,
-          color: const Color(0xFF0B4DBA),
-        );
-        return;
+        final sIso = (s['dateIso'] ?? '').toString().trim();
+        final sDateIso = sIso.length >= 10 ? sIso.substring(0, 10) : sIso;
+        if (sDateIso.isNotEmpty && sDateIso != resolvedDateIso) {
+          _showSnack(
+            'No plano mensal, selecione horários do mesmo dia da semana na mesma data.',
+            icon: Icons.info_outline_rounded,
+            color: const Color(0xFF0B4DBA),
+          );
+          return;
+        }
       }
 
       final selectedWeekdays = _countDistinctSelectedWeekdays(
@@ -1881,6 +2036,21 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       return;
     }
 
+    if (_inlinePlanType.toUpperCase() == 'MENSAL') {
+      final conflicts = _monthlyRecurringConflictDates(
+        dayName,
+        time,
+        anchor: anchor,
+        slotDate: resolvedDate,
+      );
+      if (conflicts.isNotEmpty) {
+        final proceed = await _confirmMonthlyConflict(dayName, time, conflicts);
+        if (proceed != true) {
+          return;
+        }
+      }
+    }
+
     setState(() {
       _inlineSelectedSlots = List.from(_inlineSelectedSlots)
         ..add({
@@ -1941,6 +2111,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               })
           .where((s) => s['dayName']!.isNotEmpty && s['time']!.isNotEmpty)
           .toList();
+      slotsWithDate.sort((a, b) {
+        final dateA = _selectionDateTime(a);
+        final dateB = _selectionDateTime(b);
+        if (dateA != null && dateB != null) return dateA.compareTo(dateB);
+        if (dateA != null) return -1;
+        if (dateB != null) return 1;
+        return (a['time'] ?? '').compareTo(b['time'] ?? '');
+      });
 
       final normalizedSlots = selectedSlots
           .map((s) => {
@@ -1991,20 +2169,6 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               color: const Color(0xFF0B4DBA),
             );
             return false;
-          }
-
-          final weekdaySeen = <String>{};
-          for (final slot in mappedSelections) {
-            final day = _normalizeDayName((slot['dayName'] ?? '').toString());
-            if (day.isEmpty) continue;
-            if (!weekdaySeen.add(day)) {
-              _showSnack(
-                'No plano mensal, não repita o mesmo dia da semana.',
-                icon: Icons.info_outline_rounded,
-                color: const Color(0xFF0B4DBA),
-              );
-              return false;
-            }
           }
         }
 
@@ -2509,9 +2673,6 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 _InfoChip(
                     icon: Icons.attach_money_rounded,
                     label: 'R\$ ${widget.price!} / sessão'),
-              _InfoChip(
-                  icon: Icons.access_time_rounded,
-                  label: widget.horasPorSessao != null && widget.horasPorSessao!.trim().isNotEmpty ? widget.horasPorSessao! : '1h por sessão'),
             ],
           ),
         ],
@@ -2525,9 +2686,18 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final slots = _schedule[_days[_selectedDay]] ?? [];
     final canRequest = widget.studentId != null;
     final minWeekOffset = _minimumWeekOffsetForPlanType(_inlinePlanType);
+    final orderedSelections = List<Map<String, String>>.from(_inlineSelectedSlots)
+      ..sort((a, b) {
+        final dateA = _selectionDateTime(a);
+        final dateB = _selectionDateTime(b);
+        if (dateA != null && dateB != null) return dateA.compareTo(dateB);
+        if (dateA != null) return -1;
+        if (dateB != null) return 1;
+        return (a['time'] ?? '').compareTo(b['time'] ?? '');
+      });
     final summaryLabels = _inlinePlanType == 'MENSAL'
-        ? _monthlySelectionSummaryLabels(_inlineSelectedSlots)
-        : _inlineSelectedSlots.map(_inlineSelectionLabel).toList();
+        ? _monthlySelectionSummaryLabels(orderedSelections)
+        : orderedSelections.map(_inlineSelectionLabel).toList();
     final availableCount = slots.where((s) {
         final state = canRequest
           ? _effectiveStudentSlotState(_days[_selectedDay], s.time, s.state)

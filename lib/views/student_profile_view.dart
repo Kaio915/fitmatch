@@ -283,6 +283,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
     final name = _userData?['name']?.toString() ?? widget.studentName;
     final objetivos = _userData?['objetivos']?.toString();
     final nivel = _userData?['nivel']?.toString();
+    final cidade = _userData?['cidade']?.toString();
 
     return Container(
       margin: const EdgeInsets.only(top: 20),
@@ -419,6 +420,15 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                     label: 'Nível',
                     value: nivel,
                   ),
+                // Cidade
+                if (cidade != null && cidade.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _InfoRow(
+                    icon: Icons.location_on_rounded,
+                    label: 'Cidade',
+                    value: cidade.trim(),
+                  ),
+                ],
               ],
             ),
           ),

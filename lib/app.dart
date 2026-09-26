@@ -89,6 +89,7 @@ class _SessionRouterState extends State<_SessionRouter> {
             email: session['email']?.toString(),
             objetivos: session['objetivos']?.toString(),
             nivel: session['nivel']?.toString(),
+            cidade: session['cidade']?.toString(),
           ),
         ),
       );

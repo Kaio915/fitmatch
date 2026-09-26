@@ -10,6 +10,7 @@ import 'trainer_chat_view.dart';
 import 'diet_control_view.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
+import '../widgets/city_autocomplete_field.dart';
 
 // ─── Estado dos horários ──────────────────────────────────────────────────────
 // O personal GERENCIA os próprios horários.
@@ -71,9 +72,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   List<Map<String, dynamic>> _allTrainerRequests = [];
   final Set<int> _hiddenRequestIds = <int>{};
   bool _loadingRequests = false;
-  late String _horasPorSessao;
   late String _editCidade;
   late String _editValorHora;
+  late String _editEspecialidade;
+  late String _editBio;
 
   List<Map<String, dynamic>> _myStudents = [];
   List<Map<String, dynamic>> _allStudents = [];
@@ -109,6 +111,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     'Sáb',
     'Dom',
   ];
+  static const List<String> _profileSpecialties = [
+    'Perda de peso',
+    'Hipertrofia',
+    'Definição muscular',
+    'Ganho de força',
+    'Condicionamento físico',
+    'Saúde e bem-estar',
+    'Postura e mobilidade',
+    'Reabilitação e prevenção de lesões',
+    'Preparação para provas físicas',
+    'Outro',
+  ];
 
   late final Map<String, List<_Slot>> _schedule;
 
@@ -127,11 +141,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   void initState() {
     super.initState();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
-    _horasPorSessao = widget.horasPorSessao?.trim().isNotEmpty == true
-        ? widget.horasPorSessao!
-        : '1h por sessão';
     _editCidade = widget.cidade ?? '';
     _editValorHora = widget.valorHora ?? '';
+    _editEspecialidade = widget.especialidade ?? '';
+    _editBio = widget.bio ?? '';
     final allSlots = [
       for (int h = 0; h < 24; h++) '${h.toString().padLeft(2, '0')}:00',
     ];
@@ -193,7 +206,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         continue;
       }
 
-      if (nextNewerCreatedAt == null || reqCreatedAt.isBefore(nextNewerCreatedAt)) {
+      if (nextNewerCreatedAt == null ||
+          reqCreatedAt.isBefore(nextNewerCreatedAt)) {
         nextNewerCreatedAt = reqCreatedAt;
       }
     }
@@ -319,9 +333,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             .where((r) => (r['status'] ?? '') == 'APPROVED')
             .toList();
         for (final req in approvedRequests) {
-          final planType =
-              (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-          if (planType == 'MENSAL' || planType == 'DIARIO' || planType == 'SEMANAL') {
+          final planType = (req['planType'] ?? 'DIARIO')
+              .toString()
+              .toUpperCase();
+          if (planType == 'MENSAL' ||
+              planType == 'DIARIO' ||
+              planType == 'SEMANAL') {
             continue;
           }
           final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
@@ -335,7 +352,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             for (final slot in daySlots) {
               if (slot.time == time) {
                 slot.state = _SlotState.unavailable;
-                slot.studentName = studentName.isNotEmpty ? studentName : 'Aluno';
+                slot.studentName = studentName.isNotEmpty
+                    ? studentName
+                    : 'Aluno';
                 break;
               }
             }
@@ -343,9 +362,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         }
         // Marca os slots com solicitações pendentes
         for (final req in _pendingRequests) {
-          final planType =
-              (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-          if (planType == 'MENSAL' || planType == 'DIARIO' || planType == 'SEMANAL') {
+          final planType = (req['planType'] ?? 'DIARIO')
+              .toString()
+              .toUpperCase();
+          if (planType == 'MENSAL' ||
+              planType == 'DIARIO' ||
+              planType == 'SEMANAL') {
             continue;
           }
           final slots = _extractRequestSlots(req);
@@ -454,14 +476,16 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         .where((label) => label.isNotEmpty)
         .join(', ');
 
-    final safeSlotsText = slotsText.isEmpty ? 'horário não informado' : slotsText;
+    final safeSlotsText = slotsText.isEmpty
+        ? 'horário não informado'
+        : slotsText;
     if (approved) {
       return '✅ Sua solicitação foi confirmada por ${widget.name}. '
           'Horário${slots.length > 1 ? 's' : ''}: $safeSlotsText. '
           'Nos vemos nos treinos!';
     }
     return '❌ Sua solicitação foi recusada por ${widget.name}. '
-      'Horário: $safeSlotsText.';
+        'Horário: $safeSlotsText.';
   }
 
   Future<void> _sendDecisionAutoMessage(
@@ -517,7 +541,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             targetList.add({
               'dayName': day,
               'time': time,
-              'dateIso': dateIso.length >= 10 ? dateIso.substring(0, 10) : dateIso,
+              'dateIso': dateIso.length >= 10
+                  ? dateIso.substring(0, 10)
+                  : dateIso,
             });
             continue;
           }
@@ -550,7 +576,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   Future<void> _showEditProfileDialog() async {
     final cidadeCtrl = TextEditingController(text: _editCidade);
     final valorHoraCtrl = TextEditingController(text: _editValorHora);
-    final horasSessaoCtrl = TextEditingController(text: _horasPorSessao);
+    final especialidadeCtrl = TextEditingController(text: _editEspecialidade);
+    final bioCtrl = TextEditingController(text: _editBio);
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -562,11 +589,27 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: cidadeCtrl,
+            CityAutocompleteField(
+              initialValue: cidadeCtrl.text,
+              onChanged: (value) => cidadeCtrl.text = value,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _profileSpecialties.contains(especialidadeCtrl.text)
+                  ? especialidadeCtrl.text
+                  : null,
+              onChanged: (value) {
+                if (value != null) especialidadeCtrl.text = value;
+              },
+              items: _profileSpecialties
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
+                  .toList(),
               decoration: const InputDecoration(
-                labelText: 'Cidade',
-                prefixIcon: Icon(Icons.location_on_rounded),
+                labelText: 'Especialidade',
+                prefixIcon: Icon(Icons.fitness_center_rounded),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -582,12 +625,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: horasSessaoCtrl,
+              controller: bioCtrl,
               decoration: const InputDecoration(
-                labelText: 'Horas por sessão',
-                prefixIcon: Icon(Icons.access_time_rounded),
+                labelText: 'Biografia',
+                prefixIcon: Icon(Icons.description_outlined),
                 border: OutlineInputBorder(),
               ),
+              maxLines: 4,
             ),
           ],
         ),
@@ -605,14 +649,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   widget.trainerId!,
                   cidade: cidadeCtrl.text.trim(),
                   valorHora: valorHoraCtrl.text.trim(),
-                  horasPorSessao: horasSessaoCtrl.text.trim(),
+                  especialidade: especialidadeCtrl.text.trim(),
+                  bio: bioCtrl.text.trim(),
                 );
                 setState(() {
                   _editCidade = cidadeCtrl.text.trim();
                   _editValorHora = valorHoraCtrl.text.trim();
-                  _horasPorSessao = horasSessaoCtrl.text.trim().isNotEmpty
-                      ? horasSessaoCtrl.text.trim()
-                      : '1h por sessão';
+                  _editEspecialidade = especialidadeCtrl.text.trim();
+                  _editBio = bioCtrl.text.trim();
                 });
                 _showSnack(
                   'Perfil atualizado!',
@@ -642,16 +686,16 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   // Resumo de solicitações pendentes
-  List<Map<String, dynamic>> get _pendingRequests => _allTrainerRequests
-      .where((r) {
-        final id = r['id'] is int
-            ? r['id'] as int
-            : int.tryParse((r['id'] ?? '').toString());
-        final hiddenByDb = r['hiddenForTrainer'] == true;
-        final hiddenLocally = id != null && _hiddenRequestIds.contains(id);
-        return (r['status'] ?? '') == 'PENDING' && !hiddenByDb && !hiddenLocally;
-      })
-      .toList();
+  List<Map<String, dynamic>> get _pendingRequests => _allTrainerRequests.where((
+    r,
+  ) {
+    final id = r['id'] is int
+        ? r['id'] as int
+        : int.tryParse((r['id'] ?? '').toString());
+    final hiddenByDb = r['hiddenForTrainer'] == true;
+    final hiddenLocally = id != null && _hiddenRequestIds.contains(id);
+    return (r['status'] ?? '') == 'PENDING' && !hiddenByDb && !hiddenLocally;
+  }).toList();
 
   int get _totalPending => _pendingRequests.length;
 
@@ -661,16 +705,16 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   DateTime _dateForDayIndex(int dayIndex) {
-    final weekStart = _startOfWeek(DateTime.now()).add(
-      Duration(days: _agendaWeekOffset * 7),
-    );
+    final weekStart = _startOfWeek(
+      DateTime.now(),
+    ).add(Duration(days: _agendaWeekOffset * 7));
     return weekStart.add(Duration(days: dayIndex));
   }
 
   DateTime _dateForDayIndexWithOffset(int dayIndex, int weekOffset) {
-    final weekStart = _startOfWeek(DateTime.now()).add(
-      Duration(days: weekOffset * 7),
-    );
+    final weekStart = _startOfWeek(
+      DateTime.now(),
+    ).add(Duration(days: weekOffset * 7));
     return weekStart.add(Duration(days: dayIndex));
   }
 
@@ -701,13 +745,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final dayDate = weekOffset == null
         ? _dateForDayIndex(dayIndex)
         : _dateForDayIndexWithOffset(dayIndex, weekOffset);
-    return DateTime(
-      dayDate.year,
-      dayDate.month,
-      dayDate.day,
-      hour,
-      minute,
-    );
+    return DateTime(dayDate.year, dayDate.month, dayDate.day, hour, minute);
   }
 
   bool _isPastSlotFor(int dayIndex, String time, {int? weekOffset}) {
@@ -803,8 +841,19 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return (hour, minute);
   }
 
-  DateTime _nextOccurrenceForFallback(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+  DateTime _nextOccurrenceForFallback(
+    DateTime base,
+    int weekday,
+    int hour,
+    int minute,
+  ) {
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -823,9 +872,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final hm = _parseHourMinuteForFallback(time);
     if (weekday == null || hm == null) return '';
 
-    final anchor = DateTime.tryParse((anchorIso ?? '').toString()) ?? DateTime.now();
-    var candidate =
-        _nextOccurrenceForFallback(anchor, weekday, hm.$1, hm.$2);
+    final anchor =
+        DateTime.tryParse((anchorIso ?? '').toString()) ?? DateTime.now();
+    var candidate = _nextOccurrenceForFallback(anchor, weekday, hm.$1, hm.$2);
     if (weekday == anchor.weekday) {
       final sameDayScheduled = DateTime(
         anchor.year,
@@ -848,12 +897,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final text = value.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -885,11 +936,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
   }
 
-  bool _hasOneTimeManualBlockFor(
-    int dayIndex,
-    String time, {
-    int? weekOffset,
-  }) {
+  bool _hasOneTimeManualBlockFor(int dayIndex, String time, {int? weekOffset}) {
     final slotDate = _slotDateTimeFor(dayIndex, time, weekOffset: weekOffset);
     if (slotDate == null) return false;
 
@@ -902,10 +949,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final blockedDay = _normalizeDayForFallback(
         (blocked['dayName'] ?? '').toString(),
       );
-      final blockedTime = _normalizeTimeValue((blocked['time'] ?? '').toString());
+      final blockedTime = _normalizeTimeValue(
+        (blocked['time'] ?? '').toString(),
+      );
       final blockedDate = (blocked['dateIso'] ?? '').toString().trim();
       final dayMatches = blockedDay.isEmpty || blockedDay == normalizedDay;
-      if (dayMatches && blockedTime == normalizedTime && blockedDate == dateIso) {
+      if (dayMatches &&
+          blockedTime == normalizedTime &&
+          blockedDate == dateIso) {
         return true;
       }
     }
@@ -929,10 +980,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final unblockedDay = _normalizeDayForFallback(
         (unblocked['dayName'] ?? '').toString(),
       );
-      final unblockedTime = _normalizeTimeValue((unblocked['time'] ?? '').toString());
+      final unblockedTime = _normalizeTimeValue(
+        (unblocked['time'] ?? '').toString(),
+      );
       final unblockedDate = (unblocked['dateIso'] ?? '').toString().trim();
       final dayMatches = unblockedDay.isEmpty || unblockedDay == normalizedDay;
-      if (dayMatches && unblockedTime == normalizedTime && unblockedDate == dateIso) {
+      if (dayMatches &&
+          unblockedTime == normalizedTime &&
+          unblockedDate == dateIso) {
         return true;
       }
     }
@@ -988,8 +1043,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
   DateTime _weeklyOverlayAnchor(Map<String, dynamic> req) {
     return _parseIsoDateTime(req['createdAt']) ??
-      _parseIsoDateTime(req['approvedAt']) ??
-      DateTime.now();
+        _parseIsoDateTime(req['approvedAt']) ??
+        DateTime.now();
   }
 
   bool _sameMomentByMinute(DateTime a, DateTime b) {
@@ -1000,11 +1055,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         a.minute == b.minute;
   }
 
-  DateTime? _slotStartAtForMonthly(
-    Map<String, String> slot,
-    DateTime anchor,
-  ) {
-    final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+  DateTime? _slotStartAtForMonthly(Map<String, String> slot, DateTime anchor) {
+    final weekday = _weekdayFromPtForFallback(
+      (slot['dayName'] ?? '').toString(),
+    );
     final hm = _parseHourMinuteForFallback((slot['time'] ?? '').toString());
     if (weekday == null || hm == null) return null;
 
@@ -1014,11 +1068,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return _nextOccurrenceForFallback(anchor, weekday, hm.$1, hm.$2);
   }
 
-  DateTime? _slotStartAtForWeekly(
-    Map<String, String> slot,
-    DateTime anchor,
-  ) {
-    final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+  DateTime? _slotStartAtForWeekly(Map<String, String> slot, DateTime anchor) {
+    final weekday = _weekdayFromPtForFallback(
+      (slot['dayName'] ?? '').toString(),
+    );
     final hm = _parseHourMinuteForFallback((slot['time'] ?? '').toString());
     if (weekday == null || hm == null) return null;
 
@@ -1052,7 +1105,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return first;
   }
 
-  ( _SlotState state, String? studentName )? _monthlyRequestOverlayFor(
+  (_SlotState state, String? studentName)? _monthlyRequestOverlayFor(
     int dayIndex,
     String time, {
     int? weekOffset,
@@ -1063,13 +1116,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final normalizedCandidateTime = _normalizeTimeValue(time);
     final candidateWeekday = dayIndex + 1;
 
-    final approvedRequests = _allTrainerRequests
-        .where((r) {
-          final status = (r['status'] ?? '').toString().toUpperCase();
-          final plan = (r['planType'] ?? 'DIARIO').toString().toUpperCase();
-          return status == 'APPROVED' && plan == 'MENSAL';
-        })
-        .toList();
+    final approvedRequests = _allTrainerRequests.where((r) {
+      final status = (r['status'] ?? '').toString().toUpperCase();
+      final plan = (r['planType'] ?? 'DIARIO').toString().toUpperCase();
+      return status == 'APPROVED' && plan == 'MENSAL';
+    }).toList();
 
     for (final req in approvedRequests) {
       final anchor = _requestWindowAnchor(req);
@@ -1078,10 +1129,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final windowEnd = _addOneMonthKeepingDay(firstSession);
       final slots = _extractRequestSlots(req);
       for (final slot in slots) {
-        final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == null) continue;
-        if (weekday != candidateWeekday || slotTime != normalizedCandidateTime) {
+        if (weekday != candidateWeekday ||
+            slotTime != normalizedCandidateTime) {
           continue;
         }
 
@@ -1090,11 +1144,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         if (candidate.isAfter(windowEnd)) continue;
 
         final diffDays = candidate.difference(slotStart).inDays;
-        if (diffDays % 7 != 0) continue;
+        if (diffDays < 0 || diffDays % 7 != 0) continue;
 
-        final studentName =
-            (req['studentName'] ?? 'Aluno').toString().trim();
-        return (_SlotState.unavailable, studentName.isNotEmpty ? studentName : 'Aluno');
+        final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
+        return (
+          _SlotState.unavailable,
+          studentName.isNotEmpty ? studentName : 'Aluno',
+        );
       }
     }
 
@@ -1109,10 +1165,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final slots = _extractRequestSlots(req);
 
       for (final slot in slots) {
-        final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == null) continue;
-        if (weekday != candidateWeekday || slotTime != normalizedCandidateTime) {
+        if (weekday != candidateWeekday ||
+            slotTime != normalizedCandidateTime) {
           continue;
         }
 
@@ -1130,7 +1189,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return null;
   }
 
-  ( _SlotState state, String? studentName )? _weeklyRequestOverlayFor(
+  (_SlotState state, String? studentName)? _weeklyRequestOverlayFor(
     int dayIndex,
     String time, {
     int? weekOffset,
@@ -1151,23 +1210,27 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final slots = _extractRequestSlots(req);
 
       for (final slot in slots) {
-        final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == null) continue;
-        if (weekday != candidateWeekday || slotTime != normalizedCandidateTime) {
+        if (weekday != candidateWeekday ||
+            slotTime != normalizedCandidateTime) {
           continue;
         }
 
         final slotStart = _slotStartAtForWeekly(slot, anchor);
         if (slotStart == null) continue;
 
-        if (candidate.isBefore(slotStart)) continue;
-        final diffDays = candidate.difference(slotStart).inDays;
-        if (diffDays % 7 != 0) continue;
+        if (!_sameMomentByMinute(candidate, slotStart)) continue;
 
         if (status == 'APPROVED') {
           final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
-          return (_SlotState.unavailable, studentName.isNotEmpty ? studentName : 'Aluno');
+          return (
+            _SlotState.unavailable,
+            studentName.isNotEmpty ? studentName : 'Aluno',
+          );
         }
         return (_SlotState.requested, null);
       }
@@ -1176,7 +1239,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return null;
   }
 
-  ( _SlotState state, String? studentName )? _dailyPendingOverlayFor(
+  (_SlotState state, String? studentName)? _dailyPendingOverlayFor(
     int dayIndex,
     String time, {
     int? weekOffset,
@@ -1194,11 +1257,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final slots = _extractRequestSlots(req);
       final anchor = _requestAnchor(req);
       for (final slot in slots) {
-        final weekday =
-            _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == null) continue;
-        if (weekday != candidateWeekday || slotTime != normalizedCandidateTime) {
+        if (weekday != candidateWeekday ||
+            slotTime != normalizedCandidateTime) {
           continue;
         }
 
@@ -1220,7 +1285,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return null;
   }
 
-  ( _SlotState state, String? studentName )? _dailyApprovedOverlayFor(
+  (_SlotState state, String? studentName)? _dailyApprovedOverlayFor(
     int dayIndex,
     String time, {
     int? weekOffset,
@@ -1239,11 +1304,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final slots = _extractRequestSlots(req);
       final anchor = _requestAnchor(req);
       for (final slot in slots) {
-        final weekday =
-            _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == null) continue;
-        if (weekday != candidateWeekday || slotTime != normalizedCandidateTime) {
+        if (weekday != candidateWeekday ||
+            slotTime != normalizedCandidateTime) {
           continue;
         }
 
@@ -1259,7 +1326,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         if (!sameMoment) continue;
 
         final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
-        return (_SlotState.unavailable, studentName.isNotEmpty ? studentName : 'Aluno');
+        return (
+          _SlotState.unavailable,
+          studentName.isNotEmpty ? studentName : 'Aluno',
+        );
       }
     }
 
@@ -1278,7 +1348,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
       final slots = _extractRequestSlots(req);
       for (final slot in slots) {
-        final weekday = _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == candidateWeekday && slotTime == normalizedTime) {
           return true;
@@ -1300,8 +1372,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
       final slots = _extractRequestSlots(req);
       for (final slot in slots) {
-        final weekday =
-            _weekdayFromPtForFallback((slot['dayName'] ?? '').toString());
+        final weekday = _weekdayFromPtForFallback(
+          (slot['dayName'] ?? '').toString(),
+        );
         final slotTime = _normalizeTimeValue((slot['time'] ?? '').toString());
         if (weekday == candidateWeekday && slotTime == normalizedTime) {
           return true;
@@ -1341,7 +1414,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             : _fallbackDateLabelForLegacySlot(
                 dayName: dayName,
                 time: time,
-                anchorIso: req['updatedAt']?.toString() ?? req['createdAt']?.toString(),
+                anchorIso:
+                    req['updatedAt']?.toString() ??
+                    req['createdAt']?.toString(),
               );
         return _slotChipLabel(
           dayName: dayName,
@@ -1359,7 +1434,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final weekday = _weekdayFromPtForFallback(dayName);
       final hm = _parseHourMinuteForFallback(time);
       final startAt = _slotStartAtForMonthly(slot, anchor);
-      if (dayName.isEmpty || time.isEmpty || weekday == null || hm == null || startAt == null) {
+      if (dayName.isEmpty ||
+          time.isEmpty ||
+          weekday == null ||
+          hm == null ||
+          startAt == null) {
         continue;
       }
       parsed.add({
@@ -1374,16 +1453,19 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
     if (parsed.isEmpty) {
       return slots
-          .map((slot) => _slotChipLabel(
-                dayName: (slot['dayName'] ?? '').toString(),
-                time: (slot['time'] ?? '').toString(),
-                dateLabel: (slot['dateLabel'] ?? '').toString(),
-              ))
+          .map(
+            (slot) => _slotChipLabel(
+              dayName: (slot['dayName'] ?? '').toString(),
+              time: (slot['time'] ?? '').toString(),
+              dateLabel: (slot['dateLabel'] ?? '').toString(),
+            ),
+          )
           .toList();
     }
 
-    parsed.sort((a, b) =>
-        (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime));
+    parsed.sort(
+      (a, b) => (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime),
+    );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
     final windowEnd = _addOneMonthKeepingDay(firstAt);
@@ -1472,24 +1554,6 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
     // Overlays de solicitações têm prioridade: um slot reservado por aluno
     // não deve perder o nome do aluno mesmo que o personal bloqueie o horário.
-    final monthlyOverlay = _monthlyRequestOverlayFor(
-      dayIndex,
-      slot.time,
-      weekOffset: weekOffset,
-    );
-    if (monthlyOverlay != null) {
-      return monthlyOverlay;
-    }
-
-    final weeklyOverlay = _weeklyRequestOverlayFor(
-      dayIndex,
-      slot.time,
-      weekOffset: weekOffset,
-    );
-    if (weeklyOverlay != null) {
-      return weeklyOverlay;
-    }
-
     final dailyPendingOverlay = _dailyPendingOverlayFor(
       dayIndex,
       slot.time,
@@ -1508,14 +1572,41 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       return dailyApprovedOverlay;
     }
 
-    if (_hasOneTimeManualBlockFor(dayIndex, slot.time, weekOffset: weekOffset)) {
+    final monthlyOverlay = _monthlyRequestOverlayFor(
+      dayIndex,
+      slot.time,
+      weekOffset: weekOffset,
+    );
+    if (monthlyOverlay != null) {
+      return monthlyOverlay;
+    }
+
+    final weeklyOverlay = _weeklyRequestOverlayFor(
+      dayIndex,
+      slot.time,
+      weekOffset: weekOffset,
+    );
+    if (weeklyOverlay != null) {
+      return weeklyOverlay;
+    }
+
+    if (_hasOneTimeManualBlockFor(
+      dayIndex,
+      slot.time,
+      weekOffset: weekOffset,
+    )) {
       return (_SlotState.unavailable, null);
     }
 
     final isManualBlocked =
-        slot.state == _SlotState.unavailable && (slot.studentName ?? '').trim().isEmpty;
+        slot.state == _SlotState.unavailable &&
+        (slot.studentName ?? '').trim().isEmpty;
     if (isManualBlocked) {
-      if (_hasOneTimeManualUnblockFor(dayIndex, slot.time, weekOffset: weekOffset)) {
+      if (_hasOneTimeManualUnblockFor(
+        dayIndex,
+        slot.time,
+        weekOffset: weekOffset,
+      )) {
         return (_SlotState.available, null);
       }
 
@@ -1532,16 +1623,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return (slot.state, slot.studentName);
   }
 
-  _SlotState _effectiveSlotState(
-    _Slot slot,
-    int dayIndex, {
-    int? weekOffset,
-  }) {
-    return _effectiveSlotInfo(
-      slot,
-      dayIndex,
-      weekOffset: weekOffset,
-    ).$1;
+  _SlotState _effectiveSlotState(_Slot slot, int dayIndex, {int? weekOffset}) {
+    return _effectiveSlotInfo(slot, dayIndex, weekOffset: weekOffset).$1;
   }
 
   String? _effectiveSlotStudentName(
@@ -1549,11 +1632,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     int dayIndex, {
     int? weekOffset,
   }) {
-    return _effectiveSlotInfo(
-      slot,
-      dayIndex,
-      weekOffset: weekOffset,
-    ).$2;
+    return _effectiveSlotInfo(slot, dayIndex, weekOffset: weekOffset).$2;
   }
 
   // ── Toque em horário (gerenciamento) ─────────────────────────────────────
@@ -1583,8 +1662,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       case _SlotState.unavailable:
         if (widget.trainerId == null) return;
         final slotDate = dayIndex >= 0
-          ? _slotDateTimeFor(dayIndex, slot.time, weekOffset: _agendaWeekOffset)
-          : null;
+            ? _slotDateTimeFor(
+                dayIndex,
+                slot.time,
+                weekOffset: _agendaWeekOffset,
+              )
+            : null;
         final dateIso = slotDate != null ? _toDateIso(slotDate) : '';
 
         try {
@@ -1623,15 +1706,15 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     String fullDayRepeatMode = 'ONCE';
     bool blockFullDay = false;
     final dayIndex = _days.indexOf(dayName);
-    final dateIso = dayIndex >= 0
-        ? _toDateIso(_dateForDayIndex(dayIndex))
-        : '';
+    final dateIso = dayIndex >= 0 ? _toDateIso(_dateForDayIndex(dayIndex)) : '';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Bloquear horário'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1654,17 +1737,20 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             : 'Somente este dia',
                       ),
                       selected: repeatMode == 'ONCE',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'ONCE'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'ONCE'),
                     ),
                     ChoiceChip(
                       label: Text('Toda semana em $dayName'),
                       selected: repeatMode == 'WEEKLY',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'WEEKLY'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'WEEKLY'),
                     ),
                     ChoiceChip(
                       label: const Text('Todos os dias da semana'),
                       selected: repeatMode == 'ALL_DAYS',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'ALL_DAYS'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'ALL_DAYS'),
                     ),
                   ],
                 ),
@@ -1724,7 +1810,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 if (widget.trainerId == null) return;
 
                 try {
-                  final selectedMode = blockFullDay ? fullDayRepeatMode : repeatMode;
+                  final selectedMode = blockFullDay
+                      ? fullDayRepeatMode
+                      : repeatMode;
                   await AuthService.blockSlot(
                     widget.trainerId!,
                     dayName,
@@ -1734,13 +1822,15 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     blockFullDay: blockFullDay,
                   );
                   setState(() {
-                    _blockHistory.add([{
-                      'dayName': dayName,
-                      'time': slot.time,
-                      'repeatMode': selectedMode,
-                      'dateIso': selectedMode == 'ONCE' ? dateIso : null,
-                      'blockFullDay': blockFullDay,
-                    }]);
+                    _blockHistory.add([
+                      {
+                        'dayName': dayName,
+                        'time': slot.time,
+                        'repeatMode': selectedMode,
+                        'dateIso': selectedMode == 'ONCE' ? dateIso : null,
+                        'blockFullDay': blockFullDay,
+                      },
+                    ]);
                     if (_blockHistory.length > _blockHistoryMax) {
                       _blockHistory.removeAt(0);
                     }
@@ -1759,14 +1849,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 if (!mounted) return;
                 _showSnack(
                   blockFullDay
-                    ? fullDayRepeatMode == 'ONCE'
-                      ? 'Dia inteiro bloqueado apenas em ${_dayDateLabel(dayIndex)}'
-                      : 'Dia inteiro bloqueado semanalmente em $dayName'
+                      ? fullDayRepeatMode == 'ONCE'
+                            ? 'Dia inteiro bloqueado apenas em ${_dayDateLabel(dayIndex)}'
+                            : 'Dia inteiro bloqueado semanalmente em $dayName'
                       : repeatMode == 'ONCE'
-                          ? '$dayName às ${slot.time} bloqueado apenas para ${_dayDateLabel(dayIndex)}'
-                          : repeatMode == 'ALL_DAYS'
-                              ? '${slot.time} bloqueado em todos os dias da semana'
-                              : '$dayName às ${slot.time} bloqueado semanalmente',
+                      ? '$dayName às ${slot.time} bloqueado apenas para ${_dayDateLabel(dayIndex)}'
+                      : repeatMode == 'ALL_DAYS'
+                      ? '${slot.time} bloqueado em todos os dias da semana'
+                      : '$dayName às ${slot.time} bloqueado semanalmente',
                   icon: Icons.block_rounded,
                   color: const Color(0xFFEF4444),
                 );
@@ -1818,18 +1908,21 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     ChoiceChip(
                       label: Text('Apenas ${_dayDateLabel(_selectedDay)}'),
                       selected: repeatMode == 'ONCE',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'ONCE'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'ONCE'),
                     ),
                     ChoiceChip(
                       label: Text('Toda semana em $dayName'),
                       selected: repeatMode == 'WEEKLY',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'WEEKLY'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'WEEKLY'),
                     ),
                     const SizedBox(width: 2),
                     ChoiceChip(
                       label: const Text('Todos os dias da semana'),
                       selected: repeatMode == 'ALL_DAYS',
-                      onSelected: (_) => setDialogState(() => repeatMode = 'ALL_DAYS'),
+                      onSelected: (_) =>
+                          setDialogState(() => repeatMode = 'ALL_DAYS'),
                     ),
                   ],
                 ),
@@ -1890,10 +1983,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
   }
 
-  List<String> _manualBlockedTimesForDay(
-    int dayIndex, {
-    int? weekOffset,
-  }) {
+  List<String> _manualBlockedTimesForDay(int dayIndex, {int? weekOffset}) {
     if (dayIndex < 0 || dayIndex >= _days.length) return const [];
 
     final dayName = _days[dayIndex];
@@ -1903,11 +1993,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     for (final slot in daySlots) {
       final hasManualBlock =
           _isWeeklyManualBlockFor(dayIndex, slot.time) ||
-              _hasOneTimeManualBlockFor(
-                dayIndex,
-                slot.time,
-                weekOffset: weekOffset,
-              );
+          _hasOneTimeManualBlockFor(
+            dayIndex,
+            slot.time,
+            weekOffset: weekOffset,
+          );
       final hasManualUnblock = _hasOneTimeManualUnblockFor(
         dayIndex,
         slot.time,
@@ -1974,7 +2064,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     ChoiceChip(
                       label: const Text('Escolher dias específicos'),
                       selected: !cloneToAllDays,
-                      onSelected: (_) => setDialogState(() => cloneToAllDays = false),
+                      onSelected: (_) =>
+                          setDialogState(() => cloneToAllDays = false),
                     ),
                   ],
                 ),
@@ -2022,11 +2113,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 onPressed: !cloneToAllDays && selectedTargetDays.isEmpty
                     ? null
                     : () => Navigator.pop(ctx, {
-                          'cloneToAllDays': cloneToAllDays,
-                          'targetDays': cloneToAllDays
-                              ? const <int>[]
-                              : selectedTargetDays.toList(),
-                        }),
+                        'cloneToAllDays': cloneToAllDays,
+                        'targetDays': cloneToAllDays
+                            ? const <int>[]
+                            : selectedTargetDays.toList(),
+                      }),
                 child: const Text('Aplicar clone'),
               ),
             ],
@@ -2063,8 +2154,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final effectiveCloneToAllDays = cloneToAllDays && targetDayIndexes.isEmpty;
 
     final targets = effectiveCloneToAllDays
-        ? <int>{for (int i = 0; i < _days.length; i++) if (i != sourceDayIndex) i}
-      : {...targetDayIndexes};
+        ? <int>{
+            for (int i = 0; i < _days.length; i++)
+              if (i != sourceDayIndex) i,
+          }
+        : {...targetDayIndexes};
 
     if (!effectiveCloneToAllDays && targets.isEmpty) {
       _showSnack(
@@ -2111,7 +2205,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       _showSnack(
         effectiveCloneToAllDays
             ? 'Padrão de $sourceDayName clonado para todos os dias da semana.'
-        : 'Padrão de $sourceDayName clonado para ${targets.length} dia${targets.length > 1 ? 's' : ''} (${targetNames.join(', ')}). $changedCount bloqueio${changedCount > 1 ? 's' : ''} aplicado${changedCount > 1 ? 's' : ''}.',
+            : 'Padrão de $sourceDayName clonado para ${targets.length} dia${targets.length > 1 ? 's' : ''} (${targetNames.join(', ')}). $changedCount bloqueio${changedCount > 1 ? 's' : ''} aplicado${changedCount > 1 ? 's' : ''}.',
         icon: Icons.check_circle_rounded,
         color: const Color(0xFF16A34A),
       );
@@ -2140,8 +2234,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final blockedTimes = _manualBlockedTimesForDay(
       dayIndex,
       weekOffset: _agendaWeekOffset,
-    ).toSet().toList()
-      ..sort();
+    ).toSet().toList()..sort();
 
     if (blockedTimes.isEmpty) {
       _showSnack(
@@ -2283,13 +2376,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       _showSnack(
         changedCount > 0
             ? repeatMode == 'ALL_DAYS'
-                ? 'Faixa bloqueada em todos os dias da semana ($changedCount horário${changedCount > 1 ? 's' : ''}).'
-                : repeatMode == 'WEEKLY'
-                    ? 'Faixa bloqueada semanalmente em $dayName ($changedCount horário${changedCount > 1 ? 's' : ''}).'
-                    : 'Faixa bloqueada apenas em ${_dayDateLabel(_selectedDay)} ($changedCount horário${changedCount > 1 ? 's' : ''}).'
+                  ? 'Faixa bloqueada em todos os dias da semana ($changedCount horário${changedCount > 1 ? 's' : ''}).'
+                  : repeatMode == 'WEEKLY'
+                  ? 'Faixa bloqueada semanalmente em $dayName ($changedCount horário${changedCount > 1 ? 's' : ''}).'
+                  : 'Faixa bloqueada apenas em ${_dayDateLabel(_selectedDay)} ($changedCount horário${changedCount > 1 ? 's' : ''}).'
             : 'Nenhum horário elegível para bloquear na faixa selecionada.',
-        icon: changedCount > 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-        color: changedCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+        icon: changedCount > 0
+            ? Icons.check_circle_rounded
+            : Icons.info_outline_rounded,
+        color: changedCount > 0
+            ? const Color(0xFF16A34A)
+            : const Color(0xFF64748B),
       );
     } catch (e) {
       _showSnack(
@@ -2303,7 +2400,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   Future<void> _undoLastBlock() async {
-    if (_blockHistory.isEmpty || _undoingBlock || widget.trainerId == null) return;
+    if (_blockHistory.isEmpty || _undoingBlock || widget.trainerId == null)
+      return;
     final lastAction = _blockHistory.last;
     setState(() => _undoingBlock = true);
     try {
@@ -2416,14 +2514,13 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                   : null,
                               planType: matchReq?['planType']?.toString(),
                               daysJson: matchReq?['daysJson']?.toString(),
-                              readOnlyStartAtIso:
-                                  matchReq?['createdAt']?.toString(),
-                              readOnlyLockAtIso:
-                                  matchReq != null
-                                      ? _resolveRequestChatLockAtIso(matchReq)
-                                      : null,
-                                requestUpdatedAtIso:
-                                  matchReq?['updatedAt']?.toString(),
+                              readOnlyStartAtIso: matchReq?['createdAt']
+                                  ?.toString(),
+                              readOnlyLockAtIso: matchReq != null
+                                  ? _resolveRequestChatLockAtIso(matchReq)
+                                  : null,
+                              requestUpdatedAtIso: matchReq?['updatedAt']
+                                  ?.toString(),
                             ),
                           ),
                         );
@@ -2671,48 +2768,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         children: [
           Row(
             children: [
-              const FitMatchLogo(height: 56, assetPath: 'assets/images/logo_perfil.png'),
+              const FitMatchLogo(
+                height: 56,
+                assetPath: 'assets/images/logo_perfil.png',
+              ),
               const Spacer(),
-              if (_totalPending > 0)
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.notifications_rounded,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '$_totalPending nova${_totalPending > 1 ? 's' : ''}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               IconButton(
                 onPressed: () async {
                   await AuthService.clearSession();
                   if (mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil('/', (route) => false);
                   }
                 },
                 icon: Container(
@@ -2816,8 +2883,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: isActive ? Colors.white : const Color(0xFF0B4DBA),
-        backgroundColor:
-            isActive ? const Color(0xFF3B82F6) : const Color(0xFFF8FBFF),
+        backgroundColor: isActive
+            ? const Color(0xFF3B82F6)
+            : const Color(0xFFF8FBFF),
         side: BorderSide(
           color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
         ),
@@ -2888,9 +2956,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
   Widget _buildProfileCard() {
     final hasCref = widget.cref != null && widget.cref!.trim().isNotEmpty;
-    final hasBio = widget.bio != null && widget.bio!.trim().isNotEmpty;
-    final hasEsp =
-        widget.especialidade != null && widget.especialidade!.trim().isNotEmpty;
+    final hasEsp = _editEspecialidade.trim().isNotEmpty;
 
     // Calcula stats considerando o mês atual.
     final monthlyStats = _currentMonthAvailabilityStats();
@@ -3136,7 +3202,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     runSpacing: 6,
                     children: [
                       for (final s
-                          in widget.especialidade!
+                          in _editEspecialidade
                               .split(RegExp(r'[,;]'))
                               .map((e) => e.trim())
                               .where((e) => e.isNotEmpty))
@@ -3164,10 +3230,6 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                               icon: Icons.attach_money_rounded,
                               label: 'R\$ $_editValorHora / hora',
                             ),
-                          _InfoChip(
-                            icon: Icons.access_time_rounded,
-                            label: _horasPorSessao,
-                          ),
                         ],
                       ),
                     ),
@@ -3190,7 +3252,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   ],
                 ),
                 // Bio
-                if (hasBio) ...[
+                if (_editBio.trim().isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
@@ -3216,7 +3278,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            widget.bio!,
+                            _editBio,
                             style: const TextStyle(
                               color: Colors.black54,
                               fontSize: 13.5,
@@ -3314,8 +3376,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       }
 
       final list = days.toList();
-      list.sort((a, b) =>
-          (dayOrder[a] ?? 99).compareTo(dayOrder[b] ?? 99));
+      list.sort((a, b) => (dayOrder[a] ?? 99).compareTo(dayOrder[b] ?? 99));
       return list;
     }
 
@@ -3412,47 +3473,49 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       allowedDays.addAll(workoutDaysFor(row));
 
       final allowedSlotItems = entry['allowedWorkoutSlotItems'] as Set<String>;
-      final allowedSlots = entry['allowedWorkoutSlots'] as List<Map<String, String>>;
+      final allowedSlots =
+          entry['allowedWorkoutSlots'] as List<Map<String, String>>;
       for (final slot in workoutSlotsFor(row)) {
         final key = '${slot['dayName']}|${slot['time']}';
         if (!allowedSlotItems.add(key)) continue;
         allowedSlots.add(slot);
       }
 
-      final rowDate = _parseIsoDateTime(row['approvedAt']) ??
+      final rowDate =
+          _parseIsoDateTime(row['approvedAt']) ??
           _parseIsoDateTime(row['createdAt']);
       final latestPlanAt = entry['latestPlanAt'] as DateTime?;
-      if (rowDate != null && (latestPlanAt == null || rowDate.isAfter(latestPlanAt))) {
+      if (rowDate != null &&
+          (latestPlanAt == null || rowDate.isAfter(latestPlanAt))) {
         entry['latestPlanAt'] = rowDate;
       }
     }
 
-    final activeStudents = groupedActive.values
-        .map((row) {
-          final items = (row['plansSummaryItems'] as Set<String>).toList();
-          items.sort();
-          final workoutDays = (row['allowedWorkoutDaysItems'] as Set<String>).toList()
+    final activeStudents = groupedActive.values.map((row) {
+      final items = (row['plansSummaryItems'] as Set<String>).toList();
+      items.sort();
+      final workoutDays =
+          (row['allowedWorkoutDaysItems'] as Set<String>).toList()
             ..sort((a, b) => (dayOrder[a] ?? 99).compareTo(dayOrder[b] ?? 99));
-          final workoutSlots = List<Map<String, String>>.from(
-            row['allowedWorkoutSlots'] as List<Map<String, String>>,
-          );
-          workoutSlots.sort((a, b) {
-            final dayCmp = (dayOrder[a['dayName']] ?? 99).compareTo(
-              dayOrder[b['dayName']] ?? 99,
-            );
-            if (dayCmp != 0) return dayCmp;
-            return (a['time'] ?? '').compareTo(b['time'] ?? '');
-          });
-          return {
-            ...row,
-            'plansSummary': items.join(' • '),
-            'allowedWorkoutDays': workoutDays,
-            'allowedWorkoutSlots': workoutSlots,
-            'latestApprovedAtIso':
-                (row['latestPlanAt'] as DateTime?)?.toIso8601String(),
-          };
-        })
-        .toList();
+      final workoutSlots = List<Map<String, String>>.from(
+        row['allowedWorkoutSlots'] as List<Map<String, String>>,
+      );
+      workoutSlots.sort((a, b) {
+        final dayCmp = (dayOrder[a['dayName']] ?? 99).compareTo(
+          dayOrder[b['dayName']] ?? 99,
+        );
+        if (dayCmp != 0) return dayCmp;
+        return (a['time'] ?? '').compareTo(b['time'] ?? '');
+      });
+      return {
+        ...row,
+        'plansSummary': items.join(' • '),
+        'allowedWorkoutDays': workoutDays,
+        'allowedWorkoutSlots': workoutSlots,
+        'latestApprovedAtIso': (row['latestPlanAt'] as DateTime?)
+            ?.toIso8601String(),
+      };
+    }).toList();
 
     activeStudents.sort((a, b) {
       final da = a['latestPlanAt'] as DateTime?;
@@ -3511,7 +3574,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return _SectionCard(
       title: 'Meus Alunos',
       icon: Icons.people_rounded,
-        trailing: activeStudents.isNotEmpty
+      trailing: activeStudents.isNotEmpty
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
@@ -3660,13 +3723,16 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                       MaterialPageRoute(
                                         builder: (_) => TrainerChatView(
                                           trainerName:
-                                              (student['studentName'] ?? 'Aluno')
+                                              (student['studentName'] ??
+                                                      'Aluno')
                                                   .toString(),
                                           isTrainerSide: true,
                                           senderId: widget.trainerId,
-                                          receiverId: student['studentId'] != null
+                                          receiverId:
+                                              student['studentId'] != null
                                               ? int.tryParse(
-                                                  student['studentId'].toString(),
+                                                  student['studentId']
+                                                      .toString(),
                                                 )
                                               : null,
                                           dayName: (student['dayName'] ?? '')
@@ -3708,7 +3774,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                               }
                               final sid = (student['studentId'] as num).toInt();
                               final requestId = int.tryParse(
-                                (student['id'] ?? student['requestId'] ?? '').toString(),
+                                (student['id'] ?? student['requestId'] ?? '')
+                                    .toString(),
                               );
                               try {
                                 await AuthService.blockStudent(
@@ -3789,7 +3856,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                     final sid = (student['studentId'] as num)
                                         .toInt();
                                     final requestId = int.tryParse(
-                                      (student['id'] ?? student['requestId'] ?? '')
+                                      (student['id'] ??
+                                              student['requestId'] ??
+                                              '')
                                           .toString(),
                                     );
                                     try {
@@ -3803,7 +3872,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                           studentId: sid,
                                           trainerId: widget.trainerId!,
                                           studentName:
-                                              (student['studentName'] ?? 'Aluno')
+                                              (student['studentName'] ??
+                                                      'Aluno')
                                                   .toString(),
                                           trainerName: widget.name,
                                         );
@@ -3829,29 +3899,49 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                 : null,
                             onOrganizeWorkout: (student['isMyStudent'] == true)
                                 ? () {
-                                    if (widget.trainerId == null || student['studentId'] == null) {
+                                    if (widget.trainerId == null ||
+                                        student['studentId'] == null) {
                                       return;
                                     }
-                                    final sid = (student['studentId'] as num).toInt();
+                                    final sid = (student['studentId'] as num)
+                                        .toInt();
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => TrainerWorkoutOrganizerView(
                                           trainerId: widget.trainerId!,
                                           studentId: sid,
-                                          studentName: (student['studentName'] ?? 'Aluno').toString(),
-                                          allowedDays: (student['allowedWorkoutDays'] as List?)
+                                          studentName:
+                                              (student['studentName'] ??
+                                                      'Aluno')
+                                                  .toString(),
+                                          allowedDays:
+                                              (student['allowedWorkoutDays']
+                                                      as List?)
                                                   ?.map((d) => d.toString())
                                                   .toList() ??
                                               const [],
-                                          allowedSlots: (student['allowedWorkoutSlots'] as List?)
+                                          allowedSlots:
+                                              (student['allowedWorkoutSlots']
+                                                      as List?)
                                                   ?.whereType<Map>()
                                                   .map(
                                                     (slot) => {
-                                                      'dayName': (slot['dayName'] ?? '').toString(),
-                                                      'time': (slot['time'] ?? '').toString(),
-                                                      'dateLabel': (slot['dateLabel'] ?? '').toString(),
-                                                      'dateIso': (slot['dateIso'] ?? '').toString(),
+                                                      'dayName':
+                                                          (slot['dayName'] ??
+                                                                  '')
+                                                              .toString(),
+                                                      'time':
+                                                          (slot['time'] ?? '')
+                                                              .toString(),
+                                                      'dateLabel':
+                                                          (slot['dateLabel'] ??
+                                                                  '')
+                                                              .toString(),
+                                                      'dateIso':
+                                                          (slot['dateIso'] ??
+                                                                  '')
+                                                              .toString(),
                                                     },
                                                   )
                                                   .toList() ??
@@ -3998,14 +4088,20 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   Widget _buildScheduleCard() {
     final slots = _schedule[_days[_selectedDay]] ?? [];
     final available = slots
-      .where((s) => _effectiveSlotState(s, _selectedDay) == _SlotState.available)
-      .length;
+        .where(
+          (s) => _effectiveSlotState(s, _selectedDay) == _SlotState.available,
+        )
+        .length;
     final blocked = slots
-      .where((s) => _effectiveSlotState(s, _selectedDay) == _SlotState.unavailable)
-      .length;
+        .where(
+          (s) => _effectiveSlotState(s, _selectedDay) == _SlotState.unavailable,
+        )
+        .length;
     final requested = slots
-      .where((s) => _effectiveSlotState(s, _selectedDay) == _SlotState.requested)
-      .length;
+        .where(
+          (s) => _effectiveSlotState(s, _selectedDay) == _SlotState.requested,
+        )
+        .length;
     final canGoPrevWeek = _agendaWeekOffset > 0;
 
     return _SectionCard(
@@ -4237,7 +4333,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: isSelected ? Colors.white : Colors.black87,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black87,
                               ),
                             ),
                             const SizedBox(width: 3),
@@ -4248,8 +4346,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                 color: dotColor != null
                                     ? (isSelected ? Colors.white : dotColor)
                                     : (isSelected
-                                        ? Colors.white.withValues(alpha: 0.4)
-                                        : Colors.transparent),
+                                          ? Colors.white.withValues(alpha: 0.4)
+                                          : Colors.transparent),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -4301,7 +4399,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _applyingBlockRange ? null : _showRepeatBlockedDialog,
+                  onPressed: _applyingBlockRange
+                      ? null
+                      : _showRepeatBlockedDialog,
                   icon: _applyingBlockRange
                       ? const SizedBox(
                           width: 14,
@@ -4334,9 +4434,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 ),
                 OutlinedButton.icon(
                   onPressed:
-                      (_applyingCloneDay || _applyingBlockRange || _clearingDayBlocks)
-                          ? null
-                          : _clearBlockedTimesForSelectedDate,
+                      (_applyingCloneDay ||
+                          _applyingBlockRange ||
+                          _clearingDayBlocks)
+                      ? null
+                      : _clearBlockedTimesForSelectedDate,
                   icon: _clearingDayBlocks
                       ? const SizedBox(
                           width: 14,
@@ -4352,7 +4454,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 ),
                 if (_blockHistory.isNotEmpty)
                   OutlinedButton.icon(
-                    onPressed: (_undoingBlock || _applyingBlockRange) ? null : _undoLastBlock,
+                    onPressed: (_undoingBlock || _applyingBlockRange)
+                        ? null
+                        : _undoLastBlock,
                     icon: _undoingBlock
                         ? const SizedBox(
                             width: 14,
@@ -4360,9 +4464,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.undo_rounded, size: 16),
-                    label: Text(
-                      'Desfazer (${_blockHistory.length})',
-                    ),
+                    label: Text('Desfazer (${_blockHistory.length})'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF2563EB),
                       side: const BorderSide(color: Color(0xFF93C5FD)),
@@ -4418,9 +4520,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               itemCount: slots.length,
               itemBuilder: (_, i) {
                 final baseSlot = slots[i];
-                final effectiveState = _effectiveSlotState(baseSlot, _selectedDay);
-                final effectiveStudentName =
-                    _effectiveSlotStudentName(baseSlot, _selectedDay);
+                final effectiveState = _effectiveSlotState(
+                  baseSlot,
+                  _selectedDay,
+                );
+                final effectiveStudentName = _effectiveSlotStudentName(
+                  baseSlot,
+                  _selectedDay,
+                );
                 final viewSlot = _Slot(baseSlot.time)
                   ..state = effectiveState
                   ..studentName = effectiveStudentName;
@@ -4469,7 +4576,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
   Widget _buildPendingAgendaItem(Map<String, dynamic> req) {
     final studentName = (req['studentName'] ?? 'Aluno').toString();
-    final studentId = req['studentId'] is num ? (req['studentId'] as num).toInt() : null;
+    final studentId = req['studentId'] is num
+        ? (req['studentId'] as num).toInt()
+        : null;
     final slotLabels = _requestSlotLabelsForAgenda(req);
 
     return Container(
@@ -4614,7 +4723,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                     ? req['id'] as int
                     : int.tryParse((req['id'] ?? '').toString());
                 final hiddenByDb = req['hiddenForTrainer'] == true;
-                final hiddenLocally = id != null && _hiddenRequestIds.contains(id);
+                final hiddenLocally =
+                    id != null && _hiddenRequestIds.contains(id);
                 return !hiddenByDb && !hiddenLocally;
               }).toList();
 
@@ -4683,9 +4793,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                       approvedAtIso: req['approvedAt']?.toString(),
                       createdAtIso: req['createdAt']?.toString(),
                       onChat: () {
-                        final reqStatus = (req['status'] ?? 'PENDING').toString();
+                        final reqStatus = (req['status'] ?? 'PENDING')
+                            .toString();
                         final requestStartAtIso = req['createdAt']?.toString();
-                        final requestLockAtIso = _resolveRequestChatLockAtIso(req);
+                        final requestLockAtIso = _resolveRequestChatLockAtIso(
+                          req,
+                        );
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -4702,7 +4815,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                               receiverId: req['studentId'] != null
                                   ? int.tryParse(req['studentId'].toString())
                                   : null,
-                              planType: (req['planType'] ?? 'DIARIO').toString(),
+                              planType: (req['planType'] ?? 'DIARIO')
+                                  .toString(),
                               daysJson: req['daysJson']?.toString(),
                               readOnly: reqStatus == 'REJECTED',
                               readOnlyMessage: reqStatus == 'REJECTED'
@@ -4750,7 +4864,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           final reqId = req['id'] is int
                               ? req['id'] as int
                               : int.parse(req['id'].toString());
-                          final previousStatus = (req['status'] ?? '').toString();
+                          final previousStatus = (req['status'] ?? '')
+                              .toString();
                           if (previousStatus == 'PENDING') {
                             await _sendDecisionAutoMessage(
                               req,
@@ -4763,25 +4878,28 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             _hiddenRequestIds.add(reqId);
                             if (previousStatus == 'PENDING') {
                               _releaseRequestSlotsFromSchedule(req);
-                              _allTrainerRequests = _allTrainerRequests.where((r) {
+                              _allTrainerRequests = _allTrainerRequests.where((
+                                r,
+                              ) {
                                 final id = r['id'] is int
                                     ? r['id'] as int
                                     : int.tryParse((r['id'] ?? '').toString());
                                 return id != reqId;
                               }).toList();
                             } else if (previousStatus == 'APPROVED') {
-                              _allTrainerRequests = _allTrainerRequests.map((r) {
+                              _allTrainerRequests = _allTrainerRequests.map((
+                                r,
+                              ) {
                                 final id = r['id'] is int
                                     ? r['id'] as int
                                     : int.tryParse((r['id'] ?? '').toString());
                                 if (id != reqId) return r;
-                                return {
-                                  ...r,
-                                  'hiddenForTrainer': true,
-                                };
+                                return {...r, 'hiddenForTrainer': true};
                               }).toList();
                             } else {
-                              _allTrainerRequests = _allTrainerRequests.where((r) {
+                              _allTrainerRequests = _allTrainerRequests.where((
+                                r,
+                              ) {
                                 final id = r['id'] is int
                                     ? r['id'] as int
                                     : int.tryParse((r['id'] ?? '').toString());
@@ -4813,10 +4931,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                             reqId,
                             'APPROVED',
                           );
-                          await _sendDecisionAutoMessage(
-                            req,
-                            approved: true,
-                          );
+                          await _sendDecisionAutoMessage(req, approved: true);
                           // Atualização otimista (sem materializar bloqueio manual base)
                           setState(() {
                             // Adiciona aluno imediatamente em Meus Alunos
@@ -4851,10 +4966,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           final reqId = req['id'] is int
                               ? req['id'] as int
                               : int.parse(req['id'].toString());
-                          await _sendDecisionAutoMessage(
-                            req,
-                            approved: false,
-                          );
+                          await _sendDecisionAutoMessage(req, approved: false);
                           await AuthService.updateRequestStatus(
                             reqId,
                             'REJECTED',
@@ -5040,17 +5152,25 @@ class _RequestRow extends StatelessWidget {
     final text = value.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
   DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -5136,12 +5256,15 @@ class _RequestRow extends StatelessWidget {
         final d = (slot['dayName'] ?? '').toString().trim();
         final t = (slot['time'] ?? '').toString().trim();
         final rawDate = (slot['dateLabel'] ?? '').toString().trim();
-        final date = rawDate.isNotEmpty ? rawDate : _fallbackDateLabelForSlot(d, t);
+        final date = rawDate.isNotEmpty
+            ? rawDate
+            : _fallbackDateLabelForSlot(d, t);
         return _slotChipLabel(dayName: d, time: t, dateLabel: date);
       }).toList();
     }
 
-    final anchor = DateTime.tryParse((createdAtIso ?? approvedAtIso ?? '').toString()) ??
+    final anchor =
+        DateTime.tryParse((createdAtIso ?? approvedAtIso ?? '').toString()) ??
         DateTime.now();
 
     final parsed = <Map<String, dynamic>>[];
@@ -5153,7 +5276,8 @@ class _RequestRow extends StatelessWidget {
       if (weekday == null || hm == null || d.isEmpty || t.isEmpty) continue;
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
-      final startAt = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      final startAt =
+          fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
       parsed.add({
         'dayName': d,
         'time': _normalizeTime(t),
@@ -5166,16 +5290,19 @@ class _RequestRow extends StatelessWidget {
 
     if (parsed.isEmpty) {
       return slots
-          .map((slot) => _slotChipLabel(
-                dayName: (slot['dayName'] ?? '').toString(),
-                time: (slot['time'] ?? '').toString(),
-                dateLabel: (slot['dateLabel'] ?? '').toString(),
-              ))
+          .map(
+            (slot) => _slotChipLabel(
+              dayName: (slot['dayName'] ?? '').toString(),
+              time: (slot['time'] ?? '').toString(),
+              dateLabel: (slot['dateLabel'] ?? '').toString(),
+            ),
+          )
           .toList();
     }
 
-    parsed.sort((a, b) =>
-        (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime));
+    parsed.sort(
+      (a, b) => (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime),
+    );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
     final windowEnd = _addOneMonthKeepingDay(firstAt);
@@ -5251,7 +5378,9 @@ class _RequestRow extends StatelessWidget {
   }
 
   DateTime? _resolveDailyExpiresAt() {
-    final base = DateTime.tryParse((approvedAtIso ?? createdAtIso ?? '').toString());
+    final base = DateTime.tryParse(
+      (approvedAtIso ?? createdAtIso ?? '').toString(),
+    );
     if (base == null) return null;
 
     final slots = _parseDays().isNotEmpty
@@ -5311,7 +5440,8 @@ class _RequestRow extends StatelessWidget {
     final hm = _parseHourMinute(time);
     if (weekday == null || hm == null) return '';
 
-    final anchor = DateTime.tryParse((createdAtIso ?? approvedAtIso ?? '').toString()) ??
+    final anchor =
+        DateTime.tryParse((createdAtIso ?? approvedAtIso ?? '').toString()) ??
         DateTime.now();
     var candidate = _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
     if (weekday == anchor.weekday) {
@@ -5354,25 +5484,25 @@ class _RequestRow extends StatelessWidget {
             Icons.stop_circle_rounded,
           )
         : switch (status) {
-      'APPROVED' => (
-        const Color(0xFF166534),
-        const Color(0xFFDCFCE7),
-        'Aprovada',
-        Icons.check_circle_rounded,
-      ),
-      'REJECTED' => (
-        const Color(0xFFB91C1C),
-        const Color(0xFFFEE2E2),
-        'Recusada',
-        Icons.cancel_rounded,
-      ),
-      _ => (
-        const Color(0xFFB45309),
-        const Color(0xFFFFFBEB),
-        'Pendente',
-        Icons.hourglass_top_rounded,
-      ),
-    };
+            'APPROVED' => (
+              const Color(0xFF166534),
+              const Color(0xFFDCFCE7),
+              'Aprovada',
+              Icons.check_circle_rounded,
+            ),
+            'REJECTED' => (
+              const Color(0xFFB91C1C),
+              const Color(0xFFFEE2E2),
+              'Recusada',
+              Icons.cancel_rounded,
+            ),
+            _ => (
+              const Color(0xFFB45309),
+              const Color(0xFFFFFBEB),
+              'Pendente',
+              Icons.hourglass_top_rounded,
+            ),
+          };
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -5497,7 +5627,9 @@ class _RequestRow extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
                   icon: Icon(
-                    studentBlocked ? Icons.lock_open_rounded : Icons.block_outlined,
+                    studentBlocked
+                        ? Icons.lock_open_rounded
+                        : Icons.block_outlined,
                     size: 14,
                   ),
                   label: Text(
@@ -5515,7 +5647,10 @@ class _RequestRow extends StatelessWidget {
                           ? const Color(0xFF93C5FD)
                           : const Color(0xFFFCA5A5),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
                     textStyle: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -5534,11 +5669,16 @@ class _RequestRow extends StatelessWidget {
               children: displaySlotLabels
                   .map(
                     (label) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: planBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: planFg.withValues(alpha: 0.18)),
+                        border: Border.all(
+                          color: planFg.withValues(alpha: 0.18),
+                        ),
                       ),
                       child: Text(
                         label,
@@ -5560,12 +5700,18 @@ class _RequestRow extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline_rounded, size: 15),
-                  label: const Text('Excluir', style: TextStyle(fontSize: 12.5)),
+                  label: const Text(
+                    'Excluir',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFB91C1C),
                     backgroundColor: const Color(0xFFFEF2F2),
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 11,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -5574,12 +5720,18 @@ class _RequestRow extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onReport,
                   icon: const Icon(Icons.flag_outlined, size: 15),
-                  label: const Text('Denunciar', style: TextStyle(fontSize: 12.5)),
+                  label: const Text(
+                    'Denunciar',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFB42318),
                     backgroundColor: const Color(0xFFFFF1F0),
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 11,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -5588,13 +5740,19 @@ class _RequestRow extends StatelessWidget {
                 if (showChat)
                   OutlinedButton.icon(
                     onPressed: onChat,
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 15,
+                    ),
                     label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0B4DBA),
                       backgroundColor: const Color(0xFFF8FBFF),
                       side: const BorderSide(color: Color(0xFFBFD3F5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -5604,12 +5762,18 @@ class _RequestRow extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onReject,
                     icon: const Icon(Icons.close_rounded, size: 15),
-                    label: const Text('Recusar', style: TextStyle(fontSize: 12.5)),
+                    label: const Text(
+                      'Recusar',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFEF4444),
                       backgroundColor: const Color(0xFFFEF2F2),
                       side: const BorderSide(color: Color(0xFFFCA5A5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -5619,12 +5783,18 @@ class _RequestRow extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: onConfirm,
                     icon: const Icon(Icons.check_rounded, size: 16),
-                    label: const Text('Confirmar', style: TextStyle(fontSize: 12.5)),
+                    label: const Text(
+                      'Confirmar',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF22C55E),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -5849,7 +6019,10 @@ class _StudentRow extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onReport,
                 icon: const Icon(Icons.flag_outlined, size: 15),
-                label: const Text('Denunciar', style: TextStyle(fontSize: 11.5)),
+                label: const Text(
+                  'Denunciar',
+                  style: TextStyle(fontSize: 11.5),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFB42318),
                   side: const BorderSide(color: Color(0xFFFCA5A5)),
@@ -5942,7 +6115,13 @@ class _StudentRow extends StatelessWidget {
   }
 
   DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -6032,12 +6211,16 @@ class _StudentRow extends StatelessWidget {
       final slotTime = (slot['time'] ?? '').trim();
       final weekday = _weekdayFromPt(slotDay);
       final hm = _parseHourMinute(slotTime);
-      if (slotDay.isEmpty || slotTime.isEmpty || weekday == null || hm == null) {
+      if (slotDay.isEmpty ||
+          slotTime.isEmpty ||
+          weekday == null ||
+          hm == null) {
         continue;
       }
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
-      final startAt = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      final startAt =
+          fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
       parsed.add({
         'dayName': slotDay,
         'time': slotTime,
@@ -6057,16 +6240,17 @@ class _StudentRow extends StatelessWidget {
         final dateLabel = rawDateLabel.isNotEmpty
             ? rawDateLabel
             : (isoDateLabel.isNotEmpty
-                ? isoDateLabel
-                : _fallbackDateLabelForSlot(slotDay, slotTime));
+                  ? isoDateLabel
+                  : _fallbackDateLabelForSlot(slotDay, slotTime));
         return dateLabel.isEmpty
             ? '$slotDay $slotTime'
             : '$slotDay $dateLabel $slotTime';
       }).toList();
     }
 
-    parsed.sort((a, b) =>
-        (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime));
+    parsed.sort(
+      (a, b) => (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime),
+    );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
     final windowEnd = _addOneMonthKeepingDay(firstAt);
@@ -6147,13 +6331,17 @@ class _StudentRow extends StatelessWidget {
         final decoded = jsonDecode(daysJson!) as List<dynamic>;
         final slots = decoded
             .whereType<Map>()
-            .map((slot) => {
-                  'dayName': (slot['dayName'] ?? '').toString().trim(),
-                  'time': (slot['time'] ?? '').toString().trim(),
-                  'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
-                  'dateIso': (slot['dateIso'] ?? '').toString().trim(),
-                })
-            .where((slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+            .map(
+              (slot) => {
+                'dayName': (slot['dayName'] ?? '').toString().trim(),
+                'time': (slot['time'] ?? '').toString().trim(),
+                'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
+                'dateIso': (slot['dateIso'] ?? '').toString().trim(),
+              },
+            )
+            .where(
+              (slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty,
+            )
             .toList();
 
         final labels = normalizedPlanType == 'MENSAL'
@@ -6162,12 +6350,14 @@ class _StudentRow extends StatelessWidget {
                 final slotDay = (slot['dayName'] ?? '').trim();
                 final slotTime = (slot['time'] ?? '').trim();
                 final rawDateLabel = (slot['dateLabel'] ?? '').trim();
-                final isoDateLabel = _dateLabelFromIso((slot['dateIso'] ?? '').trim());
+                final isoDateLabel = _dateLabelFromIso(
+                  (slot['dateIso'] ?? '').trim(),
+                );
                 final computedDate = rawDateLabel.isNotEmpty
                     ? rawDateLabel
                     : (isoDateLabel.isNotEmpty
-                        ? isoDateLabel
-                        : _fallbackDateLabelForSlot(slotDay, slotTime));
+                          ? isoDateLabel
+                          : _fallbackDateLabelForSlot(slotDay, slotTime));
                 return computedDate.isEmpty
                     ? '$slotDay $slotTime'
                     : '$slotDay $computedDate $slotTime';
@@ -6420,9 +6610,10 @@ class _DashSlotTile extends StatelessWidget {
     }
 
     // Verifica se o slot está desabilitado
-    final isDisabled = forceUnavailable ||
-                       slot.state == _SlotState.requested || 
-                       (slot.studentName ?? '').trim().isNotEmpty;
+    final isDisabled =
+        forceUnavailable ||
+        slot.state == _SlotState.requested ||
+        (slot.studentName ?? '').trim().isNotEmpty;
 
     return Material(
       color: Colors.transparent,

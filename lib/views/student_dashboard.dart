@@ -7,6 +7,7 @@ import 'trainer_chat_view.dart';
 import 'trainer_profile_view.dart';
 import 'student_workout_view.dart';
 import 'diet_control_view.dart';
+import 'edit_student_cadastro_view.dart';
 import '../routes/app_routes.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
@@ -19,6 +20,7 @@ class StudentDashboard extends StatefulWidget {
   final String? email;
   final String? objetivos;
   final String? nivel;
+  final String? cidade;
 
   const StudentDashboard({
     super.key,
@@ -27,6 +29,7 @@ class StudentDashboard extends StatefulWidget {
     this.email,
     this.objetivos,
     this.nivel,
+    this.cidade,
   });
 
   @override
@@ -46,6 +49,9 @@ class _StudentDashboardState extends State<StudentDashboard>
   String? _trainersError;
   bool _trainersFetched = false;
   bool _searchHasRun = false; // novo: só mostra resultados após pesquisar
+  late String _profileCity;
+  late String _profileObjective;
+  late String _profileLevel;
 
   // Solicitações do aluno
   List<Map<String, dynamic>> _myRequests = [];
@@ -84,6 +90,9 @@ class _StudentDashboardState extends State<StudentDashboard>
   @override
   void initState() {
     super.initState();
+    _profileCity = widget.cidade ?? '';
+    _profileObjective = widget.objetivos ?? '';
+    _profileLevel = widget.nivel ?? '';
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
@@ -102,7 +111,8 @@ class _StudentDashboardState extends State<StudentDashboard>
   Future<void> _loadHiddenRequestIds() async {
     if (widget.studentId == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_hiddenRequestsStorageKey) ?? const <String>[];
+    final ids =
+        prefs.getStringList(_hiddenRequestsStorageKey) ?? const <String>[];
     if (!mounted) return;
     setState(() {
       _locallyHiddenRequestIds
@@ -217,9 +227,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   List<Map<String, dynamic>> _attachChatWindowToRequests(
     List<Map<String, dynamic>> requests,
   ) {
-    final enriched = requests
-        .map((r) => Map<String, dynamic>.from(r))
-        .toList();
+    final enriched = requests.map((r) => Map<String, dynamic>.from(r)).toList();
 
     for (final current in enriched) {
       final trainerId = current['trainerId']?.toString();
@@ -236,7 +244,8 @@ class _StudentDashboardState extends State<StudentDashboard>
           }
 
           final otherCreatedAt = _parseIsoDateTime(other['createdAt']);
-          if (otherCreatedAt == null || !otherCreatedAt.isAfter(currentCreatedAt)) {
+          if (otherCreatedAt == null ||
+              !otherCreatedAt.isAfter(currentCreatedAt)) {
             continue;
           }
 
@@ -313,14 +322,17 @@ class _StudentDashboardState extends State<StudentDashboard>
         final decoded = jsonDecode(raw) as List<dynamic>;
         final parsed = decoded
             .whereType<Map>()
-            .map((slot) => {
-                  'dayName': (slot['dayName'] ?? '').toString(),
-                  'time': (slot['time'] ?? '').toString(),
-                  'dateLabel': (slot['dateLabel'] ?? '').toString(),
-                  'dateIso': (slot['dateIso'] ?? '').toString(),
-                })
-            .where((slot) =>
-                slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+            .map(
+              (slot) => {
+                'dayName': (slot['dayName'] ?? '').toString(),
+                'time': (slot['time'] ?? '').toString(),
+                'dateLabel': (slot['dateLabel'] ?? '').toString(),
+                'dateIso': (slot['dateIso'] ?? '').toString(),
+              },
+            )
+            .where(
+              (slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty,
+            )
             .toList();
         if (parsed.isNotEmpty) return parsed;
       } catch (_) {}
@@ -330,7 +342,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     final time = (req['time'] ?? '').toString();
     if (dayName.isEmpty || time.isEmpty) return [];
     return [
-      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''}
+      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''},
     ];
   }
 
@@ -356,12 +368,14 @@ class _StudentDashboardState extends State<StudentDashboard>
     final text = value.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -420,7 +434,13 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -476,7 +496,8 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   DateTime _requestAnchor(Map<String, dynamic> req) {
-    return DateTime.tryParse((req['createdAt'] ?? '').toString()) ?? DateTime.now();
+    return DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
+        DateTime.now();
   }
 
   DateTime? _firstSessionStartAt(Map<String, dynamic> req) {
@@ -491,7 +512,8 @@ class _StudentDashboardState extends State<StudentDashboard>
       if (weekday == null || hm == null) continue;
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
-      var candidate = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      var candidate =
+          fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
       if (weekday == anchor.weekday) {
         final sameDayScheduled = DateTime(
           anchor.year,
@@ -527,7 +549,9 @@ class _StudentDashboardState extends State<StudentDashboard>
     final normalizedCandidateTime = _normalizeTimeValue(candidateTime);
     final anchor = _requestAnchor(req);
     final firstSession = _firstSessionStartAt(req);
-    final monthlyEnd = firstSession != null ? _addOneMonthKeepingDay(firstSession) : null;
+    final monthlyEnd = firstSession != null
+        ? _addOneMonthKeepingDay(firstSession)
+        : null;
 
     for (final slot in slots) {
       final day = _normalizeDayName((slot['dayName'] ?? '').toString());
@@ -541,7 +565,8 @@ class _StudentDashboardState extends State<StudentDashboard>
       if (weekday == null || hm == null) continue;
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
-      final slotStart = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      final slotStart =
+          fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
 
       if (planType == 'DIARIO') {
         final sameMoment =
@@ -617,7 +642,8 @@ class _StudentDashboardState extends State<StudentDashboard>
     ) {
       final dayName = _dayNameFromWeekday(date.weekday);
       final normalizedDay = _normalizeDayName(dayName);
-      final dateIso = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final dateIso =
+          '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
       for (int h = 0; h < 24; h++) {
         final time = '${h.toString().padLeft(2, '0')}:00';
@@ -675,12 +701,10 @@ class _StudentDashboardState extends State<StudentDashboard>
           AuthService.getAllTrainerRequests(trainerId),
         ]);
         final blocked = results[0];
-        final active = results[1]
-            .where((req) {
-              final status = (req['status'] ?? '').toString().toUpperCase();
-              return status == 'PENDING' || status == 'APPROVED';
-            })
-            .toList();
+        final active = results[1].where((req) {
+          final status = (req['status'] ?? '').toString().toUpperCase();
+          return status == 'PENDING' || status == 'APPROVED';
+        }).toList();
 
         enriched.add({
           ...trainer,
@@ -694,7 +718,9 @@ class _StudentDashboardState extends State<StudentDashboard>
     return enriched;
   }
 
-  Future<void> _loadFollowingStats(List<Map<String, dynamic>> connections) async {
+  Future<void> _loadFollowingStats(
+    List<Map<String, dynamic>> connections,
+  ) async {
     final ids = connections
         .map((conn) => conn['trainerId'])
         .where((id) => id != null)
@@ -715,12 +741,10 @@ class _StudentDashboardState extends State<StudentDashboard>
 
         final ratings = results[0];
         final blocked = results[1];
-        final active = results[2]
-            .where((req) {
-              final status = (req['status'] ?? '').toString().toUpperCase();
-              return status == 'PENDING' || status == 'APPROVED';
-            })
-            .toList();
+        final active = results[2].where((req) {
+          final status = (req['status'] ?? '').toString().toUpperCase();
+          return status == 'PENDING' || status == 'APPROVED';
+        }).toList();
 
         if (ratings.isNotEmpty) {
           final sum = ratings.fold<int>(
@@ -789,8 +813,10 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   @override
   Widget build(BuildContext context) {
-    final tabHeight =
-        (MediaQuery.of(context).size.height * 0.65).clamp(400.0, double.infinity);
+    final tabHeight = (MediaQuery.of(context).size.height * 0.65).clamp(
+      400.0,
+      double.infinity,
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FB),
       body: SafeArea(
@@ -839,6 +865,40 @@ class _StudentDashboardState extends State<StudentDashboard>
     );
   }
 
+  Future<void> _openFullProfileEditor() async {
+    if (widget.studentId == null) return;
+    try {
+      final user = await AuthService.getCurrentUser();
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (_) => EditStudentCadastroView(user: user, showAsDialog: true),
+      );
+      final updatedUser = await AuthService.getCurrentUser();
+      if (mounted) {
+        setState(() {
+          _profileCity = (updatedUser['cidade'] ?? '').toString();
+          _profileObjective = (updatedUser['objetivos'] ?? '').toString();
+          _profileLevel = (updatedUser['nivel'] ?? '').toString();
+        });
+      }
+      final currentSession = await AuthService.loadSession();
+      if (currentSession != null) {
+        final mergedSession = {...currentSession, ...updatedUser};
+        if (updatedUser['token'] == null ||
+            updatedUser['token'].toString().trim().isEmpty) {
+          mergedSession['token'] = currentSession['token'];
+        }
+        await AuthService.saveSession(mergedSession);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   Widget _topBar() {
     return Container(
       decoration: const BoxDecoration(
@@ -853,17 +913,25 @@ class _StudentDashboardState extends State<StudentDashboard>
         children: [
           Row(
             children: [
-              const FitMatchLogo(height: 56, assetPath: 'assets/images/logo_perfil.png'),
+              const FitMatchLogo(
+                height: 56,
+                assetPath: 'assets/images/logo_perfil.png',
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: () async {
                   await AuthService.clearSession();
                   if (mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil('/', (route) => false);
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -974,8 +1042,9 @@ class _StudentDashboardState extends State<StudentDashboard>
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: isActive ? Colors.white : const Color(0xFF0B4DBA),
-        backgroundColor:
-            isActive ? const Color(0xFF3B82F6) : const Color(0xFFF8FBFF),
+        backgroundColor: isActive
+            ? const Color(0xFF3B82F6)
+            : const Color(0xFFF8FBFF),
         side: BorderSide(
           color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
         ),
@@ -991,9 +1060,10 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Widget _buildProfileCard(String? photoUrl) {
-    final nivel = widget.nivel ?? '';
-    final objetivos = widget.objetivos ?? '';
+    final nivel = _profileLevel;
+    final objetivos = _profileObjective;
     final email = (widget.email ?? '').trim();
+    final city = _profileCity.trim();
     final firstName = widget.userName.split(' ').first;
 
     return Container(
@@ -1159,27 +1229,48 @@ class _StudentDashboardState extends State<StudentDashboard>
                 Container(height: 1, color: const Color(0xFFF0F4FB)),
                 const SizedBox(height: 16),
                 // Info chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _Chip(
-                      icon: Icons.school_outlined,
-                      label: 'Aluno',
-                      color: Color(0xFF0B4DBA),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          const _Chip(
+                            icon: Icons.school_outlined,
+                            label: 'Aluno',
+                            color: Color(0xFF0B4DBA),
+                          ),
+                          if (nivel.isNotEmpty)
+                            _Chip(
+                              icon: Icons.bar_chart_rounded,
+                              label: nivel,
+                              color: const Color(0xFF059669),
+                            ),
+                          if (objetivos.isNotEmpty)
+                            _Chip(
+                              icon: Icons.track_changes_rounded,
+                              label: objetivos,
+                              color: const Color(0xFFD97706),
+                            ),
+                          if (city.isNotEmpty)
+                            _Chip(
+                              icon: Icons.location_on_rounded,
+                              label: city,
+                              color: const Color(0xFF0B4DBA),
+                            ),
+                        ],
+                      ),
                     ),
-                    if (nivel.isNotEmpty)
-                      _Chip(
-                        icon: Icons.bar_chart_rounded,
-                        label: nivel,
-                        color: const Color(0xFF059669),
+                    IconButton(
+                      onPressed: _openFullProfileEditor,
+                      tooltip: 'Editar objetivo e nível',
+                      icon: const Icon(
+                        Icons.edit_rounded,
+                        color: Color(0xFF0B4DBA),
                       ),
-                    if (objetivos.isNotEmpty)
-                      _Chip(
-                        icon: Icons.track_changes_rounded,
-                        label: objetivos,
-                        color: const Color(0xFFD97706),
-                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -1233,8 +1324,8 @@ class _StudentDashboardState extends State<StudentDashboard>
                 else
                   Column(
                     children: _receivedRatings.take(3).map((r) {
-                      final trainerName =
-                          (r['trainerName'] ?? 'Personal').toString();
+                      final trainerName = (r['trainerName'] ?? 'Personal')
+                          .toString();
                       final stars = (r['stars'] as num?)?.toInt() ?? 0;
                       final comment = (r['comment'] ?? '').toString().trim();
                       return Container(
@@ -1360,7 +1451,8 @@ class _StudentDashboardState extends State<StudentDashboard>
     final groupedApproved = <Map<String, dynamic>>[];
     final groupedIndex = <String, int>{};
     for (final req in approvedRequests) {
-      final trainerKey = (req['trainerId'] ?? req['trainerName'] ?? '').toString();
+      final trainerKey = (req['trainerId'] ?? req['trainerName'] ?? '')
+          .toString();
       final existingIndex = groupedIndex[trainerKey];
       if (existingIndex == null) {
         groupedIndex[trainerKey] = groupedApproved.length;
@@ -1389,7 +1481,9 @@ class _StudentDashboardState extends State<StudentDashboard>
       if (requestId == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nao foi possivel identificar este plano.')),
+            const SnackBar(
+              content: Text('Nao foi possivel identificar este plano.'),
+            ),
           );
         }
         return;
@@ -1426,7 +1520,9 @@ class _StudentDashboardState extends State<StudentDashboard>
 
       if (confirm != true) return;
 
-      Future<void> openTrainerProfileForPlan(Map<String, dynamic> selectedPlan) async {
+      Future<void> openTrainerProfileForPlan(
+        Map<String, dynamic> selectedPlan,
+      ) async {
         final trainerId = _parseId(selectedPlan['trainerId']);
         if (trainerId == null || widget.studentId == null) {
           _tabController.animateTo(1);
@@ -1448,7 +1544,11 @@ class _StudentDashboardState extends State<StudentDashboard>
               trainerId: trainerId,
               studentId: widget.studentId,
               studentName: widget.userName,
-              trainerName: (trainerData?['name'] ?? selectedPlan['trainerName'] ?? 'Personal').toString(),
+              trainerName:
+                  (trainerData?['name'] ??
+                          selectedPlan['trainerName'] ??
+                          'Personal')
+                      .toString(),
               specialties: (trainerData?['especialidade'] ?? '').toString(),
               city: trainerData?['cidade']?.toString(),
               cref: trainerData?['cref']?.toString(),
@@ -1489,11 +1589,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().replaceFirst('Exception: ', ''),
-            ),
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
       }
     }
@@ -1547,7 +1643,13 @@ class _StudentDashboardState extends State<StudentDashboard>
       final minute = parts.length > 1 ? int.tryParse(parts[1].trim()) ?? 0 : 0;
 
       final now = DateTime.now();
-      final sameDayAtTime = DateTime(now.year, now.month, now.day, hour, minute);
+      final sameDayAtTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
       var deltaDays = weekday - now.weekday;
       if (deltaDays < 0) deltaDays += 7;
       var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -1591,11 +1693,15 @@ class _StudentDashboardState extends State<StudentDashboard>
             ];
 
       final validSlots = slots
-          .map((slot) => {
-                'dayName': (slot['dayName'] ?? '').toString().trim(),
-                'time': (slot['time'] ?? '').toString().trim(),
-              })
-          .where((slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+          .map(
+            (slot) => {
+              'dayName': (slot['dayName'] ?? '').toString().trim(),
+              'time': (slot['time'] ?? '').toString().trim(),
+            },
+          )
+          .where(
+            (slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty,
+          )
           .toList();
       if (validSlots.isEmpty) {
         return;
@@ -1627,25 +1733,20 @@ class _StudentDashboardState extends State<StudentDashboard>
       if (confirm != true) return;
 
       try {
-        await AuthService.cancelStudentRequest(
-          requestId,
-          reason: 'KEEP_PLAN',
-        );
+        await AuthService.cancelStudentRequest(requestId, reason: 'KEEP_PLAN');
 
-        final renewalSlots = validSlots
-            .map((slot) {
-              final next = nextOccurrenceForRenewal(
-                slot['dayName']!,
-                slot['time']!,
-              );
-              return {
-                'dayName': slot['dayName']!,
-                'time': slot['time']!,
-                'dateIso': toDateIso(next),
-                'dateLabel': toDateLabel(next),
-              };
-            })
-            .toList();
+        final renewalSlots = validSlots.map((slot) {
+          final next = nextOccurrenceForRenewal(
+            slot['dayName']!,
+            slot['time']!,
+          );
+          return {
+            'dayName': slot['dayName']!,
+            'time': slot['time']!,
+            'dateIso': toDateIso(next),
+            'dateLabel': toDateLabel(next),
+          };
+        }).toList();
 
         final first = renewalSlots.first;
         await AuthService.sendRequest(
@@ -1670,11 +1771,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().replaceFirst('Exception: ', ''),
-            ),
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
       }
     }
@@ -1684,163 +1781,172 @@ class _StudentDashboardState extends State<StudentDashboard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF059669), Color(0xFF10B981)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF059669), Color(0xFF10B981)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  borderRadius: BorderRadius.circular(10),
+                  child: const Icon(
+                    Icons.fitness_center_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.fitness_center_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Meu Personal',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Meu Personal',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Personais com solicitação aprovada',
-                      style: TextStyle(fontSize: 11.5, color: Colors.black38),
-                    ),
-                  ],
+                      Text(
+                        'Personais com solicitação aprovada',
+                        style: TextStyle(fontSize: 11.5, color: Colors.black38),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {
-                  _loadMyRequests();
-                  _loadConnections();
-                },
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  size: 18,
-                  color: Color(0xFF059669),
+                IconButton(
+                  onPressed: () {
+                    _loadMyRequests();
+                    _loadConnections();
+                  },
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: Color(0xFF059669),
+                  ),
+                  tooltip: 'Atualizar',
                 ),
-                tooltip: 'Atualizar',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_loadingMyRequests)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: CircularProgressIndicator(
-                  color: Color(0xFF059669),
-                  strokeWidth: 2.5,
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loadingMyRequests)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF059669),
+                    strokeWidth: 2.5,
+                  ),
                 ),
-              ),
-            )
-          else if (groupedApproved.isEmpty)
-            _EmptyState(
-              icon: Icons.fitness_center_rounded,
-              title: 'Nenhum personal conectado',
-              subtitle:
-                  'Seu personal só aparece aqui após aprovar sua solicitação.',
-              actionLabel: 'Buscar Personal',
-              onAction: () => _tabController.animateTo(1),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: groupedApproved.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _ApprovedTrainerItem(
-                trainerData: groupedApproved[i],
-                studentId: widget.studentId,
-                onExpiredPlanAction: handleExpiredPlanAction,
-                onRenewSamePlan: handleRenewSamePlan,
-                onCancelPlan: (plan) async {
-                  final requestId = _parseId(plan['id']);
-                  final trainerName = (plan['trainerName'] ?? 'Personal').toString();
-                  if (requestId == null) {
-                    if (mounted) {
+              )
+            else if (groupedApproved.isEmpty)
+              _EmptyState(
+                icon: Icons.fitness_center_rounded,
+                title: 'Nenhum personal conectado',
+                subtitle:
+                    'Seu personal só aparece aqui após aprovar sua solicitação.',
+                actionLabel: 'Buscar Personal',
+                onAction: () => _tabController.animateTo(1),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: groupedApproved.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _ApprovedTrainerItem(
+                  trainerData: groupedApproved[i],
+                  studentId: widget.studentId,
+                  onExpiredPlanAction: handleExpiredPlanAction,
+                  onRenewSamePlan: handleRenewSamePlan,
+                  onCancelPlan: (plan) async {
+                    final requestId = _parseId(plan['id']);
+                    final trainerName = (plan['trainerName'] ?? 'Personal')
+                        .toString();
+                    if (requestId == null) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Nao foi possivel identificar o plano para cancelamento.',
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    final planType = (plan['planType'] ?? 'DIARIO').toString();
+                    final slots = _RequestItem._parseDays(
+                      plan['daysJson']?.toString(),
+                    );
+                    final fallbackSlot =
+                        '${(plan['dayName'] ?? '').toString()} às ${(plan['time'] ?? '').toString()}';
+                    final slotsText = slots.isNotEmpty
+                        ? slots
+                              .map(
+                                (slot) =>
+                                    '${(slot['dayName'] ?? '').toString()} às ${(slot['time'] ?? '').toString()}',
+                              )
+                              .join(', ')
+                        : fallbackSlot;
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Cancelar plano?'),
+                        content: Text(
+                          'Se confirmar, seu $planType com $trainerName será cancelado e esses horários voltarão a ficar disponíveis.\n\n$slotsText',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Voltar'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFB91C1C),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Cancelar plano'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm != true) return;
+
+                    try {
+                      await AuthService.cancelStudentRequest(requestId);
+                      _loadMyRequests();
+                      _loadConnections();
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Nao foi possivel identificar o plano para cancelamento.'),
+                          content: Text('Plano cancelado e horários liberados'),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                          ),
                         ),
                       );
                     }
-                    return;
-                  }
-
-                  final planType = (plan['planType'] ?? 'DIARIO').toString();
-                  final slots = _RequestItem._parseDays(plan['daysJson']?.toString());
-                  final fallbackSlot = '${(plan['dayName'] ?? '').toString()} às ${(plan['time'] ?? '').toString()}';
-                  final slotsText = slots.isNotEmpty
-                      ? slots
-                          .map((slot) => '${(slot['dayName'] ?? '').toString()} às ${(slot['time'] ?? '').toString()}')
-                          .join(', ')
-                      : fallbackSlot;
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Cancelar plano?'),
-                      content: Text(
-                        'Se confirmar, seu $planType com $trainerName será cancelado e esses horários voltarão a ficar disponíveis.\n\n$slotsText',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Voltar'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFB91C1C),
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Cancelar plano'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm != true) return;
-
-                  try {
-                    await AuthService.cancelStudentRequest(requestId);
-                    _loadMyRequests();
-                    _loadConnections();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Plano cancelado e horários liberados'),
-                      ),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().replaceFirst('Exception: ', ''),
-                        ),
-                      ),
-                    );
-                  }
-                },
+                  },
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -1852,293 +1958,294 @@ class _StudentDashboardState extends State<StudentDashboard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Header da seção
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.person_search_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Personal Trainers',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Trainers aprovados disponíveis',
-                      style: TextStyle(fontSize: 11.5, color: Colors.black38),
-                    ),
-                  ],
-                ),
-              ),
-              if (_loadingTrainers)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF0B4DBA),
-                  ),
-                )
-              else if (_trainersFetched)
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _trainersFetched = false);
-                    _loadTrainers();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEF4FF),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.refresh_rounded,
-                      size: 16,
-                      color: Color(0xFF0B4DBA),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Campo de busca
-          TextField(
-            controller: _searchCtrl,
-            onChanged: (v) {
-              if (v.trim().isEmpty) {
-                setState(() {
-                  _searchHasRun = false;
-                  _filteredTrainers = [];
-                });
-                return;
-              }
-              if (!_trainersFetched && !_loadingTrainers) {
-                _loadTrainers();
-              } else {
-                _runSearch();
-              }
-            },
-            onSubmitted: (_) {
-              if (!_trainersFetched && !_loadingTrainers) {
-                _loadTrainers();
-              } else {
-                _runSearch();
-              }
-            },
-            decoration: InputDecoration(
-              hintText: _filterMode == 'Cidade'
-                  ? 'Buscar por cidade...'
-                  : _filterMode == 'Especialidade'
-                  ? 'Buscar por especialidade...'
-                  : _filterMode == 'Nome'
-                  ? 'Buscar por nome...'
-                  : 'Buscar por nome, especialidade ou cidade...',
-              hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-              prefixIcon: const Icon(
-                Icons.search,
-                color: Color(0xFF0B4DBA),
-                size: 20,
-              ),
-              suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Colors.black38,
-                      ),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() {
-                          _searchHasRun = false;
-                          _filteredTrainers = [];
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: const Color(0xFFF5F8FF),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 13,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: Color(0xFFDDE5F3),
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: Color(0xFF0B4DBA),
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Filtros
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+            // Header da seção
+            Row(
               children: [
-                _FilterChipBtn(
-                  label: 'Todos',
-                  selected: _filterMode == 'Todos',
-                  onTap: () => setState(() {
-                    _filterMode = 'Todos';
-                    _runSearch();
-                  }),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.person_search_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
-                const SizedBox(width: 6),
-                _FilterChipBtn(
-                  label: 'Nome',
-                  selected: _filterMode == 'Nome',
-                  onTap: () => setState(() {
-                    _filterMode = 'Nome';
-                    _runSearch();
-                  }),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Personal Trainers',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Trainers aprovados disponíveis',
+                        style: TextStyle(fontSize: 11.5, color: Colors.black38),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 6),
-                _FilterChipBtn(
-                  label: 'Cidade',
-                  selected: _filterMode == 'Cidade',
-                  onTap: () => setState(() {
-                    _filterMode = 'Cidade';
-                    _runSearch();
-                  }),
-                ),
-                const SizedBox(width: 6),
-                _FilterChipBtn(
-                  label: 'Especialidade',
-                  selected: _filterMode == 'Especialidade',
-                  onTap: () => setState(() {
-                    _filterMode = 'Especialidade';
-                    _runSearch();
-                  }),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          // Contagem de resultados
-          if (_searchHasRun &&
-              _trainersFetched &&
-              !_loadingTrainers &&
-              _trainersError == null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                _filteredTrainers.isEmpty
-                    ? 'Nenhum trainer encontrado'
-                    : '${_filteredTrainers.length} trainer${_filteredTrainers.length != 1 ? 's' : ''} encontrado${_filteredTrainers.length != 1 ? 's' : ''}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black38,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          // Estados
-          if (_loadingTrainers)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 50),
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(
+                if (_loadingTrainers)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
                       color: Color(0xFF0B4DBA),
-                      strokeWidth: 2.5,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Carregando trainers...',
-                      style: TextStyle(color: Colors.black38, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (_trainersError != null)
-            _ErrorState(message: _trainersError!, onRetry: _loadTrainers)
-          else if (!_searchHasRun)
-            const _EmptyState(
-              icon: Icons.person_search_rounded,
-              title: 'Pesquise um personal',
-              subtitle:
-                  'Digite o nome, cidade ou especialidade para encontrar trainers disponíveis.',
-            )
-          else if (_filteredTrainers.isEmpty)
-            const _EmptyState(
-              icon: Icons.search_off_rounded,
-              title: 'Nenhum resultado',
-              subtitle: 'Tente ajustar o filtro ou busque com outros termos.',
-            )
-          else
-            Column(
-              children: _filteredTrainers
-                  .map(
-                    (t) => _TrainerCard(
-                      data: t,
-                      studentId: widget.studentId,
-                      onTap: () =>
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TrainerProfileView(
-                                trainerId: t['id'] != null
-                                    ? (t['id'] as num).toInt()
-                                    : null,
-                                studentId: widget.studentId,
-                                studentName: widget.userName,
-                                trainerName: (t['name'] ?? '').toString(),
-                                specialties: (t['especialidade'] ?? '')
-                                    .toString(),
-                                city: (t['cidade'] ?? '').toString(),
-                                cref: (t['cref'] ?? '').toString(),
-                                price: (t['valorHora'] ?? '').toString(),
-                                bio: (t['bio'] ?? '').toString(),
-                                horasPorSessao: t['horasPorSessao']?.toString(),
-                              ),
-                            ),
-                          ).then((_) {
-                            _loadConnections();
-                            _loadMyRequests();
-                          }),
                     ),
                   )
-                  .toList(),
+                else if (_trainersFetched)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _trainersFetched = false);
+                      _loadTrainers();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF4FF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.refresh_rounded,
+                        size: 16,
+                        color: Color(0xFF0B4DBA),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
+            const SizedBox(height: 16),
+            // Campo de busca
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (v) {
+                if (v.trim().isEmpty) {
+                  setState(() {
+                    _searchHasRun = false;
+                    _filteredTrainers = [];
+                  });
+                  return;
+                }
+                if (!_trainersFetched && !_loadingTrainers) {
+                  _loadTrainers();
+                } else {
+                  _runSearch();
+                }
+              },
+              onSubmitted: (_) {
+                if (!_trainersFetched && !_loadingTrainers) {
+                  _loadTrainers();
+                } else {
+                  _runSearch();
+                }
+              },
+              decoration: InputDecoration(
+                hintText: _filterMode == 'Cidade'
+                    ? 'Buscar por cidade...'
+                    : _filterMode == 'Especialidade'
+                    ? 'Buscar por especialidade...'
+                    : _filterMode == 'Nome'
+                    ? 'Buscar por nome...'
+                    : 'Buscar por nome, especialidade ou cidade...',
+                hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF0B4DBA),
+                  size: 20,
+                ),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Colors.black38,
+                        ),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() {
+                            _searchHasRun = false;
+                            _filteredTrainers = [];
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF5F8FF),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFDDE5F3),
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0B4DBA),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Filtros
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _FilterChipBtn(
+                    label: 'Todos',
+                    selected: _filterMode == 'Todos',
+                    onTap: () => setState(() {
+                      _filterMode = 'Todos';
+                      _runSearch();
+                    }),
+                  ),
+                  const SizedBox(width: 6),
+                  _FilterChipBtn(
+                    label: 'Nome',
+                    selected: _filterMode == 'Nome',
+                    onTap: () => setState(() {
+                      _filterMode = 'Nome';
+                      _runSearch();
+                    }),
+                  ),
+                  const SizedBox(width: 6),
+                  _FilterChipBtn(
+                    label: 'Cidade',
+                    selected: _filterMode == 'Cidade',
+                    onTap: () => setState(() {
+                      _filterMode = 'Cidade';
+                      _runSearch();
+                    }),
+                  ),
+                  const SizedBox(width: 6),
+                  _FilterChipBtn(
+                    label: 'Especialidade',
+                    selected: _filterMode == 'Especialidade',
+                    onTap: () => setState(() {
+                      _filterMode = 'Especialidade';
+                      _runSearch();
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Contagem de resultados
+            if (_searchHasRun &&
+                _trainersFetched &&
+                !_loadingTrainers &&
+                _trainersError == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _filteredTrainers.isEmpty
+                      ? 'Nenhum trainer encontrado'
+                      : '${_filteredTrainers.length} trainer${_filteredTrainers.length != 1 ? 's' : ''} encontrado${_filteredTrainers.length != 1 ? 's' : ''}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black38,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            // Estados
+            if (_loadingTrainers)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 50),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(
+                        color: Color(0xFF0B4DBA),
+                        strokeWidth: 2.5,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Carregando trainers...',
+                        style: TextStyle(color: Colors.black38, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_trainersError != null)
+              _ErrorState(message: _trainersError!, onRetry: _loadTrainers)
+            else if (!_searchHasRun)
+              const _EmptyState(
+                icon: Icons.person_search_rounded,
+                title: 'Pesquise um personal',
+                subtitle:
+                    'Digite o nome, cidade ou especialidade para encontrar trainers disponíveis.',
+              )
+            else if (_filteredTrainers.isEmpty)
+              const _EmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'Nenhum resultado',
+                subtitle: 'Tente ajustar o filtro ou busque com outros termos.',
+              )
+            else
+              Column(
+                children: _filteredTrainers
+                    .map(
+                      (t) => _TrainerCard(
+                        data: t,
+                        studentId: widget.studentId,
+                        onTap: () =>
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TrainerProfileView(
+                                  trainerId: t['id'] != null
+                                      ? (t['id'] as num).toInt()
+                                      : null,
+                                  studentId: widget.studentId,
+                                  studentName: widget.userName,
+                                  trainerName: (t['name'] ?? '').toString(),
+                                  specialties: (t['especialidade'] ?? '')
+                                      .toString(),
+                                  city: (t['cidade'] ?? '').toString(),
+                                  cref: (t['cref'] ?? '').toString(),
+                                  price: (t['valorHora'] ?? '').toString(),
+                                  bio: (t['bio'] ?? '').toString(),
+                                  horasPorSessao: t['horasPorSessao']
+                                      ?.toString(),
+                                ),
+                              ),
+                            ).then((_) {
+                              _loadConnections();
+                              _loadMyRequests();
+                            }),
+                      ),
+                    )
+                    .toList(),
+              ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -2150,279 +2257,285 @@ class _StudentDashboardState extends State<StudentDashboard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF9F67FA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.people_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Seguindo',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Personais que você acompanha',
-                      style: TextStyle(fontSize: 11.5, color: Colors.black38),
-                    ),
-                  ],
-                ),
-              ),
-              if (_loadingConnections)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF7C3AED),
-                  ),
-                )
-              else
-                IconButton(
-                  onPressed: _loadConnections,
-                  icon: const Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
-                    color: Color(0xFF7C3AED),
-                  ),
-                  tooltip: 'Atualizar',
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_loadingConnections)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: CircularProgressIndicator(
-                  color: Color(0xFF7C3AED),
-                  strokeWidth: 2.5,
-                ),
-              ),
-            )
-          else if (_myConnections.isEmpty)
-            _EmptyState(
-              icon: Icons.people_outline_rounded,
-              title: 'Você não segue nenhum personal',
-              subtitle:
-                  'Busque um personal e toque em "Seguir Personal" no perfil dele.',
-              actionLabel: 'Buscar Personal',
-              onAction: () => _tabController.animateTo(1),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _myConnections.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) {
-                final conn = _myConnections[i];
-                final trainerId = conn['trainerId'];
-                final trainerName = (conn['trainerName'] ?? 'Personal')
-                    .toString();
-                final trainerIdInt = trainerId != null
-                  ? (trainerId as num).toInt()
-                  : null;
-                final avgRating = trainerIdInt != null
-                  ? (_followingAvgRatings[trainerIdInt] ?? 0)
-                  : 0;
-                final availableSlots = trainerIdInt != null
-                  ? (_followingAvailableSlots[trainerIdInt] ?? 0)
-                  : 0;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFAF7FF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE4D9FF)),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF7C3AED), Color(0xFF9F67FA)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Row(
+                  child: const Icon(
+                    Icons.people_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF7C3AED), Color(0xFF9F67FA)],
-                          ),
-                          shape: BoxShape.circle,
+                      Text(
+                        'Seguindo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
                         ),
-                        child: ClipOval(
-                          child: trainerIdInt != null
-                              ? Image.network(
-                                  AuthService.getUserPhotoUrl(trainerIdInt),
-                                  fit: BoxFit.cover,
-                                  width: 44,
-                                  height: 44,
-                                  errorBuilder: (_, __, ___) => const Icon(
+                      ),
+                      Text(
+                        'Personais que você acompanha',
+                        style: TextStyle(fontSize: 11.5, color: Colors.black38),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_loadingConnections)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF7C3AED),
+                    ),
+                  )
+                else
+                  IconButton(
+                    onPressed: _loadConnections,
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      size: 18,
+                      color: Color(0xFF7C3AED),
+                    ),
+                    tooltip: 'Atualizar',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loadingConnections)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF7C3AED),
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              )
+            else if (_myConnections.isEmpty)
+              _EmptyState(
+                icon: Icons.people_outline_rounded,
+                title: 'Você não segue nenhum personal',
+                subtitle:
+                    'Busque um personal e toque em "Seguir Personal" no perfil dele.',
+                actionLabel: 'Buscar Personal',
+                onAction: () => _tabController.animateTo(1),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _myConnections.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) {
+                  final conn = _myConnections[i];
+                  final trainerId = conn['trainerId'];
+                  final trainerName = (conn['trainerName'] ?? 'Personal')
+                      .toString();
+                  final trainerIdInt = trainerId != null
+                      ? (trainerId as num).toInt()
+                      : null;
+                  final avgRating = trainerIdInt != null
+                      ? (_followingAvgRatings[trainerIdInt] ?? 0)
+                      : 0;
+                  final availableSlots = trainerIdInt != null
+                      ? (_followingAvailableSlots[trainerIdInt] ?? 0)
+                      : 0;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAF7FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE4D9FF)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF7C3AED), Color(0xFF9F67FA)],
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: ClipOval(
+                            child: trainerIdInt != null
+                                ? Image.network(
+                                    AuthService.getUserPhotoUrl(trainerIdInt),
+                                    fit: BoxFit.cover,
+                                    width: 44,
+                                    height: 44,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.person_rounded,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  )
+                                : const Icon(
                                     Icons.person_rounded,
                                     color: Colors.white,
                                     size: 22,
                                   ),
-                                )
-                              : const Icon(
-                                  Icons.person_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              trainerName,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const Text(
-                              'Personal Trainer',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black45,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                size: 14,
-                                color: Color(0xFFF59E0B),
-                              ),
-                              const SizedBox(width: 4),
                               Text(
-                                avgRating.toStringAsFixed(1),
+                                trainerName,
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black87,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              const Icon(
-                                Icons.schedule_rounded,
-                                size: 14,
-                                color: Color(0xFF22C55E),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$availableSlots disp. mês',
-                                style: const TextStyle(
+                              const Text(
+                                'Personal Trainer',
+                                style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
+                                  color: Colors.black45,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          OutlinedButton(
-                            onPressed: () async {
-                              final navigator = Navigator.of(context);
-                              Map<String, dynamic>? trainerData;
-                              if (trainerIdInt != null) {
-                                try {
-                                  trainerData = await AuthService.getUserById(
-                                    trainerIdInt,
-                                  );
-                                } catch (_) {
-                                  trainerData = null;
-                                }
-                              }
-
-                              if (!mounted) return;
-                              navigator
-                                  .push(
-                                    MaterialPageRoute(
-                                      builder: (_) => TrainerProfileView(
-                                        trainerId: trainerIdInt,
-                                        studentId: widget.studentId,
-                                        studentName: widget.userName,
-                                        trainerName:
-                                            (trainerData?['name'] ?? trainerName)
-                                                .toString(),
-                                        specialties:
-                                            (trainerData?['especialidade'] ?? '')
-                                                .toString(),
-                                        city: trainerData?['cidade']?.toString(),
-                                        cref: trainerData?['cref']?.toString(),
-                                        price: trainerData?['valorHora']
-                                            ?.toString(),
-                                        bio: trainerData?['bio']?.toString(),
-                                        horasPorSessao:
-                                            trainerData?['horasPorSessao']
-                                                ?.toString(),
-                                      ),
-                                    ),
-                                  )
-                                  .then((_) {
-                                    if (mounted) {
-                                      _loadConnections();
-                                    }
-                                  });
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF7C3AED),
-                              side: const BorderSide(color: Color(0xFF7C3AED)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              textStyle: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: Color(0xFFF59E0B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  avgRating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 14,
+                                  color: Color(0xFF22C55E),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$availableSlots disp. mês',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: const Text('Ver Perfil'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
+                            const SizedBox(height: 6),
+                            OutlinedButton(
+                              onPressed: () async {
+                                final navigator = Navigator.of(context);
+                                Map<String, dynamic>? trainerData;
+                                if (trainerIdInt != null) {
+                                  try {
+                                    trainerData = await AuthService.getUserById(
+                                      trainerIdInt,
+                                    );
+                                  } catch (_) {
+                                    trainerData = null;
+                                  }
+                                }
+
+                                if (!mounted) return;
+                                navigator
+                                    .push(
+                                      MaterialPageRoute(
+                                        builder: (_) => TrainerProfileView(
+                                          trainerId: trainerIdInt,
+                                          studentId: widget.studentId,
+                                          studentName: widget.userName,
+                                          trainerName:
+                                              (trainerData?['name'] ??
+                                                      trainerName)
+                                                  .toString(),
+                                          specialties:
+                                              (trainerData?['especialidade'] ??
+                                                      '')
+                                                  .toString(),
+                                          city: trainerData?['cidade']
+                                              ?.toString(),
+                                          cref: trainerData?['cref']
+                                              ?.toString(),
+                                          price: trainerData?['valorHora']
+                                              ?.toString(),
+                                          bio: trainerData?['bio']?.toString(),
+                                          horasPorSessao:
+                                              trainerData?['horasPorSessao']
+                                                  ?.toString(),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted) {
+                                        _loadConnections();
+                                      }
+                                    });
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF7C3AED),
+                                side: const BorderSide(
+                                  color: Color(0xFF7C3AED),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              child: const Text('Ver Perfil'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2445,166 +2558,147 @@ class _StudentDashboardState extends State<StudentDashboard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.calendar_today_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Minhas Solicitações',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: _loadMyRequests,
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  size: 18,
-                  color: Color(0xFF0B4DBA),
-                ),
-                tooltip: 'Atualizar',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_loadingMyRequests)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: CircularProgressIndicator(
-                  color: Color(0xFF0B4DBA),
-                  strokeWidth: 2.5,
-                ),
-              ),
-            )
-          else if (_myRequestsError != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      color: Color(0xFFEF4444),
-                      size: 36,
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _myRequestsError!,
-                      style: const TextStyle(
-                        color: Colors.black45,
-                        fontSize: 12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Minhas Solicitações',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loadMyRequests,
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: Color(0xFF0B4DBA),
+                  ),
+                  tooltip: 'Atualizar',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loadingMyRequests)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF0B4DBA),
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              )
+            else if (_myRequestsError != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Color(0xFFEF4444),
+                        size: 36,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: _loadMyRequests,
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Tentar novamente'),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        _myRequestsError!,
+                        style: const TextStyle(
+                          color: Colors.black45,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: _loadMyRequests,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Tentar novamente'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            )
-          else if (_myRequests.isEmpty)
-            const _EmptyState(
-              icon: Icons.access_time_rounded,
-              title: 'Nenhuma solicitação',
-              subtitle: 'Suas solicitações de horário aparecerão aqui.',
-            )
-          else
-            Builder(
-              builder: (_) {
-                final nonApproved = _myRequests
-                    .where((r) => r['status'] != 'APPROVED')
-                    .toList();
-                if (nonApproved.isEmpty) {
-                  return const _EmptyState(
-                    icon: Icons.access_time_rounded,
-                    title: 'Nenhuma solicitação',
-                    subtitle: 'Suas solicitações de horário aparecerão aqui.',
-                  );
-                }
-                return ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: nonApproved.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _RequestItem(
-                    data: nonApproved[i],
-                    onDelete: () async {
-                      final req = nonApproved[i];
-                      final requestId = _parseId(nonApproved[i]['id']);
-                      if (requestId == null) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Nao foi possivel identificar esta solicitacao.'),
-                            ),
+              )
+            else if (_myRequests.isEmpty)
+              const _EmptyState(
+                icon: Icons.access_time_rounded,
+                title: 'Nenhuma solicitação',
+                subtitle: 'Suas solicitações de horário aparecerão aqui.',
+              )
+            else
+              Builder(
+                builder: (_) {
+                  final nonApproved = _myRequests
+                      .where((r) => r['status'] != 'APPROVED')
+                      .toList();
+                  if (nonApproved.isEmpty) {
+                    return const _EmptyState(
+                      icon: Icons.access_time_rounded,
+                      title: 'Nenhuma solicitação',
+                      subtitle: 'Suas solicitações de horário aparecerão aqui.',
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: nonApproved.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) => _RequestItem(
+                      data: nonApproved[i],
+                      onDelete: () async {
+                        final req = nonApproved[i];
+                        final requestId = _parseId(nonApproved[i]['id']);
+                        if (requestId == null) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Nao foi possivel identificar esta solicitacao.',
+                                ),
+                              ),
+                            );
+                          }
+                          return;
+                        }
+                        try {
+                          final status = (req['status'] ?? '').toString();
+                          final trainerId = int.tryParse(
+                            (req['trainerId'] ?? '').toString(),
                           );
-                        }
-                        return;
-                      }
-                      try {
-                        final status = (req['status'] ?? '').toString();
-                        final trainerId = int.tryParse(
-                          (req['trainerId'] ?? '').toString(),
-                        );
-                        if (status == 'PENDING' &&
-                            widget.studentId != null &&
-                            trainerId != null) {
-                          // Mensagem automática de cancelamento é gerada no backend
-                          // no endpoint cancel-by-student para manter consistência.
-                        }
+                          if (status == 'PENDING' &&
+                              widget.studentId != null &&
+                              trainerId != null) {
+                            // Mensagem automática de cancelamento é gerada no backend
+                            // no endpoint cancel-by-student para manter consistência.
+                          }
 
-                        if (status == 'PENDING') {
-                          await AuthService.cancelStudentRequest(requestId);
-                        } else {
-                          await AuthService.hideRequestForStudent(requestId);
-                        }
-                        if (!mounted) return;
-                        setState(() {
-                          _locallyHiddenRequestIds.add(requestId.toString());
-                          _myRequests.removeWhere(
-                            (r) => r['id'].toString() == requestId.toString(),
-                          );
-                        });
-                        await _persistHiddenRequestIds();
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Solicitação removida das suas solicitações'),
-                          ),
-                        );
-                      } catch (e) {
-                        final errorText =
-                            e.toString().replaceFirst('Exception: ', '');
-                        final isNotFound = errorText.toLowerCase().contains(
-                          'not found',
-                        );
-                        if (isNotFound) {
+                          if (status == 'PENDING') {
+                            await AuthService.cancelStudentRequest(requestId);
+                          } else {
+                            await AuthService.hideRequestForStudent(requestId);
+                          }
                           if (!mounted) return;
                           setState(() {
                             _locallyHiddenRequestIds.add(requestId.toString());
@@ -2621,22 +2715,46 @@ class _StudentDashboardState extends State<StudentDashboard>
                               ),
                             ),
                           );
-                          return;
+                        } catch (e) {
+                          final errorText = e.toString().replaceFirst(
+                            'Exception: ',
+                            '',
+                          );
+                          final isNotFound = errorText.toLowerCase().contains(
+                            'not found',
+                          );
+                          if (isNotFound) {
+                            if (!mounted) return;
+                            setState(() {
+                              _locallyHiddenRequestIds.add(
+                                requestId.toString(),
+                              );
+                              _myRequests.removeWhere(
+                                (r) =>
+                                    r['id'].toString() == requestId.toString(),
+                              );
+                            });
+                            await _persistHiddenRequestIds();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Solicitação removida das suas solicitações',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(errorText)));
                         }
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              errorText,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
+                      },
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),
@@ -2724,7 +2842,8 @@ class _RequestItem extends StatelessWidget {
         statusIcon = Icons.hourglass_top_rounded;
     }
 
-    final canChat = status == 'PENDING' || status == 'APPROVED' || status == 'REJECTED';
+    final canChat =
+        status == 'PENDING' || status == 'APPROVED' || status == 'REJECTED';
     final (planFg, planBg, planLabel, planIcon) = _planStyle(planType);
     final isMultiDay = days.length > 1;
 
@@ -2931,9 +3050,9 @@ class _RequestItem extends StatelessWidget {
                           ? 'Este chat está disponível apenas para leitura porque sua solicitação foi encerrada. Para voltar a mandar mensagem, envie uma nova solicitação para este personal.'
                           : null,
                       readOnlyStartAtIso:
-                          data['chatStartAtIso']?.toString() ?? data['createdAt']?.toString(),
-                      readOnlyLockAtIso:
-                          data['chatLockAtIso']?.toString(),
+                          data['chatStartAtIso']?.toString() ??
+                          data['createdAt']?.toString(),
+                      readOnlyLockAtIso: data['chatLockAtIso']?.toString(),
                       requestUpdatedAtIso: data['updatedAt']?.toString(),
                     ),
                   ),
@@ -2969,7 +3088,8 @@ class _ApprovedTrainerItem extends StatelessWidget {
   final Future<void> Function(
     Map<String, dynamic> plan, {
     required bool changePlan,
-  }) onExpiredPlanAction;
+  })
+  onExpiredPlanAction;
   final Future<void> Function(Map<String, dynamic> plan) onRenewSamePlan;
   final void Function(Map<String, dynamic> plan) onCancelPlan;
 
@@ -3030,12 +3150,7 @@ class _ApprovedTrainerItem extends StatelessWidget {
     return (hour, minute);
   }
 
-  DateTime _nextOccurrence(
-    DateTime base,
-    int weekday,
-    int hour,
-    int minute,
-  ) {
+  DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
     final sameDayAtTime = DateTime(
       base.year,
       base.month,
@@ -3093,12 +3208,14 @@ class _ApprovedTrainerItem extends StatelessWidget {
     final days = _RequestItem._parseDays(plan['daysJson']?.toString());
     if (days.isNotEmpty) {
       return days
-          .map((slot) => {
-                'dayName': (slot['dayName'] ?? '').toString(),
-                'time': (slot['time'] ?? '').toString(),
-                'dateLabel': (slot['dateLabel'] ?? '').toString(),
-                'dateIso': (slot['dateIso'] ?? '').toString(),
-              })
+          .map(
+            (slot) => {
+              'dayName': (slot['dayName'] ?? '').toString(),
+              'time': (slot['time'] ?? '').toString(),
+              'dateLabel': (slot['dateLabel'] ?? '').toString(),
+              'dateIso': (slot['dateIso'] ?? '').toString(),
+            },
+          )
           .where(
             (slot) =>
                 slot['dayName']!.trim().isNotEmpty &&
@@ -3113,18 +3230,15 @@ class _ApprovedTrainerItem extends StatelessWidget {
       return const [];
     }
     return [
-      {
-        'dayName': dayName,
-        'time': time,
-        'dateLabel': '',
-        'dateIso': '',
-      }
+      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''},
     ];
   }
 
   DateTime? _resolveDailyLastSessionEndAt(Map<String, dynamic> plan) {
     final anchor =
-        _parseIsoDate(plan['approvedAt']) ?? _parseIsoDate(plan['createdAt']) ?? DateTime.now();
+        _parseIsoDate(plan['approvedAt']) ??
+        _parseIsoDate(plan['createdAt']) ??
+        DateTime.now();
     final slots = _planSlots(plan);
     if (slots.isEmpty) return null;
 
@@ -3196,12 +3310,7 @@ class _ApprovedTrainerItem extends StatelessWidget {
       final weekday = _weekdayFromPt(slot['dayName'] ?? '');
       final hm = _parseHourMinute(slot['time'] ?? '');
       if (weekday == null || hm == null) continue;
-      var candidate = _nextOccurrence(
-        approvedAt,
-        weekday,
-        hm.$1,
-        hm.$2,
-      );
+      var candidate = _nextOccurrence(approvedAt, weekday, hm.$1, hm.$2);
 
       // Plano diário: se a aprovação aconteceu no mesmo dia da semana,
       // mas após o horário da sessão, consideramos a sessão daquele dia
@@ -3275,34 +3384,81 @@ class _ApprovedTrainerItem extends StatelessWidget {
       }
     }
 
+    final planType = (plan['planType'] ?? 'DIARIO').toString().toUpperCase();
+    final isMonthly = planType == 'MENSAL';
+    final recurringSlots = days.isNotEmpty
+        ? days
+        : <Map<String, dynamic>>[
+            {'dayName': dayName, 'time': time},
+          ];
+    DateTime? firstSession;
+    DateTime? lastSession;
+
+    if (isMonthly) {
+      final cycleEnd = _addOneMonthKeepingDay(planBase);
+      for (final slot in recurringSlots) {
+        final weekday = _weekdayFromPt((slot['dayName'] ?? '').toString());
+        final hm = _parseHourMinute((slot['time'] ?? '').toString());
+        if (weekday == null || hm == null) continue;
+
+        final firstCandidate = _nextOccurrence(planBase, weekday, hm.$1, hm.$2);
+        var candidate = firstCandidate;
+        while (candidate
+                .add(const Duration(days: 7))
+                .isAtSameMomentAs(cycleEnd) ||
+            candidate.add(const Duration(days: 7)).isBefore(cycleEnd)) {
+          candidate = candidate.add(const Duration(days: 7));
+        }
+        if (candidate.isAfter(cycleEnd)) continue;
+        if (firstSession == null || firstCandidate.isBefore(firstSession)) {
+          firstSession = firstCandidate;
+        }
+        if (lastSession == null || candidate.isAfter(lastSession)) {
+          lastSession = candidate;
+        }
+      }
+    }
+
     if (days.isNotEmpty) {
       for (final slot in days) {
         final slotDay = (slot['dayName'] ?? '').toString();
         final slotTime = (slot['time'] ?? '').toString();
         final slotDateLabel = (slot['dateLabel'] ?? '').toString();
-        addBadge(
-          _calendarLabelForSlot(
-            slotDay,
-            slotTime,
-            base: planBase,
-            dateLabel: slotDateLabel,
-          ),
-        );
+        final weekday = _weekdayFromPt(slotDay);
+        final hm = _parseHourMinute(slotTime);
+        final occurrence = weekday != null && hm != null
+            ? _nextOccurrence(planBase, weekday, hm.$1, hm.$2)
+            : null;
+        if (!isMonthly || occurrence == null || occurrence != firstSession) {
+          addBadge(
+            isMonthly
+                ? '$slotDay horário $slotTime'
+                : _calendarLabelForSlot(
+                    slotDay,
+                    slotTime,
+                    base: planBase,
+                    dateLabel: slotDateLabel,
+                  ),
+          );
+        } else {
+          addBadge(
+            _calendarLabelForSlot(
+              slotDay,
+              slotTime,
+              base: planBase,
+              dateLabel: slotDateLabel,
+            ),
+          );
+        }
       }
     } else {
-      addBadge(
-        _calendarLabelForSlot(
-          dayName,
-          time,
-          base: planBase,
-        ),
-      );
+      addBadge(_calendarLabelForSlot(dayName, time, base: planBase));
     }
 
-    final planType = (plan['planType'] ?? 'DIARIO').toString().toUpperCase();
-    if (planType == 'MENSAL') {
-      final cycleEnd = _addOneMonthKeepingDay(planBase);
-      addBadge(_formatDateTime(cycleEnd), isCycleEnd: true);
+    if (isMonthly) {
+      if (lastSession != null) {
+        addBadge(_formatDateTime(lastSession), isCycleEnd: true);
+      }
     }
 
     return badges;
@@ -3485,9 +3641,12 @@ class _ApprovedTrainerItem extends StatelessWidget {
               final dayName = (plan['dayName'] ?? '').toString();
               final time = (plan['time'] ?? '').toString();
               final planTrainerId = int.tryParse(
-                (plan['trainerId'] ?? trainerData['trainerId'] ?? '').toString(),
+                (plan['trainerId'] ?? trainerData['trainerId'] ?? '')
+                    .toString(),
               );
-              final days = _RequestItem._parseDays(plan['daysJson']?.toString());
+              final days = _RequestItem._parseDays(
+                plan['daysJson']?.toString(),
+              );
               final (planFg, planBg, planLabel, planIcon) =
                   _RequestItem._planStyle(planType);
               final expiresAt = _resolvePlanExpiresAt(plan);
@@ -3646,7 +3805,8 @@ class _ApprovedTrainerItem extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: (studentId != null && planTrainerId != null)
+                          onPressed:
+                              (studentId != null && planTrainerId != null)
                               ? () {
                                   Navigator.push(
                                     context,
@@ -3660,10 +3820,7 @@ class _ApprovedTrainerItem extends StatelessWidget {
                                   );
                                 }
                               : null,
-                          icon: const Icon(
-                            Icons.menu_book_rounded,
-                            size: 15,
-                          ),
+                          icon: const Icon(Icons.menu_book_rounded, size: 15),
                           label: const Text('Visualizar treino'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF1D4ED8),
@@ -3677,10 +3834,7 @@ class _ApprovedTrainerItem extends StatelessWidget {
                         ),
                         OutlinedButton.icon(
                           onPressed: () => onCancelPlan(plan),
-                          icon: const Icon(
-                            Icons.cancel_outlined,
-                            size: 15,
-                          ),
+                          icon: const Icon(Icons.cancel_outlined, size: 15),
                           label: const Text('Cancelar plano'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFB91C1C),
@@ -3837,10 +3991,10 @@ class _ApprovedTrainerItem extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: (studentId != null && trainerId != null)
                   ? () => showReportUserDialog(
-                        context,
-                        reporterId: studentId!,
-                        reportedUserId: trainerId,
-                      )
+                      context,
+                      reporterId: studentId!,
+                      reportedUserId: trainerId,
+                    )
                   : null,
               icon: const Icon(Icons.flag_outlined, size: 15),
               label: const Text('Denunciar usuário'),
@@ -4141,11 +4295,7 @@ class _TrainerCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onTap;
   final int? studentId;
-  const _TrainerCard({
-    required this.data,
-    required this.onTap,
-    this.studentId,
-  });
+  const _TrainerCard({required this.data, required this.onTap, this.studentId});
 
   @override
   Widget build(BuildContext context) {
@@ -4221,9 +4371,9 @@ class _TrainerCard extends StatelessWidget {
                                 color: Color(0xFF0B4DBA),
                                 size: 24,
                               ),
-                        ),
                       ),
                     ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -4396,7 +4546,9 @@ class _TrainerCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0B4DBA).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF0B4DBA,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -4439,10 +4591,10 @@ class _TrainerCard extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: (studentId != null && trainerId != null)
                           ? () => showReportUserDialog(
-                                context,
-                                reporterId: studentId!,
-                                reportedUserId: trainerId,
-                              )
+                              context,
+                              reporterId: studentId!,
+                              reportedUserId: trainerId,
+                            )
                           : null,
                       icon: const Icon(Icons.flag_outlined, size: 14),
                       label: const Text(

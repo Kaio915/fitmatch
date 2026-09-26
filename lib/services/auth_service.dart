@@ -344,6 +344,15 @@ class AuthService {
     return data;
   }
 
+  static Future<Map<String, dynamic>> getCurrentUser() async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/auth/me'),
+      headers: await _headers(),
+    );
+    if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   // ✅ LISTAR TRAINERS APROVADOS (opcionalmente filtrado para aluno)
   static Future<List<Map<String, dynamic>>> fetchTrainers({int? studentId}) async {
     final uri = studentId == null
@@ -795,17 +804,19 @@ class AuthService {
     return false;
   }
 
-  // ✅ PERSONAL ATUALIZA PERFIL (cidade, valorHora, horasPorSessao)
+  // ✅ PERSONAL ATUALIZA PERFIL
   static Future<void> updateTrainerProfile(
     int trainerId, {
     String? cidade,
     String? valorHora,
-    String? horasPorSessao,
+    String? especialidade,
+    String? bio,
   }) async {
     final body = <String, String>{};
     if (cidade != null) body['cidade'] = cidade;
     if (valorHora != null) body['valorHora'] = valorHora;
-    if (horasPorSessao != null) body['horasPorSessao'] = horasPorSessao;
+    if (especialidade != null) body['especialidade'] = especialidade;
+    if (bio != null) body['bio'] = bio;
 
     final res = await http.patch(
       Uri.parse('$_baseUrl/auth/trainer/$trainerId/profile'),

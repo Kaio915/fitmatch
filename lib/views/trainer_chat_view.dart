@@ -494,7 +494,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   Set<String> _extractSlotsFromMessage(String text) {
     final normalized = _normalizeForMatch(text);
     final regex = RegExp(
-      r'(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)\s*(as|às)\s*(\d{1,2}:\d{2})',
+      r'(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)(?:\s+\d{1,2}/\d{1,2}(?:/\d{2,4})?)?\s*(as|às)\s*(\d{1,2}:\d{2})',
       caseSensitive: false,
     );
 
@@ -518,11 +518,12 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
   bool _isRequestInitialMessageForCurrentChat(String text) {
     if (_messageHasDifferentRequestId(text)) return false;
-    if (_messageMatchesCurrentRequestId(text)) return true;
 
     final normalized = _normalizeForMatch(text);
     final isInitialMessage = normalized.contains('gostaria de solicitar');
     if (!isInitialMessage) return false;
+
+    if (_messageMatchesCurrentRequestId(text)) return true;
 
     final currentSlots = _currentRequestSlotSet();
     if (currentSlots.isNotEmpty) {

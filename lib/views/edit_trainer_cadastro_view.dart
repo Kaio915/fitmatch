@@ -14,7 +14,8 @@ class EditTrainerCadastroView extends StatefulWidget {
   const EditTrainerCadastroView({super.key, required this.user});
 
   @override
-  State<EditTrainerCadastroView> createState() => _EditTrainerCadastroViewState();
+  State<EditTrainerCadastroView> createState() =>
+      _EditTrainerCadastroViewState();
 }
 
 class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
@@ -72,13 +73,24 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: (widget.user['name'] ?? '').toString());
-    _emailCtrl = TextEditingController(text: (widget.user['email'] ?? '').toString());
-    _cpfCtrl = TextEditingController(text: (widget.user['cpf'] ?? '').toString());
-    _crefCtrl = TextEditingController(text: (widget.user['cref'] ?? '').toString());
-    _cidadeCtrl = TextEditingController(text: (widget.user['cidade'] ?? '').toString());
-    final especialidadeAtual =
-        (widget.user['especialidade'] ?? '').toString().trim();
+    _nameCtrl = TextEditingController(
+      text: (widget.user['name'] ?? '').toString(),
+    );
+    _emailCtrl = TextEditingController(
+      text: (widget.user['email'] ?? '').toString(),
+    );
+    _cpfCtrl = TextEditingController(
+      text: (widget.user['cpf'] ?? '').toString(),
+    );
+    _crefCtrl = TextEditingController(
+      text: (widget.user['cref'] ?? '').toString(),
+    );
+    _cidadeCtrl = TextEditingController(
+      text: (widget.user['cidade'] ?? '').toString(),
+    );
+    final especialidadeAtual = (widget.user['especialidade'] ?? '')
+        .toString()
+        .trim();
     if (especialidadeAtual.isNotEmpty) {
       _especialidadeSelecionada = _especialidades.contains(especialidadeAtual)
           ? especialidadeAtual
@@ -92,7 +104,9 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         (widget.user['valorHora'] ?? '').toString(),
       ),
     );
-    _bioCtrl = TextEditingController(text: (widget.user['bio'] ?? '').toString());
+    _bioCtrl = TextEditingController(
+      text: (widget.user['bio'] ?? '').toString(),
+    );
   }
 
   @override
@@ -151,13 +165,24 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         photo: _photo,
       );
 
+      final wasApproved =
+          (widget.user['status'] ?? '').toString().toUpperCase() == 'APPROVED';
+      if (wasApproved) {
+        final updatedUser = await AuthService.getCurrentUser();
+        await AuthService.saveSession(updatedUser);
+        if (!mounted) return;
+        Navigator.pop(context, true);
+        return;
+      }
+
       await AuthService.clearSession();
 
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => const RegisterSuccessView(userType: UserType.personal),
+          builder: (_) =>
+              const RegisterSuccessView(userType: UserType.personal),
         ),
         (route) => false,
       );
@@ -209,7 +234,9 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                           children: [
                             Text(
                               _statusTitle,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(_statusMessage),
@@ -223,19 +250,28 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                       _input('CREF *', _crefCtrl),
                       _cidadeAutocomplete(),
                       _especialidadeDropdown(),
-                      _input('Valor por hora', _valorHoraCtrl,
-                          required: false,
-                          inputFormatters: [_CurrencyInputFormatter()]),
+                      _input(
+                        'Valor por hora',
+                        _valorHoraCtrl,
+                        required: false,
+                        inputFormatters: [_CurrencyInputFormatter()],
+                      ),
                       _input('Biografia *', _bioCtrl, maxLines: 4),
                       const SizedBox(height: 16),
-                      _input('Nova senha (opcional)', _passwordCtrl,
-                          required: false, obscure: true),
+                      _input(
+                        'Nova senha (opcional)',
+                        _passwordCtrl,
+                        required: false,
+                        obscure: true,
+                      ),
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
                         onPressed: _pickPhoto,
                         icon: const Icon(Icons.photo_camera),
                         label: Text(
-                          _photo == null ? 'Trocar foto (opcional)' : 'Foto selecionada',
+                          _photo == null
+                              ? 'Trocar foto (opcional)'
+                              : 'Foto selecionada',
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -257,7 +293,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text('Salvar e enviar para análise'),
+                              : const Text('Salvar alterações'),
                         ),
                       ),
                     ],
@@ -286,14 +322,19 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                 if (mounted) setState(() => cidades = []);
                 return;
               }
-              _cidadeDebounce = Timer(const Duration(milliseconds: 300), () async {
-                final typedAtRequest = _cidadeCtrl.text.trim();
-                final resultado = await AuthService.buscarCidadesIbge(typedAtRequest);
-                if (!mounted) return;
-                if (typedAtRequest == _cidadeCtrl.text.trim()) {
-                  setState(() => cidades = resultado);
-                }
-              });
+              _cidadeDebounce = Timer(
+                const Duration(milliseconds: 300),
+                () async {
+                  final typedAtRequest = _cidadeCtrl.text.trim();
+                  final resultado = await AuthService.buscarCidadesIbge(
+                    typedAtRequest,
+                  );
+                  if (!mounted) return;
+                  if (typedAtRequest == _cidadeCtrl.text.trim()) {
+                    setState(() => cidades = resultado);
+                  }
+                },
+              );
             },
             validator: (value) {
               if (required && (value == null || value.trim().isEmpty)) {

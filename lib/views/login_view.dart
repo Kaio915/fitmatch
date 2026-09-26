@@ -159,6 +159,7 @@ class _LoginViewState extends State<LoginView> {
               email: user['email']?.toString(),
               objetivos: user['objetivos']?.toString(),
               nivel: user['nivel']?.toString(),
+              cidade: user['cidade']?.toString(),
             ),
           ),
         );
