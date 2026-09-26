@@ -445,36 +445,42 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }) {
     final slots = _extractRequestSlots(req);
     final anchorIso = (req['approvedAt'] ?? req['createdAt'] ?? '').toString();
-    final slotsText = slots
-        .map((s) {
-          final day = (s['dayName'] ?? '').toString().trim();
-          final time = (s['time'] ?? '').toString().trim();
-          if (day.isEmpty || time.isEmpty) return '';
+    final isMonthly =
+        (req['planType'] ?? '').toString().toUpperCase() == 'MENSAL';
+    final slotsText = isMonthly
+        ? _requestSlotLabelsForAgenda(
+            req,
+          ).map((label) => label.replaceFirst(' · ', ' às ')).join(', ')
+        : slots
+              .map((s) {
+                final day = (s['dayName'] ?? '').toString().trim();
+                final time = (s['time'] ?? '').toString().trim();
+                if (day.isEmpty || time.isEmpty) return '';
 
-          String dateLabel = (s['dateLabel'] ?? '').toString().trim();
-          if (dateLabel.isEmpty) {
-            final iso = (s['dateIso'] ?? '').toString().trim();
-            if (iso.isNotEmpty) {
-              final parsed = DateTime.tryParse(iso);
-              if (parsed != null) {
-                dateLabel = _formatDateLabel(parsed);
-              }
-            }
-          }
-          if (dateLabel.isEmpty) {
-            dateLabel = _fallbackDateLabelForLegacySlot(
-              dayName: day,
-              time: time,
-              anchorIso: anchorIso,
-            );
-          }
+                String dateLabel = (s['dateLabel'] ?? '').toString().trim();
+                if (dateLabel.isEmpty) {
+                  final iso = (s['dateIso'] ?? '').toString().trim();
+                  if (iso.isNotEmpty) {
+                    final parsed = DateTime.tryParse(iso);
+                    if (parsed != null) {
+                      dateLabel = _formatDateLabel(parsed);
+                    }
+                  }
+                }
+                if (dateLabel.isEmpty) {
+                  dateLabel = _fallbackDateLabelForLegacySlot(
+                    dayName: day,
+                    time: time,
+                    anchorIso: anchorIso,
+                  );
+                }
 
-          return dateLabel.isEmpty
-              ? '$day às $time'
-              : '$day $dateLabel às $time';
-        })
-        .where((label) => label.isNotEmpty)
-        .join(', ');
+                return dateLabel.isEmpty
+                    ? '$day às $time'
+                    : '$day $dateLabel às $time';
+              })
+              .where((label) => label.isNotEmpty)
+              .join(', ');
 
     final safeSlotsText = slotsText.isEmpty
         ? 'horário não informado'
@@ -1126,7 +1132,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final windowEnd = _addOneMonthKeepingDay(firstSession);
+      final windowEnd = _addOneMonthKeepingDay(
+        firstSession,
+      ).subtract(const Duration(days: 1));
       final slots = _extractRequestSlots(req);
       for (final slot in slots) {
         final weekday = _weekdayFromPtForFallback(
@@ -1161,7 +1169,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final windowEnd = _addOneMonthKeepingDay(firstSession);
+      final windowEnd = _addOneMonthKeepingDay(
+        firstSession,
+      ).subtract(const Duration(days: 1));
       final slots = _extractRequestSlots(req);
 
       for (final slot in slots) {
@@ -1468,7 +1478,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(firstAt);
+    final windowEnd = _addOneMonthKeepingDay(
+      firstAt,
+    ).subtract(const Duration(days: 1));
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -5305,7 +5317,9 @@ class _RequestRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(firstAt);
+    final windowEnd = _addOneMonthKeepingDay(
+      firstAt,
+    ).subtract(const Duration(days: 1));
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -6253,7 +6267,9 @@ class _StudentRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(firstAt);
+    final windowEnd = _addOneMonthKeepingDay(
+      firstAt,
+    ).subtract(const Duration(days: 1));
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {

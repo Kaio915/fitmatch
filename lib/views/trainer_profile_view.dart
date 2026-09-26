@@ -138,8 +138,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final text = raw.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -162,14 +168,19 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         final decoded = jsonDecode(raw) as List<dynamic>;
         return decoded
             .whereType<Map>()
-            .map((slot) => {
-              'dayName': _normalizeDayName((slot['dayName'] ?? '').toString()),
-              'time': _normalizeTime((slot['time'] ?? '').toString()),
-              'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
-              'dateIso': (slot['dateIso'] ?? '').toString().trim(),
-                })
-            .where((slot) =>
-                slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+            .map(
+              (slot) => {
+                'dayName': _normalizeDayName(
+                  (slot['dayName'] ?? '').toString(),
+                ),
+                'time': _normalizeTime((slot['time'] ?? '').toString()),
+                'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
+                'dateIso': (slot['dateIso'] ?? '').toString().trim(),
+              },
+            )
+            .where(
+              (slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty,
+            )
             .toList();
       } catch (_) {
         // usa os campos principais como fallback
@@ -180,7 +191,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final time = _normalizeTime((req['time'] ?? '').toString());
     if (dayName.isEmpty || time.isEmpty) return [];
     return [
-      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''}
+      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''},
     ];
   }
 
@@ -194,8 +205,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     Map<String, String> slot,
     DateTime anchor, {
     bool preferAnchorWeek = false,
-  }
-  ) {
+  }) {
     final dayName = (slot['dayName'] ?? '').trim();
     final time = (slot['time'] ?? '').trim();
     final weekday = _weekdayFromDayName(dayName);
@@ -280,7 +290,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
       final anchor = _requestAnchorFromReq(req);
       for (final selected in _requestSlotsFromData(req)) {
-        final reqDay = _normalizeDayName((selected['dayName'] ?? '').toString());
+        final reqDay = _normalizeDayName(
+          (selected['dayName'] ?? '').toString(),
+        );
         final reqTime = _normalizeTime((selected['time'] ?? '').toString());
         if (reqDay != normalizedDay || reqTime != normalizedTime) continue;
 
@@ -302,7 +314,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     return false;
   }
 
-  SlotState _effectiveStudentSlotState(String dayName, String time, SlotState baseState) {
+  SlotState _effectiveStudentSlotState(
+    String dayName,
+    String time,
+    SlotState baseState,
+  ) {
     if (widget.studentId == null) return baseState;
 
     if (_isApprovedSlotMatch(dayName, time)) {
@@ -313,7 +329,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       return SlotState.requested;
     }
 
-    if (_isWeeklyOrMonthlyPendingMatch(_studentPendingRequests, dayName, time)) {
+    if (_isWeeklyOrMonthlyPendingMatch(
+      _studentPendingRequests,
+      dayName,
+      time,
+    )) {
       return SlotState.requested;
     }
 
@@ -338,7 +358,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     return baseState;
   }
 
-  SlotState _effectiveTrainerSlotState(String dayName, String time, SlotState baseState) {
+  SlotState _effectiveTrainerSlotState(
+    String dayName,
+    String time,
+    SlotState baseState,
+  ) {
     if (widget.studentId != null) return baseState;
 
     if (_isApprovedSlotMatch(dayName, time)) {
@@ -347,7 +371,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
     if (baseState == SlotState.available &&
         (_isDailyPendingMatch(_otherPendingRequests, dayName, time) ||
-            _isWeeklyOrMonthlyPendingMatch(_otherPendingRequests, dayName, time))) {
+            _isWeeklyOrMonthlyPendingMatch(
+              _otherPendingRequests,
+              dayName,
+              time,
+            ))) {
       return SlotState.requested;
     }
 
@@ -373,7 +401,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final dayIndex = _days.indexOf(_normalizeDayName(dayName));
     if (dayIndex < 0) return false;
 
-    final slotDate = _slotDateTimeFor(dayIndex, time, weekOffset: _scheduleWeekOffset);
+    final slotDate = _slotDateTimeFor(
+      dayIndex,
+      time,
+      weekOffset: _scheduleWeekOffset,
+    );
     if (slotDate == null) return false;
 
     final dateIso = _toDateIso(slotDate);
@@ -381,11 +413,15 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final normalizedDay = _normalizeDayName(dayName);
 
     for (final blocked in _oneTimeManualBlocks) {
-      final blockedDay = _normalizeDayName((blocked['dayName'] ?? '').toString());
+      final blockedDay = _normalizeDayName(
+        (blocked['dayName'] ?? '').toString(),
+      );
       final blockedTime = _normalizeTime((blocked['time'] ?? '').toString());
       final blockedDate = (blocked['dateIso'] ?? '').toString().trim();
       final dayMatches = blockedDay.isEmpty || blockedDay == normalizedDay;
-      if (dayMatches && blockedTime == normalizedTime && blockedDate == dateIso) {
+      if (dayMatches &&
+          blockedTime == normalizedTime &&
+          blockedDate == dateIso) {
         return true;
       }
     }
@@ -396,8 +432,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final dayIndex = _days.indexOf(_normalizeDayName(dayName));
     if (dayIndex < 0) return false;
 
-    final slotDate =
-        _slotDateTimeFor(dayIndex, time, weekOffset: _scheduleWeekOffset);
+    final slotDate = _slotDateTimeFor(
+      dayIndex,
+      time,
+      weekOffset: _scheduleWeekOffset,
+    );
     if (slotDate == null) return false;
 
     final dateIso = _toDateIso(slotDate);
@@ -405,10 +444,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final normalizedDay = _normalizeDayName(dayName);
 
     for (final unblocked in _oneTimeManualUnblocks) {
-      final unblockedDay =
-          _normalizeDayName((unblocked['dayName'] ?? '').toString());
-      final unblockedTime =
-          _normalizeTime((unblocked['time'] ?? '').toString());
+      final unblockedDay = _normalizeDayName(
+        (unblocked['dayName'] ?? '').toString(),
+      );
+      final unblockedTime = _normalizeTime(
+        (unblocked['time'] ?? '').toString(),
+      );
       final unblockedDate = (unblocked['dateIso'] ?? '').toString().trim();
       final dayMatches = unblockedDay.isEmpty || unblockedDay == normalizedDay;
       if (dayMatches &&
@@ -448,18 +489,21 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         continue;
       }
 
-      final monthlyWindow =
-          planType == 'MENSAL' ? _monthlyCycleWindowForRequest(req) : null;
+      final monthlyWindow = planType == 'MENSAL'
+          ? _monthlyCycleWindowForRequest(req)
+          : null;
       if (planType == 'MENSAL' && monthlyWindow == null) {
         continue;
       }
 
-        final anchor = planType == 'SEMANAL'
+      final anchor = planType == 'SEMANAL'
           ? _requestAnchorFromReq(req)
           : _requestAnchorForAvailability(req);
 
       for (final selected in _requestSlotsFromData(req)) {
-        final reqDay = _normalizeDayName((selected['dayName'] ?? '').toString());
+        final reqDay = _normalizeDayName(
+          (selected['dayName'] ?? '').toString(),
+        );
         final reqTime = _normalizeTime((selected['time'] ?? '').toString());
         if (reqDay != normalizedDay || reqTime != normalizedTime) continue;
 
@@ -509,7 +553,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final slots = _requestSlotsFromData(req);
     if (slots.isEmpty) return null;
 
-    final anchor = DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
+    final anchor =
+        DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
         _requestAnchorForAvailability(req);
 
     DateTime? firstStart;
@@ -522,7 +567,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
 
     if (firstStart == null) return null;
-    return (start: firstStart, end: _addOneMonthKeepingDay(firstStart));
+    return (
+      start: firstStart,
+      end: _addOneMonthKeepingDay(firstStart).subtract(const Duration(days: 1)),
+    );
   }
 
   bool _isApprovedSlotMatch(String dayName, String time) {
@@ -600,7 +648,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       if (planType == 'MENSAL') {
-        final anchor = DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
+        final anchor =
+            DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
             _requestAnchorForAvailability(req);
         final monthlyWindow = _monthlyCycleWindowForRequest(req);
         if (monthlyWindow == null) {
@@ -634,8 +683,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final planLabel = planType == 'SEMANAL'
         ? 'Plano Semanal'
         : planType == 'MENSAL'
-            ? 'Plano Mensal'
-            : 'Plano Diário';
+        ? 'Plano Mensal'
+        : 'Plano Diário';
 
     final orderedSlots = List<Map<String, String>>.from(selectedSlots)
       ..sort((a, b) {
@@ -650,16 +699,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final slotsText = planType.toUpperCase() == 'MENSAL'
         ? _monthlySelectionSummaryLabels(orderedSlots, forChat: true).join('\n')
         : orderedSlots
-            .map((s) {
-              final dayName = (s['dayName'] ?? '').trim();
-              final time = (s['time'] ?? '').trim();
-              final dateLabel = (s['dateLabel'] ?? '').trim();
-              if (dateLabel.isNotEmpty) {
-                return '$dayName $dateLabel às $time';
-              }
-              return '$dayName às $time';
-            })
-            .join('\n');
+              .map((s) {
+                final dayName = (s['dayName'] ?? '').trim();
+                final time = (s['time'] ?? '').trim();
+                final dateLabel = (s['dateLabel'] ?? '').trim();
+                if (dateLabel.isNotEmpty) {
+                  return '$dayName $dateLabel às $time';
+                }
+                return '$dayName às $time';
+              })
+              .join('\n');
 
     return 'Gostaria de solicitar um $planLabel com os seguintes horários:\n$slotsText';
   }
@@ -671,7 +720,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   DateTime _dateForDayIndex(int dayIndex, {int? weekOffset}) {
     final offset = weekOffset ?? _scheduleWeekOffset;
-    final weekStart = _startOfWeek(DateTime.now()).add(Duration(days: offset * 7));
+    final weekStart = _startOfWeek(
+      DateTime.now(),
+    ).add(Duration(days: offset * 7));
     return weekStart.add(Duration(days: dayIndex));
   }
 
@@ -693,11 +744,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     return '$startLabel-$endLabel';
   }
 
-  DateTime? _slotDateTimeFor(
-    int dayIndex,
-    String time, {
-    int? weekOffset,
-  }) {
+  DateTime? _slotDateTimeFor(int dayIndex, String time, {int? weekOffset}) {
     final parts = time.split(':');
     if (parts.length < 2) return null;
 
@@ -706,17 +753,15 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     if (hour == null || minute == null) return null;
 
     final dayDate = _dateForDayIndex(dayIndex, weekOffset: weekOffset);
-    return DateTime(
-      dayDate.year,
-      dayDate.month,
-      dayDate.day,
-      hour,
-      minute,
-    );
+    return DateTime(dayDate.year, dayDate.month, dayDate.day, hour, minute);
   }
 
   bool _isPastSlotFor(int dayIndex, String time, {int? weekOffset}) {
-    final slotDateTime = _slotDateTimeFor(dayIndex, time, weekOffset: weekOffset);
+    final slotDateTime = _slotDateTimeFor(
+      dayIndex,
+      time,
+      weekOffset: weekOffset,
+    );
     if (slotDateTime == null) return false;
     return slotDateTime.isBefore(DateTime.now());
   }
@@ -730,7 +775,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final base = _dateOnly(anchor ?? DateTime.now());
 
     if (normalizedPlan == 'MENSAL') {
-      final endDate = _addOneMonthKeepingDay(base);
+      final endDate = _addOneMonthKeepingDay(
+        base,
+      ).subtract(const Duration(days: 1));
       return DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
     }
 
@@ -858,7 +905,13 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }
 
   DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -932,7 +985,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       final date = _selectionDateTime(s);
       final hm = _parseHourMinute(time);
       final weekday = _weekdayFromDayName(dayName);
-      if (dayName.isEmpty || time.isEmpty || date == null || hm == null || weekday == null) {
+      if (dayName.isEmpty ||
+          time.isEmpty ||
+          date == null ||
+          hm == null ||
+          weekday == null) {
         continue;
       }
       parsed.add({
@@ -949,10 +1006,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       return selections.map(_inlineSelectionLabel).toList();
     }
 
-    parsed.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    parsed.sort(
+      (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime),
+    );
     final first = parsed.first;
     final firstDate = first['date'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(firstDate);
+    final windowEnd = _addOneMonthKeepingDay(
+      firstDate,
+    ).subtract(const Duration(days: 1));
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -1023,7 +1084,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       );
     }
 
-    if (lastDate != null && lastPattern != null && lastDate.isAfter(firstDate)) {
+    if (lastDate != null &&
+        lastPattern != null &&
+        lastDate.isAfter(firstDate)) {
       final lastDayName = _dayNameFromWeekday(lastDate.weekday);
       labels.add(
         _formatMonthlyLabel(
@@ -1089,7 +1152,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     super.initState();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     final allSlots = [
-      for (int h = 0; h < 24; h++) '${h.toString().padLeft(2, '0')}:00'
+      for (int h = 0; h < 24; h++) '${h.toString().padLeft(2, '0')}:00',
     ];
     _schedule = {
       for (final d in _days) d: allSlots.map((t) => _Slot(t)).toList(),
@@ -1115,8 +1178,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             ? AuthService.getStudentRequests(widget.studentId!)
             : Future.value(<Map<String, dynamic>>[]),
         widget.studentId != null
-            ? AuthService.getConnectionBetween(widget.trainerId!, widget.studentId!)
-                .then((c) => c != null ? [c] : <Map<String, dynamic>>[])
+            ? AuthService.getConnectionBetween(
+                widget.trainerId!,
+                widget.studentId!,
+              ).then((c) => c != null ? [c] : <Map<String, dynamic>>[])
             : Future.value(<Map<String, dynamic>>[]),
         AuthService.getTrainerRatings(widget.trainerId!),
         AuthService.getAllTrainerRequests(widget.trainerId!),
@@ -1128,46 +1193,56 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       final ratings = futures[3];
       final allTrainerReqs = futures[4];
 
-        final studentPendingForTrainer = studentReqs
-          .where((req) =>
-            req['trainerId'].toString() == widget.trainerId.toString() &&
-            (req['status'] ?? '').toString() == 'PENDING')
+      final studentPendingForTrainer = studentReqs
+          .where(
+            (req) =>
+                req['trainerId'].toString() == widget.trainerId.toString() &&
+                (req['status'] ?? '').toString() == 'PENDING',
+          )
           .map((req) => Map<String, dynamic>.from(req))
           .toList();
 
-        final otherPendingForTrainer = allTrainerReqs
-          .where((req) =>
-            widget.studentId == null ||
-            req['studentId'].toString() != widget.studentId.toString())
+      final otherPendingForTrainer = allTrainerReqs
+          .where(
+            (req) =>
+                widget.studentId == null ||
+                req['studentId'].toString() != widget.studentId.toString(),
+          )
           .where((req) => (req['status'] ?? '').toString() == 'PENDING')
           .map((req) => Map<String, dynamic>.from(req))
           .toList();
 
-        final approvedForTrainer = allTrainerReqs
+      final approvedForTrainer = allTrainerReqs
           .where((req) => (req['status'] ?? '').toString() == 'APPROVED')
           .map((req) => Map<String, dynamic>.from(req))
           .toList();
 
-        final requestBackedSlotKeys = <String>{};
-        if (widget.studentId != null) {
-          for (final req in allTrainerReqs) {
-            final status = (req['status'] ?? '').toString().toUpperCase();
-            if (status != 'PENDING' && status != 'APPROVED') continue;
+      final requestBackedSlotKeys = <String>{};
+      if (widget.studentId != null) {
+        for (final req in allTrainerReqs) {
+          final status = (req['status'] ?? '').toString().toUpperCase();
+          if (status != 'PENDING' && status != 'APPROVED') continue;
 
-            for (final selected in _requestSlotsFromData(req)) {
-              final slotDay = _normalizeDayName((selected['dayName'] ?? '').toString());
-              final slotTime = _normalizeTime((selected['time'] ?? '').toString());
-              if (slotDay.isEmpty || slotTime.isEmpty) continue;
-              requestBackedSlotKeys.add('$slotDay|$slotTime');
-            }
+          for (final selected in _requestSlotsFromData(req)) {
+            final slotDay = _normalizeDayName(
+              (selected['dayName'] ?? '').toString(),
+            );
+            final slotTime = _normalizeTime(
+              (selected['time'] ?? '').toString(),
+            );
+            if (slotDay.isEmpty || slotTime.isEmpty) continue;
+            requestBackedSlotKeys.add('$slotDay|$slotTime');
           }
         }
+      }
 
       // Processa avaliações
       double avg = 0;
       if (ratings.isNotEmpty) {
-        final total =
-            ratings.fold<int>(0, (s, r) => s + ((r['stars'] ?? 0) as int));
+        final total = ratings.fold<int>(
+          0,
+          (s, r) => s + ((r['stars'] ?? 0) as int),
+        );
         avg = total / ratings.length;
       }
 
@@ -1176,8 +1251,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       bool isConn = false;
       if (widget.studentId != null) {
         for (final c in connections) {
-          if (c['studentId'].toString() ==
-              widget.studentId.toString()) {
+          if (c['studentId'].toString() == widget.studentId.toString()) {
             isConn = true;
             connId = c['id'] is int
                 ? c['id'] as int
@@ -1217,7 +1291,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             targetList.add({
               'dayName': day,
               'time': time,
-              'dateIso': dateIso.length >= 10 ? dateIso.substring(0, 10) : dateIso,
+              'dateIso': dateIso.length >= 10
+                  ? dateIso.substring(0, 10)
+                  : dateIso,
             });
             continue;
           }
@@ -1241,8 +1317,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         }
         // Marca slots que o próprio aluno já solicitou (pendentes) → exibe como "solicitado"
         for (final req in studentReqs) {
-          if (req['trainerId'].toString() !=
-              widget.trainerId.toString()) {
+          if (req['trainerId'].toString() != widget.trainerId.toString()) {
             continue;
           }
           if ((req['status'] ?? '') != 'PENDING') {
@@ -1251,8 +1326,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           if (widget.studentId != null) {
             continue;
           }
-          final planType =
-              (req['planType'] ?? 'DIARIO').toString().toUpperCase();
+          final planType = (req['planType'] ?? 'DIARIO')
+              .toString()
+              .toUpperCase();
           if (planType == 'DIARIO') {
             continue;
           }
@@ -1262,8 +1338,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             final daySlots = _schedule[day];
             if (daySlots != null) {
               for (final slot in daySlots) {
-                if (slot.time == time &&
-                    slot.state != SlotState.unavailable) {
+                if (slot.time == time && slot.state != SlotState.unavailable) {
                   slot.state = SlotState.requested;
                 }
               }
@@ -1379,7 +1454,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
-                color: Color(0xFF0B4DBA), strokeWidth: 2),
+              color: Color(0xFF0B4DBA),
+              strokeWidth: 2,
+            ),
           ),
         ),
       );
@@ -1392,8 +1469,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFEF4444),
           side: const BorderSide(color: Color(0xFFEF4444)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 10),
           minimumSize: const Size(double.infinity, 0),
         ),
@@ -1406,8 +1484,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF0B4DBA),
         foregroundColor: Colors.white,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(vertical: 10),
         minimumSize: const Size(double.infinity, 0),
         elevation: 0,
@@ -1435,13 +1512,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             comment: comment,
           );
           // Recarrega avaliações
-          final updated =
-              await AuthService.getTrainerRatings(widget.trainerId!);
+          final updated = await AuthService.getTrainerRatings(
+            widget.trainerId!,
+          );
           if (!mounted) return;
           double avg = 0;
           if (updated.isNotEmpty) {
             final total = updated.fold<int>(
-                0, (s, r) => s + ((r['stars'] ?? 0) as int));
+              0,
+              (s, r) => s + ((r['stars'] ?? 0) as int),
+            );
             avg = total / updated.length;
           }
           setState(() {
@@ -1449,9 +1529,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             _avgRating = avg;
           });
           if (!mounted) return;
-          _showSnack('Avaliação enviada!',
-              icon: Icons.star_rounded,
-              color: const Color(0xFFF59E0B));
+          _showSnack(
+            'Avaliação enviada!',
+            icon: Icons.star_rounded,
+            color: const Color(0xFFF59E0B),
+          );
         },
       ),
     );
@@ -1469,7 +1551,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         );
         return;
       }
-      _toggleTrainerSlotState(dayName, slot.time, slot.state == SlotState.available);
+      _toggleTrainerSlotState(
+        dayName,
+        slot.time,
+        slot.state == SlotState.available,
+      );
       return;
     }
 
@@ -1515,7 +1601,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           dayName,
           slot.time,
           slotDate: selectedDayIndex >= 0
-              ? _dateForDayIndex(selectedDayIndex, weekOffset: _scheduleWeekOffset)
+              ? _dateForDayIndex(
+                  selectedDayIndex,
+                  weekOffset: _scheduleWeekOffset,
+                )
               : DateTime.now(),
         );
         return;
@@ -1542,7 +1631,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         if (daySlots == null) return;
         final idx = daySlots.indexWhere((s) => s.time == time);
         if (idx >= 0) {
-          daySlots[idx].state = block ? SlotState.unavailable : SlotState.available;
+          daySlots[idx].state = block
+              ? SlotState.unavailable
+              : SlotState.available;
         }
       });
 
@@ -1588,7 +1679,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 children: [
                   Text(
                     'Dia base: $dayName',
-                    style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.black54,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text('Início da faixa'),
@@ -1687,7 +1781,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         final targetSlots = _schedule[targetDay] ?? [];
         for (int i = startIdx; i <= endIdx && i < targetSlots.length; i++) {
           final slot = targetSlots[i];
-          if (slot.state == SlotState.unavailable || slot.state == SlotState.requested) {
+          if (slot.state == SlotState.unavailable ||
+              slot.state == SlotState.requested) {
             continue;
           }
 
@@ -1703,8 +1798,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         changedCount > 0
             ? 'Bloqueio aplicado em $changedCount horário${changedCount > 1 ? 's' : ''}.'
             : 'Nenhum horário elegível para bloquear na faixa selecionada.',
-        icon: changedCount > 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-        color: changedCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+        icon: changedCount > 0
+            ? Icons.check_circle_rounded
+            : Icons.info_outline_rounded,
+        color: changedCount > 0
+            ? const Color(0xFF16A34A)
+            : const Color(0xFF64748B),
       );
     } catch (e) {
       _showSnack(
@@ -1723,7 +1822,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final idx = dayIndex ?? _days.indexOf(normalizedDay);
     String currentDateIso = '';
     if (idx >= 0) {
-      final currentDate = _dateForDayIndex(idx, weekOffset: _scheduleWeekOffset);
+      final currentDate = _dateForDayIndex(
+        idx,
+        weekOffset: _scheduleWeekOffset,
+      );
       currentDateIso = _toDateIso(currentDate);
     }
 
@@ -1759,10 +1861,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       if (_inlinePlanType == 'DIARIO' && _inlineSelectedSlots.length > 1) {
-        final firstIso =
-            (_inlineSelectedSlots.first['dateIso'] ?? '').toString().trim();
-        final firstDateIso =
-            firstIso.length >= 10 ? firstIso.substring(0, 10) : firstIso;
+        final firstIso = (_inlineSelectedSlots.first['dateIso'] ?? '')
+            .toString()
+            .trim();
+        final firstDateIso = firstIso.length >= 10
+            ? firstIso.substring(0, 10)
+            : firstIso;
         _inlineSelectedSlots = _inlineSelectedSlots.where((s) {
           final iso = (s['dateIso'] ?? '').toString().trim();
           final dateIso = iso.length >= 10 ? iso.substring(0, 10) : iso;
@@ -1831,7 +1935,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
     bool matches(List<Map<String, dynamic>> requests) {
       for (final req in requests) {
-        if ((req['planType'] ?? 'DIARIO').toString().toUpperCase() != 'DIARIO') {
+        if ((req['planType'] ?? 'DIARIO').toString().toUpperCase() !=
+            'DIARIO') {
           continue;
         }
         // Ignora a própria solicitação do aluno (não é "outro aluno").
@@ -1915,16 +2020,22 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     );
   }
 
-  Future<void> _toggleInlineSlot(String dayName, String time, {DateTime? slotDate}) async {
+  Future<void> _toggleInlineSlot(
+    String dayName,
+    String time, {
+    DateTime? slotDate,
+  }) async {
     final dayIndex = _days.indexOf(dayName);
-    final resolvedDate = slotDate ??
+    final resolvedDate =
+        slotDate ??
         (dayIndex >= 0 ? _dateForDayIndex(dayIndex) : DateTime.now());
     final resolvedDateIso = _toDateIso(resolvedDate);
 
     final idx = _inlineSelectedSlots.indexWhere((s) {
       final selDay = _normalizeDayName((s['dayName'] ?? '').toString());
       final selTime = _normalizeTime((s['time'] ?? '').toString());
-      if (selDay != _normalizeDayName(dayName) || selTime != _normalizeTime(time)) {
+      if (selDay != _normalizeDayName(dayName) ||
+          selTime != _normalizeTime(time)) {
         return false;
       }
       final rawIso = (s['dateIso'] ?? '').toString().trim();
@@ -1944,10 +2055,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
 
     if (_inlinePlanType == 'DIARIO' && _inlineSelectedSlots.isNotEmpty) {
-      final firstIso =
-          (_inlineSelectedSlots.first['dateIso'] ?? '').toString().trim();
-      final firstDateIso =
-          firstIso.length >= 10 ? firstIso.substring(0, 10) : firstIso;
+      final firstIso = (_inlineSelectedSlots.first['dateIso'] ?? '')
+          .toString()
+          .trim();
+      final firstDateIso = firstIso.length >= 10
+          ? firstIso.substring(0, 10)
+          : firstIso;
       if (firstDateIso.isNotEmpty && firstDateIso != resolvedDateIso) {
         _showSnack(
           'No Plano Diário, selecione horários apenas no mesmo dia.',
@@ -2022,7 +2135,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
     }
 
-    if (!_isWithinSelectionWindow(resolvedDate, _inlinePlanType, anchor: anchor)) {
+    if (!_isWithinSelectionWindow(
+      resolvedDate,
+      _inlinePlanType,
+      anchor: anchor,
+    )) {
       final end = _selectionWindowEnd(_inlinePlanType, anchor: anchor);
       final limitLabel = _formatDateLabel(end);
       final msg = _inlinePlanType.toUpperCase() == 'SEMANAL'
@@ -2103,12 +2220,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     setState(() => _sendingRequest = true);
     try {
       final slotsWithDate = selectedSlots
-          .map((s) => {
-                'dayName': (s['dayName'] ?? '').trim(),
-                'time': (s['time'] ?? '').trim(),
-                'dateLabel': (s['dateLabel'] ?? '').trim(),
-                'dateIso': (s['dateIso'] ?? '').trim(),
-              })
+          .map(
+            (s) => {
+              'dayName': (s['dayName'] ?? '').trim(),
+              'time': (s['time'] ?? '').trim(),
+              'dateLabel': (s['dateLabel'] ?? '').trim(),
+              'dateIso': (s['dateIso'] ?? '').trim(),
+            },
+          )
           .where((s) => s['dayName']!.isNotEmpty && s['time']!.isNotEmpty)
           .toList();
       slotsWithDate.sort((a, b) {
@@ -2121,10 +2240,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       });
 
       final normalizedSlots = selectedSlots
-          .map((s) => {
-                'dayName': s['dayName'] ?? '',
-                'time': s['time'] ?? '',
-              })
+          .map((s) => {'dayName': s['dayName'] ?? '', 'time': s['time'] ?? ''})
           .where((s) => s['dayName']!.isNotEmpty && s['time']!.isNotEmpty)
           .toList();
 
@@ -2140,12 +2256,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       final normalizedPlanType = planType.toUpperCase();
       if (normalizedPlanType == 'SEMANAL' || normalizedPlanType == 'MENSAL') {
         final mappedSelections = slotsWithDate
-            .map((slot) => {
-                  'dayName': (slot['dayName'] ?? '').toString(),
-                  'time': (slot['time'] ?? '').toString(),
-                  'dateLabel': (slot['dateLabel'] ?? '').toString(),
-                  'dateIso': (slot['dateIso'] ?? '').toString(),
-                })
+            .map(
+              (slot) => {
+                'dayName': (slot['dayName'] ?? '').toString(),
+                'time': (slot['time'] ?? '').toString(),
+                'dateLabel': (slot['dateLabel'] ?? '').toString(),
+                'dateIso': (slot['dateIso'] ?? '').toString(),
+              },
+            )
             .toList();
 
         if (normalizedPlanType == 'SEMANAL') {
@@ -2161,7 +2279,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         }
 
         if (normalizedPlanType == 'MENSAL') {
-          final selectedWeekdays = _countDistinctSelectedWeekdays(mappedSelections);
+          final selectedWeekdays = _countDistinctSelectedWeekdays(
+            mappedSelections,
+          );
           if (selectedWeekdays > 7) {
             _showSnack(
               'Plano mensal permite no máximo 7 dias da semana diferentes.',
@@ -2178,22 +2298,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           fallback: DateTime.now(),
         );
         final windowEnd = normalizedPlanType == 'MENSAL'
-            ? _selectionWindowEnd(
-                normalizedPlanType,
-                anchor: windowStart,
-              )
+            ? _selectionWindowEnd(normalizedPlanType, anchor: windowStart)
             : null;
 
         for (final slot in slotsWithDate) {
-          final candidate = _requestSlotStartDateTime(
-            {
-              'dayName': (slot['dayName'] ?? '').toString(),
-              'time': (slot['time'] ?? '').toString(),
-              'dateLabel': (slot['dateLabel'] ?? '').toString(),
-              'dateIso': (slot['dateIso'] ?? '').toString(),
-            },
-            windowStart,
-          );
+          final candidate = _requestSlotStartDateTime({
+            'dayName': (slot['dayName'] ?? '').toString(),
+            'time': (slot['time'] ?? '').toString(),
+            'dateLabel': (slot['dateLabel'] ?? '').toString(),
+            'dateIso': (slot['dateIso'] ?? '').toString(),
+          }, windowStart);
 
           if (candidate == null) {
             _showSnack(
@@ -2205,9 +2319,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           }
 
           if (normalizedPlanType == 'MENSAL' &&
-              (candidate.isBefore(windowStart) || candidate.isAfter(windowEnd!))) {
+              (candidate.isBefore(windowStart) ||
+                  candidate.isAfter(windowEnd!))) {
             final limitLabel = _formatDateLabel(windowEnd!);
-            final msg = 'Plano mensal permite solicitar horários somente até $limitLabel.';
+            final msg =
+                'Plano mensal permite solicitar horários somente até $limitLabel.';
             _showSnack(
               msg,
               icon: Icons.info_outline_rounded,
@@ -2296,8 +2412,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
   }
 
-  void _showSnack(String msg,
-      {required IconData icon, required Color color}) {
+  void _showSnack(String msg, {required IconData icon, required Color color}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -2309,8 +2424,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(12),
       ),
     );
@@ -2368,10 +2482,16 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             children: [
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: Colors.white),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
               ),
-              const FitMatchLogo(height: 50, assetPath: 'assets/images/logo_perfil.png'),
+              const FitMatchLogo(
+                height: 50,
+                assetPath: 'assets/images/logo_perfil.png',
+              ),
               const Spacer(),
               if (_sendingRequest)
                 const Padding(
@@ -2380,7 +2500,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   ),
                 )
               else
@@ -2410,8 +2532,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   // ── Hero card ─────────────────────────────────────────────────────────────
 
   Widget _buildHeroCard() {
-    final hasCref =
-        widget.cref != null && widget.cref!.trim().isNotEmpty;
+    final hasCref = widget.cref != null && widget.cref!.trim().isNotEmpty;
     final subtitle = hasCref
         ? 'Personal Trainer  •  CREF ${widget.cref!.trim()}'
         : 'Personal Trainer';
@@ -2436,8 +2557,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           Container(
             height: 140,
             decoration: const BoxDecoration(
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(18)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
               gradient: LinearGradient(
                 colors: [
                   Color(0xFF0B4DBA),
@@ -2522,20 +2642,15 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: Colors.white, width: 4),
+                      border: Border.all(color: Colors.white, width: 4),
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFD9E8FB),
-                          Color(0xFFEEF4FC),
-                        ],
+                        colors: [Color(0xFFD9E8FB), Color(0xFFEEF4FC)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0B4DBA)
-                              .withValues(alpha: 0.2),
+                          color: const Color(0xFF0B4DBA).withValues(alpha: 0.2),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -2587,8 +2702,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                             ),
                             if (hasCref) ...[
                               const SizedBox(width: 6),
-                              const Icon(Icons.verified_rounded,
-                                  color: Color(0xFF0B4DBA), size: 18),
+                              const Icon(
+                                Icons.verified_rounded,
+                                color: Color(0xFF0B4DBA),
+                                size: 18,
+                              ),
                             ],
                           ],
                         ),
@@ -2596,7 +2714,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                         Text(
                           subtitle,
                           style: const TextStyle(
-                              color: Colors.black45, fontSize: 12.5),
+                            color: Colors.black45,
+                            fontSize: 12.5,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         if (widget.specialties.trim().isNotEmpty)
@@ -2604,10 +2724,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                             spacing: 6,
                             runSpacing: 6,
                             children: [
-                              for (final s in widget.specialties
-                                  .split(RegExp(r'[,;]'))
-                                  .map((e) => e.trim())
-                                  .where((e) => e.isNotEmpty))
+                              for (final s
+                                  in widget.specialties
+                                      .split(RegExp(r'[,;]'))
+                                      .map((e) => e.trim())
+                                      .where((e) => e.isNotEmpty))
                                 _SpecialtyChip(label: s),
                             ],
                           ),
@@ -2631,12 +2752,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   // ── Sobre ─────────────────────────────────────────────────────────────────
 
   Widget _buildAboutCard() {
-    final hasBio =
-        widget.bio != null && widget.bio!.trim().isNotEmpty;
-    final hasCity =
-        widget.city != null && widget.city!.trim().isNotEmpty;
-    final hasPrice =
-        widget.price != null && widget.price!.trim().isNotEmpty;
+    final hasBio = widget.bio != null && widget.bio!.trim().isNotEmpty;
+    final hasCity = widget.city != null && widget.city!.trim().isNotEmpty;
+    final hasPrice = widget.price != null && widget.price!.trim().isNotEmpty;
 
     return _SectionCard(
       title: 'Sobre o Personal',
@@ -2648,9 +2766,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               ? Text(
                   widget.bio!,
                   style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 13.5,
-                      height: 1.65),
+                    color: Colors.black54,
+                    fontSize: 13.5,
+                    height: 1.65,
+                  ),
                 )
               : const Text(
                   'Este personal ainda não adicionou uma descrição.',
@@ -2666,13 +2785,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             runSpacing: 8,
             children: [
               if (hasCity)
-                _InfoChip(
-                    icon: Icons.location_on_rounded,
-                    label: widget.city!),
+                _InfoChip(icon: Icons.location_on_rounded, label: widget.city!),
               if (hasPrice)
                 _InfoChip(
-                    icon: Icons.attach_money_rounded,
-                    label: 'R\$ ${widget.price!} / sessão'),
+                  icon: Icons.attach_money_rounded,
+                  label: 'R\$ ${widget.price!} / sessão',
+                ),
             ],
           ),
         ],
@@ -2686,25 +2804,28 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final slots = _schedule[_days[_selectedDay]] ?? [];
     final canRequest = widget.studentId != null;
     final minWeekOffset = _minimumWeekOffsetForPlanType(_inlinePlanType);
-    final orderedSelections = List<Map<String, String>>.from(_inlineSelectedSlots)
-      ..sort((a, b) {
-        final dateA = _selectionDateTime(a);
-        final dateB = _selectionDateTime(b);
-        if (dateA != null && dateB != null) return dateA.compareTo(dateB);
-        if (dateA != null) return -1;
-        if (dateB != null) return 1;
-        return (a['time'] ?? '').compareTo(b['time'] ?? '');
-      });
+    final orderedSelections =
+        List<Map<String, String>>.from(_inlineSelectedSlots)..sort((a, b) {
+          final dateA = _selectionDateTime(a);
+          final dateB = _selectionDateTime(b);
+          if (dateA != null && dateB != null) return dateA.compareTo(dateB);
+          if (dateA != null) return -1;
+          if (dateB != null) return 1;
+          return (a['time'] ?? '').compareTo(b['time'] ?? '');
+        });
     final summaryLabels = _inlinePlanType == 'MENSAL'
         ? _monthlySelectionSummaryLabels(orderedSelections)
         : orderedSelections.map(_inlineSelectionLabel).toList();
     final availableCount = slots.where((s) {
-        final state = canRequest
+      final state = canRequest
           ? _effectiveStudentSlotState(_days[_selectedDay], s.time, s.state)
           : _effectiveTrainerSlotState(_days[_selectedDay], s.time, s.state);
       if (state != SlotState.available) return false;
       if (!canRequest) return true;
-      if (_isBlockedByWeeklyStartRule(_selectedDay, weekOffset: _scheduleWeekOffset)) {
+      if (_isBlockedByWeeklyStartRule(
+        _selectedDay,
+        weekOffset: _scheduleWeekOffset,
+      )) {
         return false;
       }
       return !_isPastSlotFor(_selectedDay, s.time);
@@ -2727,8 +2848,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       title: 'Agenda Semanal',
       icon: Icons.calendar_month_rounded,
       trailing: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: availableCount > 0
               ? const Color(0xFFDCFCE7)
@@ -2736,9 +2856,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
-          total == 0
-              ? 'Sem horários'
-              : '$availableCount/$total disponíveis',
+          total == 0 ? 'Sem horários' : '$availableCount/$total disponíveis',
           style: TextStyle(
             color: availableCount > 0
                 ? const Color(0xFF16A34A)
@@ -2756,7 +2874,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: CircularProgressIndicator(
-                    color: Color(0xFF0B4DBA), strokeWidth: 2.5),
+                  color: Color(0xFF0B4DBA),
+                  strokeWidth: 2.5,
+                ),
               ),
             )
           else ...[
@@ -2819,31 +2939,47 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   const spacing = 6.0;
                   final chipWidth =
                       (constraints.maxWidth - spacing * (_days.length - 1)) /
-                          _days.length;
+                      _days.length;
 
                   return Wrap(
                     spacing: spacing,
                     children: List.generate(_days.length, (i) {
                       final isSelected = _selectedDay == i;
                       final daySlots = _schedule[_days[i]] ?? [];
-                      final hasAvail = daySlots.any(
-                        (s) {
-                            final state = canRequest
-                              ? _effectiveStudentSlotState(_days[i], s.time, s.state)
-                              : _effectiveTrainerSlotState(_days[i], s.time, s.state);
-                          return state == SlotState.available &&
-                              (!canRequest ||
-                                  !_isBlockedByWeeklyStartRule(i, weekOffset: _scheduleWeekOffset)) &&
-                              (!canRequest || !_isPastSlotFor(i, s.time));
-                        },
-                      );
-                      final hasRequested =
-                          daySlots.any((s) {
-                            final state = canRequest
-                              ? _effectiveStudentSlotState(_days[i], s.time, s.state)
-                              : _effectiveTrainerSlotState(_days[i], s.time, s.state);
-                            return state == SlotState.requested;
-                          });
+                      final hasAvail = daySlots.any((s) {
+                        final state = canRequest
+                            ? _effectiveStudentSlotState(
+                                _days[i],
+                                s.time,
+                                s.state,
+                              )
+                            : _effectiveTrainerSlotState(
+                                _days[i],
+                                s.time,
+                                s.state,
+                              );
+                        return state == SlotState.available &&
+                            (!canRequest ||
+                                !_isBlockedByWeeklyStartRule(
+                                  i,
+                                  weekOffset: _scheduleWeekOffset,
+                                )) &&
+                            (!canRequest || !_isPastSlotFor(i, s.time));
+                      });
+                      final hasRequested = daySlots.any((s) {
+                        final state = canRequest
+                            ? _effectiveStudentSlotState(
+                                _days[i],
+                                s.time,
+                                s.state,
+                              )
+                            : _effectiveTrainerSlotState(
+                                _days[i],
+                                s.time,
+                                s.state,
+                              );
+                        return state == SlotState.requested;
+                      });
 
                       Color? dotColor;
                       if (!isSelected) {
@@ -2862,7 +2998,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                           onTap: () => setState(() => _selectedDay = i),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 2,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFF0B4DBA)
@@ -2876,8 +3015,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                               boxShadow: isSelected
                                   ? [
                                       BoxShadow(
-                                        color: const Color(0xFF0B4DBA)
-                                            .withValues(alpha: 0.28),
+                                        color: const Color(
+                                          0xFF0B4DBA,
+                                        ).withValues(alpha: 0.28),
                                         blurRadius: 8,
                                         offset: const Offset(0, 4),
                                       ),
@@ -2936,284 +3076,299 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               ),
             ),
             const SizedBox(height: 14),
-          // Legenda
-          Wrap(
-            spacing: 14,
-            runSpacing: 6,
-            children: [
-              _LegendItem(
-                color: Color(0xFF22C55E),
-                label: canRequest
-                    ? 'Disponível – toque para solicitar'
-                    : 'Disponível – toque para bloquear',
-              ),
-              _LegendItem(
-                color: Color(0xFFFDE68A),
-                label: 'Aguardando confirmação',
-              ),
-              _LegendItem(
-                color: Color(0xFFE5E7EB),
-                label: 'Indisponível',
-              ),
-            ],
-          ),
-          if (!canRequest) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: _applyingBlockRange ? null : _showRepeatBlockedDialog,
-                icon: _applyingBlockRange
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.copy_all_rounded, size: 16),
-                label: const Text('Repetir horários bloqueados'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF334155),
-                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+            // Legenda
+            Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: [
+                _LegendItem(
+                  color: Color(0xFF22C55E),
+                  label: canRequest
+                      ? 'Disponível – toque para solicitar'
+                      : 'Disponível – toque para bloquear',
                 ),
-              ),
+                _LegendItem(
+                  color: Color(0xFFFDE68A),
+                  label: 'Aguardando confirmação',
+                ),
+                _LegendItem(color: Color(0xFFE5E7EB), label: 'Indisponível'),
+              ],
             ),
-          ],
-          const SizedBox(height: 14),
-          // Grid de horários
-          if (slots.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              alignment: Alignment.center,
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: const Icon(Icons.event_busy_rounded,
-                        color: Color(0xFF9CA3AF), size: 22),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Sem atendimento neste dia',
-                    style: TextStyle(
-                      color: Colors.black45,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 6,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
-              ),
-              itemCount: slots.length,
-              itemBuilder: (_, i) {
-                final baseSlot = slots[i];
-                final blockedByWeeklyRule =
-                    canRequest && _isBlockedByWeeklyStartRule(_selectedDay, weekOffset: _scheduleWeekOffset);
-                final isPastSlot = canRequest && _isPastSlotFor(_selectedDay, baseSlot.time);
-                final effectiveState = canRequest
-                  ? _effectiveStudentSlotState(_days[_selectedDay], baseSlot.time, baseSlot.state)
-                  : _effectiveTrainerSlotState(_days[_selectedDay], baseSlot.time, baseSlot.state);
-                final viewSlot = _Slot(baseSlot.time)..state = effectiveState;
-                return _SlotTile(
-                  slot: viewSlot,
-                  forceUnavailable: isPastSlot || blockedByWeeklyRule,
-                  isPicked: !isPastSlot &&
-                      !blockedByWeeklyRule &&
-                      _isInlineSelected(
-                        _days[_selectedDay],
-                        baseSlot.time,
-                        dayIndex: _selectedDay,
-                      ),
-                  onTap: () => _onSlotTap(
-                    canRequest ? viewSlot : baseSlot,
-                    _days[_selectedDay],
-                  ),
-                );
-              },
-            ),
-
-          if (canRequest) ...[
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFE5E7EB)),
-            const SizedBox(height: 14),
-            const Text(
-              'Solicitação de atendimento',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: List.generate(_planOptions.length, (i) {
-                final option = _planOptions[i];
-                final type = option['type']!;
-                final isSelected = _inlinePlanType == type;
-
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => _changeInlinePlanType(type),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      margin: EdgeInsets.only(
-                        right: i < _planOptions.length - 1 ? 8 : 0,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFDBEAFE)
-                            : const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF1D4ED8)
-                              : const Color(0xFFE5E7EB),
-                          width: isSelected ? 1.8 : 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            option['label']!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isSelected
-                                  ? const Color(0xFF1D4ED8)
-                                  : const Color(0xFF374151),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            option['sub']!,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isSelected
-                                  ? const Color(0xFF1D4ED8)
-                                  : const Color(0xFF9CA3AF),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _inlineSelectedSlots.isEmpty
-                  ? 'Toque nos horários para montar seu plano.'
-                  : '${_inlineSelectedSlots.length} horário${_inlineSelectedSlots.length > 1 ? 's' : ''} selecionado${_inlineSelectedSlots.length > 1 ? 's' : ''}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.black54,
-              ),
-            ),
-            if (_inlineSelectedSlots.isNotEmpty) ...[
+            if (!canRequest) ...[
               const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                ),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: summaryLabels
-                      .map(
-                        (label) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: const Color(0xFFBFDBFE),
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: const TextStyle(
-                              fontSize: 11.8,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E3A8A),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _applyingBlockRange
+                      ? null
+                      : _showRepeatBlockedDialog,
+                  icon: _applyingBlockRange
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.copy_all_rounded, size: 16),
+                  label: const Text('Repetir horários bloqueados'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF334155),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _sendingRequest
-                        ? null
-                        : () {
-                            setState(() {
-                              _inlineSelectedSlots = [];
-                            });
-                          },
-                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                    label: const Text('Limpar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF475569),
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+            ],
+            const SizedBox(height: 14),
+            // Grid de horários
+            if (slots.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 28),
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: const Icon(
+                        Icons.event_busy_rounded,
+                        color: Color(0xFF9CA3AF),
+                        size: 22,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _sendingRequest ? null : _submitInlineRequest,
-                      icon: _sendingRequest
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded, size: 16),
-                      label: Text('Enviar · ${planLabel(_inlinePlanType)}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0B4DBA),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Sem atendimento neste dia',
+                      style: TextStyle(
+                        color: Colors.black45,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 6,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemCount: slots.length,
+                itemBuilder: (_, i) {
+                  final baseSlot = slots[i];
+                  final blockedByWeeklyRule =
+                      canRequest &&
+                      _isBlockedByWeeklyStartRule(
+                        _selectedDay,
+                        weekOffset: _scheduleWeekOffset,
+                      );
+                  final isPastSlot =
+                      canRequest && _isPastSlotFor(_selectedDay, baseSlot.time);
+                  final effectiveState = canRequest
+                      ? _effectiveStudentSlotState(
+                          _days[_selectedDay],
+                          baseSlot.time,
+                          baseSlot.state,
+                        )
+                      : _effectiveTrainerSlotState(
+                          _days[_selectedDay],
+                          baseSlot.time,
+                          baseSlot.state,
+                        );
+                  final viewSlot = _Slot(baseSlot.time)..state = effectiveState;
+                  return _SlotTile(
+                    slot: viewSlot,
+                    forceUnavailable: isPastSlot || blockedByWeeklyRule,
+                    isPicked:
+                        !isPastSlot &&
+                        !blockedByWeeklyRule &&
+                        _isInlineSelected(
+                          _days[_selectedDay],
+                          baseSlot.time,
+                          dayIndex: _selectedDay,
+                        ),
+                    onTap: () => _onSlotTap(
+                      canRequest ? viewSlot : baseSlot,
+                      _days[_selectedDay],
+                    ),
+                  );
+                },
+              ),
+
+            if (canRequest) ...[
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: Color(0xFFE5E7EB)),
+              const SizedBox(height: 14),
+              const Text(
+                'Solicitação de atendimento',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: List.generate(_planOptions.length, (i) {
+                  final option = _planOptions[i];
+                  final type = option['type']!;
+                  final isSelected = _inlinePlanType == type;
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => _changeInlinePlanType(type),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        margin: EdgeInsets.only(
+                          right: i < _planOptions.length - 1 ? 8 : 0,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFDBEAFE)
+                              : const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFFE5E7EB),
+                            width: isSelected ? 1.8 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              option['label']!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected
+                                    ? const Color(0xFF1D4ED8)
+                                    : const Color(0xFF374151),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              option['sub']!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isSelected
+                                    ? const Color(0xFF1D4ED8)
+                                    : const Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  );
+                }),
               ),
+              const SizedBox(height: 10),
+              Text(
+                _inlineSelectedSlots.isEmpty
+                    ? 'Toque nos horários para montar seu plano.'
+                    : '${_inlineSelectedSlots.length} horário${_inlineSelectedSlots.length > 1 ? 's' : ''} selecionado${_inlineSelectedSlots.length > 1 ? 's' : ''}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              if (_inlineSelectedSlots.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: summaryLabels
+                        .map(
+                          (label) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFBFDBFE),
+                              ),
+                            ),
+                            child: Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 11.8,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _sendingRequest
+                          ? null
+                          : () {
+                              setState(() {
+                                _inlineSelectedSlots = [];
+                              });
+                            },
+                      icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                      label: const Text('Limpar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _sendingRequest
+                            ? null
+                            : _submitInlineRequest,
+                        icon: _sendingRequest
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, size: 16),
+                        label: Text('Enviar · ${planLabel(_inlinePlanType)}'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0B4DBA),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
           ], // fim do else (_loadingSlots)
         ],
       ),
@@ -3230,8 +3385,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.star_rounded,
-                    size: 14, color: Color(0xFFF59E0B)),
+                const Icon(
+                  Icons.star_rounded,
+                  size: 14,
+                  color: Color(0xFFF59E0B),
+                ),
                 const SizedBox(width: 3),
                 Text(
                   _avgRating.toStringAsFixed(1),
@@ -3243,8 +3401,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 ),
                 Text(
                   ' (${_ratings.length})',
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.black45),
+                  style: const TextStyle(fontSize: 12, color: Colors.black45),
                 ),
               ],
             )
@@ -3257,7 +3414,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: CircularProgressIndicator(
-                    color: Color(0xFF0B4DBA), strokeWidth: 2.5),
+                  color: Color(0xFF0B4DBA),
+                  strokeWidth: 2.5,
+                ),
               ),
             )
           else if (_ratings.isEmpty)
@@ -3272,11 +3431,13 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF9EE),
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: const Color(0xFFFDE68A)),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
                     ),
-                    child: const Icon(Icons.star_border_rounded,
-                        color: Color(0xFFF59E0B), size: 24),
+                    child: const Icon(
+                      Icons.star_border_rounded,
+                      color: Color(0xFFF59E0B),
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -3290,8 +3451,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   const SizedBox(height: 4),
                   const Text(
                     'As avaliações dos alunos aparecerão aqui',
-                    style:
-                        TextStyle(fontSize: 12.5, color: Colors.black38),
+                    style: TextStyle(fontSize: 12.5, color: Colors.black38),
                   ),
                 ],
               ),
@@ -3318,7 +3478,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   elevation: 0,
                   side: const BorderSide(color: Color(0xFFFDE68A)),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   textStyle: const TextStyle(
                     fontWeight: FontWeight.w600,
@@ -3369,8 +3530,7 @@ class _RatingDialogState extends State<_RatingDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(
@@ -3378,14 +3538,12 @@ class _RatingDialogState extends State<_RatingDialog> {
           children: [
             const Text(
               'Avaliar Personal',
-              style:
-                  TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text(
               widget.trainerName,
-              style: const TextStyle(
-                  color: Colors.black45, fontSize: 13.5),
+              style: const TextStyle(color: Colors.black45, fontSize: 13.5),
             ),
             const SizedBox(height: 20),
             // Estrelas
@@ -3396,8 +3554,7 @@ class _RatingDialogState extends State<_RatingDialog> {
                 return GestureDetector(
                   onTap: () => setState(() => _stars = star),
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Icon(
                       _stars >= star
                           ? Icons.star_rounded
@@ -3416,7 +3573,8 @@ class _RatingDialogState extends State<_RatingDialog> {
               decoration: InputDecoration(
                 hintText: 'Comentário (opcional)',
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
@@ -3429,15 +3587,16 @@ class _RatingDialogState extends State<_RatingDialog> {
                         ? null
                         : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side:
-                          const BorderSide(color: Color(0xFFE7EBF3)),
+                      side: const BorderSide(color: Color(0xFFE7EBF3)),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 13),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('Cancelar',
-                        style: TextStyle(color: Colors.black54)),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: Colors.black54),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -3459,12 +3618,16 @@ class _RatingDialogState extends State<_RatingDialog> {
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                final msg = e.toString().contains('Failed to fetch')
+                                final msg =
+                                    e.toString().contains('Failed to fetch')
                                     ? 'Sem conexão com o servidor'
-                                    : e.toString().replaceFirst(RegExp(r'^[A-Za-z]*Exception:\s*'), '');
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(msg)),
-                                );
+                                    : e.toString().replaceFirst(
+                                        RegExp(r'^[A-Za-z]*Exception:\s*'),
+                                        '',
+                                      );
+                                ScaffoldMessenger.of(
+                                  context,
+                                ).showSnackBar(SnackBar(content: Text(msg)));
                               }
                             } finally {
                               if (mounted) {
@@ -3476,9 +3639,9 @@ class _RatingDialogState extends State<_RatingDialog> {
                       backgroundColor: const Color(0xFF0B4DBA),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 13),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                       elevation: 0,
                     ),
                     child: _submitting
@@ -3486,7 +3649,9 @@ class _RatingDialogState extends State<_RatingDialog> {
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Text('Enviar'),
                   ),
@@ -3509,7 +3674,9 @@ class _RatingItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studentName = (data['studentName'] ?? 'Aluno').toString();
-    final studentId = data['studentId'] is num ? (data['studentId'] as num).toInt() : null;
+    final studentId = data['studentId'] is num
+        ? (data['studentId'] as num).toInt()
+        : null;
     final stars = (data['stars'] ?? 0) as int;
     final comment = (data['comment'] ?? '').toString();
 
@@ -3544,9 +3711,13 @@ class _RatingItem extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(studentName,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13.5)),
+              Text(
+                studentName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
               const SizedBox(height: 3),
               Row(
                 children: List.generate(5, (i) {
@@ -3559,9 +3730,10 @@ class _RatingItem extends StatelessWidget {
               ),
               if (comment.isNotEmpty) ...[
                 const SizedBox(height: 5),
-                Text(comment,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.black54)),
+                Text(
+                  comment,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                ),
               ],
             ],
           ),
@@ -3578,22 +3750,21 @@ class _BadgeChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _BadgeChip(
-      {required this.icon,
-      required this.label,
-      required this.color});
+  const _BadgeChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12), blurRadius: 8),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8),
         ],
       ),
       child: Row(
@@ -3604,9 +3775,10 @@ class _BadgeChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -3621,8 +3793,7 @@ class _SpecialtyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0xFFEEF4FD),
         borderRadius: BorderRadius.circular(999),
@@ -3648,8 +3819,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F9FD),
         borderRadius: BorderRadius.circular(8),
@@ -3660,9 +3830,10 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: const Color(0xFF0B4DBA)),
           const SizedBox(width: 5),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 12, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
         ],
       ),
     );
@@ -3710,9 +3881,7 @@ class _SectionCard extends StatelessWidget {
                   color: const Color(0xFFEEF4FD),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon,
-                    size: 17,
-                    color: const Color(0xFF0B4DBA)),
+                child: Icon(icon, size: 17, color: const Color(0xFF0B4DBA)),
               ),
               const SizedBox(width: 10),
               Text(
@@ -3723,10 +3892,7 @@ class _SectionCard extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-              if (trailing != null) ...[
-                const Spacer(),
-                trailing!,
-              ],
+              if (trailing != null) ...[const Spacer(), trailing!],
             ],
           ),
           const SizedBox(height: 18),
@@ -3766,35 +3932,35 @@ class _SlotTile extends StatelessWidget {
       iconData = Icons.cancel_rounded;
     } else {
       switch (slot.state) {
-      case SlotState.available:
-        if (isPicked) {
-          bgColor = const Color(0xFF1D4ED8);
-          borderColor = const Color(0xFF1D4ED8);
-          iconColor = Colors.white;
-          textColor = Colors.white;
-          iconData = Icons.check_circle_rounded;
-        } else {
-          bgColor = const Color(0xFFF0FDF4);
-          borderColor = const Color(0xFFBBF7D0);
-          iconColor = const Color(0xFF22C55E);
-          textColor = const Color(0xFF15803D);
-          iconData = Icons.check_circle_rounded;
-        }
-        break;
-      case SlotState.requested:
-        bgColor = const Color(0xFFFFFBEB);
-        borderColor = const Color(0xFFFDE68A);
-        iconColor = const Color(0xFFF59E0B);
-        textColor = const Color(0xFFB45309);
-        iconData = Icons.hourglass_top_rounded;
-        break;
-      case SlotState.unavailable:
-        bgColor = const Color(0xFFF9FAFB);
-        borderColor = const Color(0xFFE5E7EB);
-        iconColor = const Color(0xFFD1D5DB);
-        textColor = const Color(0xFF9CA3AF);
-        iconData = Icons.cancel_rounded;
-        break;
+        case SlotState.available:
+          if (isPicked) {
+            bgColor = const Color(0xFF1D4ED8);
+            borderColor = const Color(0xFF1D4ED8);
+            iconColor = Colors.white;
+            textColor = Colors.white;
+            iconData = Icons.check_circle_rounded;
+          } else {
+            bgColor = const Color(0xFFF0FDF4);
+            borderColor = const Color(0xFFBBF7D0);
+            iconColor = const Color(0xFF22C55E);
+            textColor = const Color(0xFF15803D);
+            iconData = Icons.check_circle_rounded;
+          }
+          break;
+        case SlotState.requested:
+          bgColor = const Color(0xFFFFFBEB);
+          borderColor = const Color(0xFFFDE68A);
+          iconColor = const Color(0xFFF59E0B);
+          textColor = const Color(0xFFB45309);
+          iconData = Icons.hourglass_top_rounded;
+          break;
+        case SlotState.unavailable:
+          bgColor = const Color(0xFFF9FAFB);
+          borderColor = const Color(0xFFE5E7EB);
+          iconColor = const Color(0xFFD1D5DB);
+          textColor = const Color(0xFF9CA3AF);
+          iconData = Icons.cancel_rounded;
+          break;
       }
     }
 
@@ -3855,9 +4021,10 @@ class _LegendItem extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 5),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11.5, color: Colors.black45)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, color: Colors.black45),
+        ),
       ],
     );
   }

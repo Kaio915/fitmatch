@@ -123,9 +123,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         ),
         AuthService.getStudentRequests(widget.studentId),
       ]);
-      final plans = List<Map<String, dynamic>>.from(
-        responses[0],
-      );
+      final plans = List<Map<String, dynamic>>.from(responses[0]);
       final visiblePlans = plans.where((plan) {
         final id = _normalizePlanId(plan['id']);
         if (id == null) return true;
@@ -136,8 +134,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
           .map((plan) => _normalizePlanId(plan['id']))
           .whereType<String>()
           .toSet();
-      final staleHiddenIds =
-          _hiddenPlanIds.where((id) => !existingIds.contains(id)).toList();
+      final staleHiddenIds = _hiddenPlanIds
+          .where((id) => !existingIds.contains(id))
+          .toList();
       if (staleHiddenIds.isNotEmpty) {
         for (final id in staleHiddenIds) {
           _hiddenPlanIds.remove(id);
@@ -145,9 +144,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         unawaited(_persistHiddenPlanIds());
       }
 
-      final requests = List<Map<String, dynamic>>.from(
-        responses[1],
-      );
+      final requests = List<Map<String, dynamic>>.from(responses[1]);
       if (!mounted) return;
       setState(() {
         _plans = visiblePlans;
@@ -216,12 +213,14 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     final text = raw.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -281,13 +280,14 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     return (hour, minute);
   }
 
-  DateTime _nextOccurrence(
-    DateTime base,
-    int weekday,
-    int hour,
-    int minute,
-  ) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+  DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -318,14 +318,17 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         final decoded = jsonDecode(raw) as List<dynamic>;
         final parsed = decoded
             .whereType<Map>()
-            .map((slot) => {
-                  'dayName': (slot['dayName'] ?? '').toString().trim(),
-                  'time': (slot['time'] ?? '').toString().trim(),
-                  'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
-                  'dateIso': (slot['dateIso'] ?? '').toString().trim(),
-                })
-            .where((slot) =>
-                slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty)
+            .map(
+              (slot) => {
+                'dayName': (slot['dayName'] ?? '').toString().trim(),
+                'time': (slot['time'] ?? '').toString().trim(),
+                'dateLabel': (slot['dateLabel'] ?? '').toString().trim(),
+                'dateIso': (slot['dateIso'] ?? '').toString().trim(),
+              },
+            )
+            .where(
+              (slot) => slot['dayName']!.isNotEmpty && slot['time']!.isNotEmpty,
+            )
             .toList();
         if (parsed.isNotEmpty) return parsed;
       } catch (_) {}
@@ -335,7 +338,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     final time = (req['time'] ?? '').toString().trim();
     if (dayName.isEmpty || time.isEmpty) return const [];
     return [
-      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''}
+      {'dayName': dayName, 'time': time, 'dateLabel': '', 'dateIso': ''},
     ];
   }
 
@@ -401,11 +404,15 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
   List<Map<String, dynamic>> _selectApprovedPlans(
     List<Map<String, dynamic>> requests,
   ) {
-    final approved = requests.where((req) {
-      final trainerId = (req['trainerId'] ?? '').toString();
-      final status = (req['status'] ?? '').toString().toUpperCase();
-      return trainerId == widget.trainerId.toString() && status == 'APPROVED';
-    }).map((req) => Map<String, dynamic>.from(req)).toList();
+    final approved = requests
+        .where((req) {
+          final trainerId = (req['trainerId'] ?? '').toString();
+          final status = (req['status'] ?? '').toString().toUpperCase();
+          return trainerId == widget.trainerId.toString() &&
+              status == 'APPROVED';
+        })
+        .map((req) => Map<String, dynamic>.from(req))
+        .toList();
 
     if (approved.isEmpty) return const [];
     approved.sort(
@@ -458,13 +465,18 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       case 'SEMANAL':
         return firstSlot.add(const Duration(days: 7));
       case 'MENSAL':
-        return _addOneMonthKeepingDay(firstSlot);
+        return _addOneMonthKeepingDay(
+          firstSlot,
+        ).subtract(const Duration(days: 1));
       default:
         return null;
     }
   }
 
-  bool _isPanelOld(Map<String, dynamic>? req, List<Map<String, dynamic>> plans) {
+  bool _isPanelOld(
+    Map<String, dynamic>? req,
+    List<Map<String, dynamic>> plans,
+  ) {
     if (req == null) {
       return plans.isNotEmpty;
     }
@@ -536,7 +548,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
 
     final planType = (req['planType'] ?? '').toString().toUpperCase();
     if (planType == 'MENSAL' && firstDate != null && patternByKey.isNotEmpty) {
-      final windowEnd = _addOneMonthKeepingDay(firstDate);
+      final windowEnd = _addOneMonthKeepingDay(
+        firstDate,
+      ).subtract(const Duration(days: 1));
       DateTime? lastDate;
       String lastTime = '';
 
@@ -615,10 +629,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       decoration: pw.BoxDecoration(
         color: PdfColor.fromHex('#EAF1FF'),
         borderRadius: pw.BorderRadius.circular(12),
-        border: pw.Border.all(
-          color: PdfColor.fromHex('#C7DBFF'),
-          width: 1,
-        ),
+        border: pw.Border.all(color: PdfColor.fromHex('#C7DBFF'), width: 1),
       ),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -630,7 +641,10 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
             decoration: pw.BoxDecoration(
               color: PdfColors.white,
               borderRadius: pw.BorderRadius.circular(12),
-              border: pw.Border.all(color: PdfColor.fromHex('#BFDBFE'), width: 1),
+              border: pw.Border.all(
+                color: PdfColor.fromHex('#BFDBFE'),
+                width: 1,
+              ),
             ),
             child: pw.Center(
               child: logo != null
@@ -793,9 +807,8 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     );
   }
 
-  Map<String, Map<String, List<Map<String, dynamic>>>> _groupPlansByDayAndTimeFor(
-    List<Map<String, dynamic>> sourcePlans,
-  ) {
+  Map<String, Map<String, List<Map<String, dynamic>>>>
+  _groupPlansByDayAndTimeFor(List<Map<String, dynamic>> sourcePlans) {
     final grouped = <String, Map<String, List<Map<String, dynamic>>>>{};
 
     for (final plan in sourcePlans) {
@@ -867,7 +880,10 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
           pw.Row(
             children: [
               pw.Expanded(
-                child: _pdfInfoItem(label: 'Personal', value: widget.trainerName),
+                child: _pdfInfoItem(
+                  label: 'Personal',
+                  value: widget.trainerName,
+                ),
               ),
               pw.SizedBox(width: 8),
               pw.Expanded(
@@ -903,12 +919,12 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
             )
           else
             ...exercises.asMap().entries.map(
-                  (entry) => _pdfExerciseTile(
-                    index: entry.key + 1,
-                    name: entry.value['name'] ?? '',
-                    category: entry.value['category'] ?? 'Outros',
-                  ),
-                ),
+              (entry) => _pdfExerciseTile(
+                index: entry.key + 1,
+                name: entry.value['name'] ?? '',
+                category: entry.value['category'] ?? 'Outros',
+              ),
+            ),
         ],
       ),
     );
@@ -958,7 +974,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     try {
       final bytes = await _buildPlanPdf(plan);
       final dayName = (plan['dayName'] ?? 'dia').toString().toLowerCase();
-        final time = (plan['time'] ?? '').toString().trim().toLowerCase();
+      final time = (plan['time'] ?? '').toString().trim().toLowerCase();
       final safeDay = dayName
           .replaceAll(' ', '_')
           .replaceAll('á', 'a')
@@ -973,9 +989,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
           .replaceAll('õ', 'o')
           .replaceAll('ú', 'u')
           .replaceAll('ç', 'c');
-      final safeTime = time
-          .replaceAll(':', '_')
-          .replaceAll(' ', '_');
+      final safeTime = time.replaceAll(':', '_').replaceAll(' ', '_');
 
       await Printing.sharePdf(
         bytes: bytes,
@@ -1040,7 +1054,10 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
             decoration: pw.BoxDecoration(
               color: PdfColor.fromHex('#ECFDF3'),
               borderRadius: pw.BorderRadius.circular(8),
-              border: pw.Border.all(color: PdfColor.fromHex('#BBF7D0'), width: 1),
+              border: pw.Border.all(
+                color: PdfColor.fromHex('#BBF7D0'),
+                width: 1,
+              ),
             ),
             child: pw.Text(
               time.isEmpty ? 'Sem horario definido' : 'Horario: $time',
@@ -1226,10 +1243,12 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     for (final req in _approvedRequestPlans) {
       final requestSlots = _requestSlotsFromRequest(req);
       final slotKeys = requestSlots
-          .map((slot) => _slotKey(
-                (slot['dayName'] ?? '').toString(),
-                (slot['time'] ?? '').toString(),
-              ))
+          .map(
+            (slot) => _slotKey(
+              (slot['dayName'] ?? '').toString(),
+              (slot['time'] ?? '').toString(),
+            ),
+          )
           .toSet();
 
       final plansForPanel = <Map<String, dynamic>>[];
@@ -1341,11 +1360,17 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                         panel['plans'] as List? ?? const [],
                       );
                       final panelIsOld = _isPanelOld(panelRequest, panelPlans);
-                      final panelChips = List<({String label, bool highlight})>.from(
-                        panel['chips'] as List? ?? const <({String label, bool highlight})>[],
+                      final panelChips =
+                          List<({String label, bool highlight})>.from(
+                            panel['chips'] as List? ??
+                                const <({String label, bool highlight})>[],
+                          );
+                      final panelExpanded = _expandedPlanPanels.contains(
+                        panelKey,
                       );
-                      final panelExpanded = _expandedPlanPanels.contains(panelKey);
-                      final groupedPanel = _groupPlansByDayAndTimeFor(panelPlans);
+                      final groupedPanel = _groupPlansByDayAndTimeFor(
+                        panelPlans,
+                      );
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -1373,8 +1398,12 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFF1F2),
-                                        borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: const Color(0xFFFECACA)),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        border: Border.all(
+                                          color: const Color(0xFFFECACA),
+                                        ),
                                       ),
                                       child: const Text(
                                         'Plano antigo',
@@ -1387,19 +1416,25 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                     ),
                                   const SizedBox(width: 4),
                                   IconButton(
-                                    onPressed: panelPlans.isEmpty ||
-                                            _exportingPlanKeys.contains('print|$panelKey')
+                                    onPressed:
+                                        panelPlans.isEmpty ||
+                                            _exportingPlanKeys.contains(
+                                              'print|$panelKey',
+                                            )
                                         ? null
                                         : () => _printPlansByPanel(
-                                              panelKey,
-                                              panelTitle,
-                                              panelPlans,
-                                            ),
+                                            panelKey,
+                                            panelTitle,
+                                            panelPlans,
+                                          ),
                                     tooltip: 'Imprimir',
                                     iconSize: 20,
                                     visualDensity: VisualDensity.compact,
                                     splashRadius: 18,
-                                    icon: _exportingPlanKeys.contains('print|$panelKey')
+                                    icon:
+                                        _exportingPlanKeys.contains(
+                                          'print|$panelKey',
+                                        )
                                         ? const SizedBox(
                                             width: 16,
                                             height: 16,
@@ -1413,19 +1448,25 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                           ),
                                   ),
                                   IconButton(
-                                    onPressed: panelPlans.isEmpty ||
-                                            _exportingPlanKeys.contains('delete|$panelKey')
+                                    onPressed:
+                                        panelPlans.isEmpty ||
+                                            _exportingPlanKeys.contains(
+                                              'delete|$panelKey',
+                                            )
                                         ? null
                                         : () => _deletePlansByPanel(
-                                              panelKey,
-                                              panelTitle,
-                                              panelPlans,
-                                            ),
+                                            panelKey,
+                                            panelTitle,
+                                            panelPlans,
+                                          ),
                                     tooltip: 'Deletar',
                                     iconSize: 20,
                                     visualDensity: VisualDensity.compact,
                                     splashRadius: 18,
-                                    icon: _exportingPlanKeys.contains('delete|$panelKey')
+                                    icon:
+                                        _exportingPlanKeys.contains(
+                                          'delete|$panelKey',
+                                        )
                                         ? const SizedBox(
                                             width: 16,
                                             height: 16,
@@ -1444,10 +1485,12 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                         if (panelExpanded) {
                                           _expandedPlanPanels.remove(panelKey);
                                           _expandedDays.removeWhere(
-                                            (key) => key.startsWith('$panelKey|'),
+                                            (key) =>
+                                                key.startsWith('$panelKey|'),
                                           );
                                           _expandedTimes.removeWhere(
-                                            (key) => key.startsWith('$panelKey|'),
+                                            (key) =>
+                                                key.startsWith('$panelKey|'),
                                           );
                                         } else {
                                           _expandedPlanPanels.add(panelKey);
@@ -1479,7 +1522,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                         color: highlight
                                             ? const Color(0xFF2563EB)
                                             : const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                         border: Border.all(
                                           color: highlight
                                               ? const Color(0xFF2563EB)
@@ -1516,255 +1561,398 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                               if (panelExpanded) ...[
                                 const SizedBox(height: 14),
                                 ...groupedPanel.entries.map((dayEntry) {
-                      final dayName = dayEntry.key;
-                      final plansPerTime = dayEntry.value;
-                      final dayExpanded = _expandedDays.contains('$panelKey|$dayName');
+                                  final dayName = dayEntry.key;
+                                  final plansPerTime = dayEntry.value;
+                                  final dayExpanded = _expandedDays.contains(
+                                    '$panelKey|$dayName',
+                                  );
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    if (dayExpanded) {
-                                      _expandedDays.remove('$panelKey|$dayName');
-                                      _expandedTimes.removeWhere(
-                                        (key) => key.startsWith('$panelKey|$dayName|'),
-                                      );
-                                    } else {
-                                      _expandedDays.add('$panelKey|$dayName');
-                                    }
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(10),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFDBEAFE),
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          dayName,
-                                          style: const TextStyle(
-                                            color: Color(0xFF1D4ED8),
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 11.5,
-                                          ),
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${plansPerTime.length} horário(s)',
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          color: Color(0xFF64748B),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Icon(
-                                        dayExpanded
-                                            ? Icons.keyboard_arrow_up_rounded
-                                            : Icons.keyboard_arrow_down_rounded,
-                                        color: const Color(0xFF64748B),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (dayExpanded) ...[
-                                const SizedBox(height: 8),
-                                ...plansPerTime.entries.map((timeEntry) {
-                                  final time = timeEntry.key;
-                                  final plansAtTime = timeEntry.value;
-                                  final timeKey = '$panelKey|$dayName|$time';
-                                  final timeExpanded = _expandedTimes.contains(timeKey);
-                                  final primaryPlan = plansAtTime.first;
-                                  final exercises = <Map<String, String>>[];
-                                  for (final plan in plansAtTime) {
-                                    exercises.addAll(_extractExercises(plan['exercises']));
-                                  }
-
-                                  final exportKey = _planExportKey(primaryPlan);
-                                  final exporting = _exportingPlanKeys.contains(exportKey);
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              if (timeExpanded) {
-                                                _expandedTimes.remove(timeKey);
-                                              } else {
-                                                _expandedTimes.add(timeKey);
-                                              }
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 2),
-                                            child: Row(
-                                              children: [
-                                                Text(
-                                                  time.isEmpty ? 'Sem horário' : time,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF2563EB),
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 26,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                if (dayExpanded) {
+                                                  _expandedDays.remove(
+                                                    '$panelKey|$dayName',
+                                                  );
+                                                  _expandedTimes.removeWhere(
+                                                    (key) => key.startsWith(
+                                                      '$panelKey|$dayName|',
+                                                    ),
+                                                  );
+                                                } else {
+                                                  _expandedDays.add(
+                                                    '$panelKey|$dayName',
+                                                  );
+                                                }
+                                              });
+                                            },
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 4,
                                                   ),
-                                                ),
-                                                const Spacer(),
-                                                Icon(
-                                                  timeExpanded
-                                                      ? Icons.keyboard_arrow_up_rounded
-                                                      : Icons.keyboard_arrow_down_rounded,
-                                                  color: const Color(0xFF64748B),
-                                                ),
-                                              ],
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 5,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFFDBEAFE,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            999,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      dayName,
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFF1D4ED8,
+                                                        ),
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontSize: 11.5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '${plansPerTime.length} horário(s)',
+                                                    style: const TextStyle(
+                                                      fontSize: 11.5,
+                                                      color: Color(0xFF64748B),
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const Spacer(),
+                                                  Icon(
+                                                    dayExpanded
+                                                        ? Icons
+                                                              .keyboard_arrow_up_rounded
+                                                        : Icons
+                                                              .keyboard_arrow_down_rounded,
+                                                    color: const Color(
+                                                      0xFF64748B,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        if (timeExpanded) ...[
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              OutlinedButton.icon(
-                                                onPressed: exporting
-                                                    ? null
-                                                    : () => _printPlan(primaryPlan),
-                                                icon: exporting
-                                                    ? const SizedBox(
-                                                        width: 14,
-                                                        height: 14,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                      )
-                                                    : const Icon(Icons.print_rounded, size: 16),
-                                                label: const Text('Imprimir'),
-                                                style: OutlinedButton.styleFrom(
-                                                  foregroundColor: const Color(0xFF475569),
-                                                  side: const BorderSide(
-                                                    color: Color(0xFFCBD5E1),
+                                          if (dayExpanded) ...[
+                                            const SizedBox(height: 8),
+                                            ...plansPerTime.entries.map((
+                                              timeEntry,
+                                            ) {
+                                              final time = timeEntry.key;
+                                              final plansAtTime =
+                                                  timeEntry.value;
+                                              final timeKey =
+                                                  '$panelKey|$dayName|$time';
+                                              final timeExpanded =
+                                                  _expandedTimes.contains(
+                                                    timeKey,
+                                                  );
+                                              final primaryPlan =
+                                                  plansAtTime.first;
+                                              final exercises =
+                                                  <Map<String, String>>[];
+                                              for (final plan in plansAtTime) {
+                                                exercises.addAll(
+                                                  _extractExercises(
+                                                    plan['exercises'],
                                                   ),
+                                                );
+                                              }
+
+                                              final exportKey = _planExportKey(
+                                                primaryPlan,
+                                              );
+                                              final exporting =
+                                                  _exportingPlanKeys.contains(
+                                                    exportKey,
+                                                  );
+
+                                              return Container(
+                                                margin: const EdgeInsets.only(
+                                                  bottom: 10,
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              ElevatedButton.icon(
-                                                onPressed: exporting
-                                                    ? null
-                                                    : () => _downloadPlan(primaryPlan),
-                                                icon: exporting
-                                                    ? const SizedBox(
-                                                        width: 14,
-                                                        height: 14,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Colors.white,
-                                                        ),
-                                                      )
-                                                    : const Icon(Icons.download_rounded, size: 16),
-                                                label: const Text('Baixar'),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(0xFF0B4DBA),
-                                                  foregroundColor: Colors.white,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          if (exercises.isEmpty)
-                                            const Text(
-                                              'Nenhum exercício cadastrado para este horário.',
-                                              style: TextStyle(
-                                                fontSize: 12.5,
-                                                color: Colors.black54,
-                                              ),
-                                            )
-                                          else
-                                            ...exercises.map(
-                                              (ex) => Container(
-                                                margin: const EdgeInsets.only(bottom: 6),
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 8,
+                                                padding: const EdgeInsets.all(
+                                                  12,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFF8FAFC),
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                   border: Border.all(
-                                                    color: const Color(0xFFE2E8F0),
+                                                    color: const Color(
+                                                      0xFFE2E8F0,
+                                                    ),
                                                   ),
                                                 ),
-                                                child: Row(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
-                                                    const Icon(
-                                                      Icons.fitness_center_rounded,
-                                                      size: 14,
-                                                      color: Color(0xFF1D4ED8),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Text(
-                                                        ex['name'] ?? '',
-                                                        style: const TextStyle(
-                                                          fontSize: 12.5,
-                                                          color: Colors.black87,
-                                                          fontWeight: FontWeight.w600,
+                                                    InkWell(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          if (timeExpanded) {
+                                                            _expandedTimes
+                                                                .remove(
+                                                                  timeKey,
+                                                                );
+                                                          } else {
+                                                            _expandedTimes.add(
+                                                              timeKey,
+                                                            );
+                                                          }
+                                                        });
+                                                      },
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              vertical: 2,
+                                                            ),
+                                                        child: Row(
+                                                          children: [
+                                                            Text(
+                                                              time.isEmpty
+                                                                  ? 'Sem horário'
+                                                                  : time,
+                                                              style: const TextStyle(
+                                                                color: Color(
+                                                                  0xFF2563EB,
+                                                                ),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w800,
+                                                                fontSize: 26,
+                                                              ),
+                                                            ),
+                                                            const Spacer(),
+                                                            Icon(
+                                                              timeExpanded
+                                                                  ? Icons
+                                                                        .keyboard_arrow_up_rounded
+                                                                  : Icons
+                                                                        .keyboard_arrow_down_rounded,
+                                                              color:
+                                                                  const Color(
+                                                                    0xFF64748B,
+                                                                  ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     ),
-                                                    Text(
-                                                      ex['category'] ?? 'Outros',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color: Color(0xFF2563EB),
-                                                        fontWeight: FontWeight.w700,
+                                                    if (timeExpanded) ...[
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: [
+                                                          OutlinedButton.icon(
+                                                            onPressed: exporting
+                                                                ? null
+                                                                : () => _printPlan(
+                                                                    primaryPlan,
+                                                                  ),
+                                                            icon: exporting
+                                                                ? const SizedBox(
+                                                                    width: 14,
+                                                                    height: 14,
+                                                                    child: CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2,
+                                                                    ),
+                                                                  )
+                                                                : const Icon(
+                                                                    Icons
+                                                                        .print_rounded,
+                                                                    size: 16,
+                                                                  ),
+                                                            label: const Text(
+                                                              'Imprimir',
+                                                            ),
+                                                            style: OutlinedButton.styleFrom(
+                                                              foregroundColor:
+                                                                  const Color(
+                                                                    0xFF475569,
+                                                                  ),
+                                                              side: const BorderSide(
+                                                                color: Color(
+                                                                  0xFFCBD5E1,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          ElevatedButton.icon(
+                                                            onPressed: exporting
+                                                                ? null
+                                                                : () => _downloadPlan(
+                                                                    primaryPlan,
+                                                                  ),
+                                                            icon: exporting
+                                                                ? const SizedBox(
+                                                                    width: 14,
+                                                                    height: 14,
+                                                                    child: CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2,
+                                                                      color: Colors
+                                                                          .white,
+                                                                    ),
+                                                                  )
+                                                                : const Icon(
+                                                                    Icons
+                                                                        .download_rounded,
+                                                                    size: 16,
+                                                                  ),
+                                                            label: const Text(
+                                                              'Baixar',
+                                                            ),
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor:
+                                                                  const Color(
+                                                                    0xFF0B4DBA,
+                                                                  ),
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                    ),
+                                                      const SizedBox(
+                                                        height: 10,
+                                                      ),
+                                                      if (exercises.isEmpty)
+                                                        const Text(
+                                                          'Nenhum exercício cadastrado para este horário.',
+                                                          style: TextStyle(
+                                                            fontSize: 12.5,
+                                                            color:
+                                                                Colors.black54,
+                                                          ),
+                                                        )
+                                                      else
+                                                        ...exercises.map(
+                                                          (ex) => Container(
+                                                            margin:
+                                                                const EdgeInsets.only(
+                                                                  bottom: 6,
+                                                                ),
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      10,
+                                                                  vertical: 8,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color:
+                                                                  const Color(
+                                                                    0xFFF8FAFC,
+                                                                  ),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                              border: Border.all(
+                                                                color:
+                                                                    const Color(
+                                                                      0xFFE2E8F0,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                            child: Row(
+                                                              children: [
+                                                                const Icon(
+                                                                  Icons
+                                                                      .fitness_center_rounded,
+                                                                  size: 14,
+                                                                  color: Color(
+                                                                    0xFF1D4ED8,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 8,
+                                                                ),
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    ex['name'] ??
+                                                                        '',
+                                                                    style: const TextStyle(
+                                                                      fontSize:
+                                                                          12.5,
+                                                                      color: Colors
+                                                                          .black87,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                Text(
+                                                                  ex['category'] ??
+                                                                      'Outros',
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: Color(
+                                                                      0xFF2563EB,
+                                                                    ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ],
                                                 ),
-                                              ),
-                                            ),
+                                              );
+                                            }),
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
                                   );
                                 }),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
                               ],
                             ],
                           ),

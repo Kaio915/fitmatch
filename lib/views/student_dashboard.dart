@@ -550,7 +550,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     final anchor = _requestAnchor(req);
     final firstSession = _firstSessionStartAt(req);
     final monthlyEnd = firstSession != null
-        ? _addOneMonthKeepingDay(firstSession)
+        ? _addOneMonthKeepingDay(firstSession).subtract(const Duration(days: 1))
         : null;
 
     for (final slot in slots) {
@@ -3395,7 +3395,9 @@ class _ApprovedTrainerItem extends StatelessWidget {
     DateTime? lastSession;
 
     if (isMonthly) {
-      final cycleEnd = _addOneMonthKeepingDay(planBase);
+      final cycleEnd = _addOneMonthKeepingDay(
+        planBase,
+      ).subtract(const Duration(days: 1));
       for (final slot in recurringSlots) {
         final weekday = _weekdayFromPt((slot['dayName'] ?? '').toString());
         final hm = _parseHourMinute((slot['time'] ?? '').toString());

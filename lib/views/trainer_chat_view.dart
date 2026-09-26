@@ -29,19 +29,26 @@ class TrainerChatView extends StatefulWidget {
   final String trainerName;
   final String dayName;
   final String time;
+
   /// true = tela aberta pelo personal (ve mensagem do aluno como recebida)
   /// false = tela aberta pelo aluno (mensagem pré-preenchida enviada por ele)
   final bool isTrainerSide;
+
   /// ID do usuário que está vendo o chat (remetente atual)
   final int? senderId;
+
   /// ID do outro usuário na conversa
   final int? receiverId;
+
   /// Tipo do plano: DIARIO, SEMANAL ou MENSAL (opcional)
   final String? planType;
+
   /// JSON com os dias/horários do plano (opcional)
   final String? daysJson;
+
   /// Exibe botão para abrir perfil na barra superior
   final bool showProfileButton;
+
   /// Quando true, o usuário só pode ler a conversa
   final bool readOnly;
   final String? readOnlyMessage;
@@ -202,7 +209,13 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   }
 
   DateTime _nextOccurrence(DateTime base, int weekday, int hour, int minute) {
-    final sameDayAtTime = DateTime(base.year, base.month, base.day, hour, minute);
+    final sameDayAtTime = DateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      minute,
+    );
     var deltaDays = weekday - base.weekday;
     if (deltaDays < 0) deltaDays += 7;
     var candidate = sameDayAtTime.add(Duration(days: deltaDays));
@@ -217,7 +230,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final hm = _parseHourMinute(time);
     if (weekday == null || hm == null) return '';
 
-    final anchor = DateTime.tryParse((widget.requestUpdatedAtIso ?? '').toString()) ??
+    final anchor =
+        DateTime.tryParse((widget.requestUpdatedAtIso ?? '').toString()) ??
         DateTime.tryParse((widget.readOnlyStartAtIso ?? '').toString()) ??
         DateTime.now();
 
@@ -244,12 +258,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final text = value.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -320,7 +336,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   }) {
     if (slots.isEmpty) return const [];
 
-    final anchor = DateTime.tryParse((widget.readOnlyStartAtIso ?? '').toString()) ??
+    final anchor =
+        DateTime.tryParse((widget.readOnlyStartAtIso ?? '').toString()) ??
         DateTime.now();
     final parsed = <Map<String, dynamic>>[];
     for (final slot in slots) {
@@ -328,10 +345,12 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       final time = (slot['time'] ?? '').toString().trim();
       final weekday = _weekdayFromPt(dayName);
       final hm = _parseHourMinute(time);
-      if (dayName.isEmpty || time.isEmpty || weekday == null || hm == null) continue;
+      if (dayName.isEmpty || time.isEmpty || weekday == null || hm == null)
+        continue;
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
-      final startAt = fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
+      final startAt =
+          fromMeta ?? _nextOccurrence(anchor, weekday, hm.$1, hm.$2);
       parsed.add({
         'dayName': dayName,
         'time': _normalizeTimeValue(time),
@@ -344,20 +363,25 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
     if (parsed.isEmpty) {
       return slots
-          .map((slot) => _slotLabelForDisplay(
-                dayName: (slot['dayName'] ?? '').toString(),
-                time: (slot['time'] ?? '').toString(),
-                dateLabel: (slot['dateLabel'] ?? '').toString(),
-                forChat: forChat,
-              ))
+          .map(
+            (slot) => _slotLabelForDisplay(
+              dayName: (slot['dayName'] ?? '').toString(),
+              time: (slot['time'] ?? '').toString(),
+              dateLabel: (slot['dateLabel'] ?? '').toString(),
+              forChat: forChat,
+            ),
+          )
           .toList();
     }
 
-    parsed.sort((a, b) =>
-        (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime));
+    parsed.sort(
+      (a, b) => (a['startAt'] as DateTime).compareTo(b['startAt'] as DateTime),
+    );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(firstAt);
+    final windowEnd = _addOneMonthKeepingDay(
+      firstAt,
+    ).subtract(const Duration(days: 1));
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -472,7 +496,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       try {
         final decoded = jsonDecode(widget.daysJson!) as List<dynamic>;
         for (final slot in decoded.whereType<Map>()) {
-          final dayName = _normalizeForMatch((slot['dayName'] ?? '').toString());
+          final dayName = _normalizeForMatch(
+            (slot['dayName'] ?? '').toString(),
+          );
           final time = _normalizeForMatch((slot['time'] ?? '').toString());
           if (dayName.isEmpty || time.isEmpty) continue;
           slots.add('$dayName|$time');
@@ -583,7 +609,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     if (_messageMatchesCurrentRequestId(text)) return true;
 
     final normalized = _normalizeForMatch(text);
-    final isApproval = normalized.contains('sua solicitacao foi confirmada') ||
+    final isApproval =
+        normalized.contains('sua solicitacao foi confirmada') ||
         normalized.contains('solicitacao foi confirmada');
     if (!isApproval) return false;
 
@@ -623,7 +650,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         // Se houver marcador explícito do request atual, prioriza esse horário
         // mesmo quando houver lock temporal anterior.
         if (_messageMatchesCurrentRequestId(message.text)) {
-          if (markedTerminationAt == null || message.time.isAfter(markedTerminationAt)) {
+          if (markedTerminationAt == null ||
+              message.time.isAfter(markedTerminationAt)) {
             markedTerminationAt = message.time;
           }
         }
@@ -667,7 +695,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       (_) => _sendHeartbeatOnce(),
     );
     // Polling do indicador de digitação
-    if (!_effectiveReadOnly && widget.receiverId != null && widget.senderId != null) {
+    if (!_effectiveReadOnly &&
+        widget.receiverId != null &&
+        widget.senderId != null) {
       _typingPollTimer = Timer.periodic(
         const Duration(seconds: 2),
         (_) => _checkPeerTyping(),
@@ -723,8 +753,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     AuthService.sendHeartbeat();
   }
 
-
-
   Future<void> _loadBlockedStateForProfileButton() async {
     if (widget.isTrainerSide) return;
     if (widget.senderId == null || widget.receiverId == null) return;
@@ -752,11 +780,13 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       if (_loadingMessages) {
         setState(() {
           _loadingMessages = false;
-          _messages.add(_ChatMessage(
-            text: _buildAutoMessage(),
-            isMe: !widget.isTrainerSide,
-            time: DateTime.now(),
-          ));
+          _messages.add(
+            _ChatMessage(
+              text: _buildAutoMessage(),
+              isMe: !widget.isTrainerSide,
+              time: DateTime.now(),
+            ),
+          );
         });
         _scrollToBottom();
       }
@@ -779,37 +809,40 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         final sentAt = msg['sentAt'] != null
             ? DateTime.tryParse(msg['sentAt'].toString()) ?? DateTime.now()
             : DateTime.now();
-        parsedMessages.add(_ChatMessage(
-          text: (msg['text'] ?? '').toString(),
-          isMe: msg['senderId'].toString() == widget.senderId.toString(),
-          time: sentAt,
-        ));
+        parsedMessages.add(
+          _ChatMessage(
+            text: (msg['text'] ?? '').toString(),
+            isMe: msg['senderId'].toString() == widget.senderId.toString(),
+            time: sentAt,
+          ),
+        );
       }
 
-        final startAt = widget.readOnlyStartAtIso != null
+      final startAt = widget.readOnlyStartAtIso != null
           ? DateTime.tryParse(widget.readOnlyStartAtIso!)
           : null;
 
-        final lockAt = widget.readOnlyLockAtIso != null
+      final lockAt = widget.readOnlyLockAtIso != null
           ? DateTime.tryParse(widget.readOnlyLockAtIso!)
           : null;
 
-        final requestUpdatedAt = widget.requestUpdatedAtIso != null
+      final requestUpdatedAt = widget.requestUpdatedAtIso != null
           ? DateTime.tryParse(widget.requestUpdatedAtIso!)
           : null;
 
-        final effectiveLockAt = _effectiveReadOnly
+      final effectiveLockAt = _effectiveReadOnly
           ? _resolveReadOnlyLockAt(parsedMessages, startAt, lockAt)
           : lockAt;
 
-        // Sempre aplica filtragem temporal quando houver janela da solicitação.
-        // Isso isola cada ciclo do chat e evita mistura/duplicação de mensagens.
-        final shouldApplyTemporalFiltering =
+      // Sempre aplica filtragem temporal quando houver janela da solicitação.
+      // Isso isola cada ciclo do chat e evita mistura/duplicação de mensagens.
+      final shouldApplyTemporalFiltering =
           startAt != null || effectiveLockAt != null;
 
       bool isWithinWindow(_ChatMessage message) {
         if (startAt != null && message.time.isBefore(startAt)) return false;
-        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) return false;
+        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt))
+          return false;
         return true;
       }
 
@@ -856,14 +889,12 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         );
 
         if (!_effectiveReadOnly) {
-          final activeCandidates = parsedMessages
-              .where((message) {
-                if (!_isTerminationMessageText(message.text)) return false;
-                if (!_messageMatchesCurrentRequestId(message.text)) return false;
-                if (startAt != null && message.time.isBefore(startAt)) return false;
-                return true;
-              })
-              .toList();
+          final activeCandidates = parsedMessages.where((message) {
+            if (!_isTerminationMessageText(message.text)) return false;
+            if (!_messageMatchesCurrentRequestId(message.text)) return false;
+            if (startAt != null && message.time.isBefore(startAt)) return false;
+            return true;
+          }).toList();
 
           if (activeCandidates.isEmpty) return null;
           activeCandidates.sort((a, b) => a.time.compareTo(b.time));
@@ -875,25 +906,24 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           return _isApprovalMessageForCurrentChat(message.text);
         });
 
-        final candidates = parsedMessages
-            .where((message) {
-              final isCurrentReqMarker =
-                  _messageMatchesCurrentRequestId(message.text);
-              if (!_isTerminationMessageForCurrentChat(
-                message.text,
-                allowGenericForApprovedContext: hasApprovalForCurrentChat,
-              )) {
-                return false;
-              }
-              if (startAt != null && message.time.isBefore(startAt)) return false;
-              if (!isCurrentReqMarker &&
-                  effectiveLockAt != null &&
-                  !message.time.isBefore(effectiveLockAt)) {
-                return false;
-              }
-              return true;
-            })
-            .toList();
+        final candidates = parsedMessages.where((message) {
+          final isCurrentReqMarker = _messageMatchesCurrentRequestId(
+            message.text,
+          );
+          if (!_isTerminationMessageForCurrentChat(
+            message.text,
+            allowGenericForApprovedContext: hasApprovalForCurrentChat,
+          )) {
+            return false;
+          }
+          if (startAt != null && message.time.isBefore(startAt)) return false;
+          if (!isCurrentReqMarker &&
+              effectiveLockAt != null &&
+              !message.time.isBefore(effectiveLockAt)) {
+            return false;
+          }
+          return true;
+        }).toList();
 
         if (candidates.isEmpty && requestUpdatedAt != null) {
           final allowRelaxedFallback =
@@ -904,37 +934,39 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
           // Fallback defensivo para histórico legado/sem marcador:
           // usa mensagem de terminação mais próxima do updatedAt da solicitação.
-          final relaxedCandidates = parsedMessages
-              .where((message) {
-                if (!_isTerminationMessageText(message.text)) return false;
-                if (startAt != null && message.time.isBefore(startAt)) {
-                  return false;
-                }
+          final relaxedCandidates = parsedMessages.where((message) {
+            if (!_isTerminationMessageText(message.text)) return false;
+            if (startAt != null && message.time.isBefore(startAt)) {
+              return false;
+            }
 
-                if (widget.requestId != null) {
-                  final markerId = _extractRequestIdMarker(message.text);
-                  // Em chat por request, fallback só considera mensagens sem marcador
-                  // e compatíveis com o slot deste chat (legado).
-                  if (markerId != null) return false;
-                  if (!_isTerminationMessageForCurrentChat(message.text)) {
-                    return false;
-                  }
-                }
+            if (widget.requestId != null) {
+              final markerId = _extractRequestIdMarker(message.text);
+              // Em chat por request, fallback só considera mensagens sem marcador
+              // e compatíveis com o slot deste chat (legado).
+              if (markerId != null) return false;
+              if (!_isTerminationMessageForCurrentChat(message.text)) {
+                return false;
+              }
+            }
 
-                final diffMinutes = message.time
-                    .difference(requestUpdatedAt)
-                    .abs()
-                    .inMinutes;
-                return diffMinutes <= 180;
-              })
-              .toList();
+            final diffMinutes = message.time
+                .difference(requestUpdatedAt)
+                .abs()
+                .inMinutes;
+            return diffMinutes <= 180;
+          }).toList();
 
           if (relaxedCandidates.isNotEmpty) {
             relaxedCandidates.sort((a, b) {
-              final aDiff =
-                  a.time.difference(requestUpdatedAt).abs().inMilliseconds;
-              final bDiff =
-                  b.time.difference(requestUpdatedAt).abs().inMilliseconds;
+              final aDiff = a.time
+                  .difference(requestUpdatedAt)
+                  .abs()
+                  .inMilliseconds;
+              final bDiff = b.time
+                  .difference(requestUpdatedAt)
+                  .abs()
+                  .inMilliseconds;
               if (aDiff != bDiff) return aDiff.compareTo(bDiff);
               return a.time.compareTo(b.time);
             });
@@ -947,8 +979,14 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         if (requestUpdatedAt != null) {
           final nearest = List<_ChatMessage>.from(candidates)
             ..sort((a, b) {
-              final aDiff = a.time.difference(requestUpdatedAt).abs().inMilliseconds;
-              final bDiff = b.time.difference(requestUpdatedAt).abs().inMilliseconds;
+              final aDiff = a.time
+                  .difference(requestUpdatedAt)
+                  .abs()
+                  .inMilliseconds;
+              final bDiff = b.time
+                  .difference(requestUpdatedAt)
+                  .abs()
+                  .inMilliseconds;
               if (aDiff != bDiff) return aDiff.compareTo(bDiff);
               return a.time.compareTo(b.time);
             });
@@ -971,39 +1009,45 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       bool isForcedInitialRequest(_ChatMessage message) {
         if (!shouldApplyTemporalFiltering) return false;
         if (!_isRequestInitialMessageForCurrentChat(message.text)) return false;
-        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) return false;
+        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt))
+          return false;
         return true;
       }
 
       _ChatMessage? resolveForcedCancellationMessage() {
         if (!shouldApplyTemporalFiltering) return null;
 
-        final candidates = parsedMessages
-            .where((message) {
-              final isCurrentReqMarker =
-                  _messageMatchesCurrentRequestId(message.text);
-              if (!isCancellationMessageText(message.text)) {
-                return false;
-              }
-              if (startAt != null && message.time.isBefore(startAt)) return false;
-              if (!isCurrentReqMarker &&
-                  effectiveLockAt != null &&
-                  !message.time.isBefore(effectiveLockAt)) {
-                return false;
-              }
-              if (isCurrentReqMarker) {
-                return true;
-              }
-              return isCancellationMessageForCurrentChat(message.text);
-            })
-            .toList();
+        final candidates = parsedMessages.where((message) {
+          final isCurrentReqMarker = _messageMatchesCurrentRequestId(
+            message.text,
+          );
+          if (!isCancellationMessageText(message.text)) {
+            return false;
+          }
+          if (startAt != null && message.time.isBefore(startAt)) return false;
+          if (!isCurrentReqMarker &&
+              effectiveLockAt != null &&
+              !message.time.isBefore(effectiveLockAt)) {
+            return false;
+          }
+          if (isCurrentReqMarker) {
+            return true;
+          }
+          return isCancellationMessageForCurrentChat(message.text);
+        }).toList();
 
         if (candidates.isEmpty) return null;
 
         candidates.sort((a, b) {
           if (requestUpdatedAt != null) {
-            final aDiff = a.time.difference(requestUpdatedAt).abs().inMilliseconds;
-            final bDiff = b.time.difference(requestUpdatedAt).abs().inMilliseconds;
+            final aDiff = a.time
+                .difference(requestUpdatedAt)
+                .abs()
+                .inMilliseconds;
+            final bDiff = b.time
+                .difference(requestUpdatedAt)
+                .abs()
+                .inMilliseconds;
             if (aDiff != bDiff) return aDiff.compareTo(bDiff);
           }
 
@@ -1021,7 +1065,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         }
 
         if (effectiveLockAt != null) {
-          final insideLock = candidates.where((m) => m.time.isBefore(effectiveLockAt)).toList();
+          final insideLock = candidates
+              .where((m) => m.time.isBefore(effectiveLockAt))
+              .toList();
           if (insideLock.isNotEmpty) {
             insideLock.sort((a, b) => a.time.compareTo(b.time));
             return insideLock.last;
@@ -1042,17 +1088,16 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       _ChatMessage? resolveBestInitialRequestMessage() {
         if (!shouldApplyTemporalFiltering) return null;
 
-        final candidates = parsedMessages
-            .where((message) {
-              if (!_isRequestInitialMessageForCurrentChat(message.text)) {
-                return false;
-              }
-              if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) {
-                return false;
-              }
-              return true;
-            })
-            .toList();
+        final candidates = parsedMessages.where((message) {
+          if (!_isRequestInitialMessageForCurrentChat(message.text)) {
+            return false;
+          }
+          if (effectiveLockAt != null &&
+              !message.time.isBefore(effectiveLockAt)) {
+            return false;
+          }
+          return true;
+        }).toList();
 
         if (candidates.isEmpty) return null;
         if (startAt == null) return candidates.last;
@@ -1075,24 +1120,25 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       List<_ChatMessage> visibleMessages;
       if (shouldApplyTemporalFiltering) {
         // Chat com janela temporal definida (solicitação rejeitada com datas específicas)
-        visibleMessages = parsedMessages
-            .where((m) {
-              if (isCancellationMessageForAnotherChat(m.text) && !isForcedCancellation(m)) {
-                return false;
-              }
+        visibleMessages = parsedMessages.where((m) {
+          if (isCancellationMessageForAnotherChat(m.text) &&
+              !isForcedCancellation(m)) {
+            return false;
+          }
 
-              return isWithinWindow(m) ||
-                  isForcedTermination(m) ||
-                  isForcedInitialRequest(m) ||
-                  isForcedCancellation(m);
-            })
-            .toList();
+          return isWithinWindow(m) ||
+              isForcedTermination(m) ||
+              isForcedInitialRequest(m) ||
+              isForcedCancellation(m);
+        }).toList();
 
         final bestInitialMessage = resolveBestInitialRequestMessage();
         if (bestInitialMessage != null) {
           // Mantém apenas UMA mensagem inicial da solicitação atual no ciclo.
           visibleMessages = visibleMessages.where((m) {
-            final isSameInitialType = _isRequestInitialMessageForCurrentChat(m.text);
+            final isSameInitialType = _isRequestInitialMessageForCurrentChat(
+              m.text,
+            );
             if (!isSameInitialType) return true;
             return identical(m, bestInitialMessage);
           }).toList();
@@ -1121,14 +1167,12 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         // deve aparecer no chat deste request, mesmo em casos de lock temporal
         // legado/inconsistente entre ciclos.
         if (widget.requestId != null) {
-          final requiredMarkedTerminations = parsedMessages
-              .where((message) {
-                if (!_isTerminationMessageText(message.text)) return false;
-                if (!_messageMatchesCurrentRequestId(message.text)) return false;
-                if (startAt != null && message.time.isBefore(startAt)) return false;
-                return true;
-              })
-              .toList();
+          final requiredMarkedTerminations = parsedMessages.where((message) {
+            if (!_isTerminationMessageText(message.text)) return false;
+            if (!_messageMatchesCurrentRequestId(message.text)) return false;
+            if (startAt != null && message.time.isBefore(startAt)) return false;
+            return true;
+          }).toList();
 
           for (final message in requiredMarkedTerminations) {
             if (!visibleMessages.contains(message)) {
@@ -1181,14 +1225,17 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         if (message.time.isBefore(startAt)) {
           return false;
         }
-        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) {
+        if (effectiveLockAt != null &&
+            !message.time.isBefore(effectiveLockAt)) {
           return false;
         }
 
         return _isTerminationMessageForCurrentChat(message.text);
       }
 
-      final mustAutoCloseChat = !_effectiveReadOnly && widget.requestId != null &&
+      final mustAutoCloseChat =
+          !_effectiveReadOnly &&
+          widget.requestId != null &&
           parsedMessages.any(isTerminationFromCurrentCycle);
 
       if (mustAutoCloseChat) {
@@ -1216,8 +1263,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final planLabel = plan == 'SEMANAL'
         ? 'Plano Semanal'
         : plan == 'MENSAL'
-            ? 'Plano Mensal'
-            : 'Plano Diário';
+        ? 'Plano Mensal'
+        : 'Plano Diário';
 
     final raw = widget.daysJson;
     if (raw != null && raw.isNotEmpty) {
@@ -1225,30 +1272,33 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         final decoded = jsonDecode(raw) as List<dynamic>;
         final slots = decoded
             .whereType<Map>()
-            .map((s) => {
-                  'dayName': (s['dayName'] ?? '').toString().trim(),
-                  'time': (s['time'] ?? '').toString().trim(),
-                  'dateLabel': (s['dateLabel'] ?? '').toString().trim(),
-                  'dateIso': (s['dateIso'] ?? '').toString().trim(),
-                })
+            .map(
+              (s) => {
+                'dayName': (s['dayName'] ?? '').toString().trim(),
+                'time': (s['time'] ?? '').toString().trim(),
+                'dateLabel': (s['dateLabel'] ?? '').toString().trim(),
+                'dateIso': (s['dateIso'] ?? '').toString().trim(),
+              },
+            )
             .where((s) => s['dayName']!.isNotEmpty && s['time']!.isNotEmpty)
             .toList();
 
         final slotsText = plan == 'MENSAL'
             ? _monthlySummaryLabels(slots, forChat: true).join('\n')
             : slots
-                .map((s) {
-                  final dayName = (s['dayName'] ?? '').toString().trim();
-                  final time = (s['time'] ?? '').toString().trim();
-                  final dateLabel = (s['dateLabel'] ?? '').toString().trim().isNotEmpty
-                      ? (s['dateLabel'] ?? '').toString().trim()
-                      : _fallbackDateLabelForSlot(dayName, time);
-                  if (dateLabel.isNotEmpty) {
-                    return '$dayName $dateLabel às $time';
-                  }
-                  return '$dayName às $time';
-                })
-                .join('\n');
+                  .map((s) {
+                    final dayName = (s['dayName'] ?? '').toString().trim();
+                    final time = (s['time'] ?? '').toString().trim();
+                    final dateLabel =
+                        (s['dateLabel'] ?? '').toString().trim().isNotEmpty
+                        ? (s['dateLabel'] ?? '').toString().trim()
+                        : _fallbackDateLabelForSlot(dayName, time);
+                    if (dateLabel.isNotEmpty) {
+                      return '$dayName $dateLabel às $time';
+                    }
+                    return '$dayName às $time';
+                  })
+                  .join('\n');
         return 'Gostaria de solicitar um $planLabel com os seguintes horários:\n$slotsText';
       } catch (_) {}
     }
@@ -1301,7 +1351,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       );
       if (!mounted) return;
       setState(() {
-        _messages.add(_ChatMessage(text: text, isMe: true, time: DateTime.now()));
+        _messages.add(
+          _ChatMessage(text: text, isMe: true, time: DateTime.now()),
+        );
         _messageCtrl.clear();
       });
       _scrollToBottom();
@@ -1317,11 +1369,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
@@ -1412,7 +1460,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                 backgroundColor: const Color(0xFFB42318),
                 foregroundColor: Colors.white,
               ),
-              onPressed: (selectedReason == null ||
+              onPressed:
+                  (selectedReason == null ||
                       (selectedReason == 'Outro' && explanation.trim().isEmpty))
                   ? null
                   : () => Navigator.pop(context, true),
@@ -1426,9 +1475,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     if (confirmed != true) return;
 
     final isOther = selectedReason == 'Outro';
-    final reason = isOther
-        ? explanation.trim()
-        : (selectedReason ?? '');
+    final reason = isOther ? explanation.trim() : (selectedReason ?? '');
     final details = isOther
         ? null
         : (explanation.trim().isEmpty ? null : explanation.trim());
@@ -1460,7 +1507,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     }
   }
 
-
   // ── Top bar ──────────────────────────────────────────────────────────────
 
   Widget _buildTopBar(String? peerPhotoUrl) {
@@ -1468,9 +1514,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE7EBF3)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE7EBF3))),
         boxShadow: [
           BoxShadow(
             color: Color(0x08000000),
@@ -1512,7 +1556,6 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                         ),
                 ),
               ),
-
             ],
           ),
           const SizedBox(width: 12),
@@ -1528,11 +1571,11 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                     color: Colors.black87,
                   ),
                 ),
-
               ],
             ),
           ),
-          if (widget.showProfileButton && !_hideProfileButtonForBlockedStudent) ...[
+          if (widget.showProfileButton &&
+              !_hideProfileButtonForBlockedStudent) ...[
             IconButton(
               onPressed: () async {
                 if (widget.isTrainerSide) {
@@ -1554,14 +1597,18 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                   Map<String, dynamic>? studentData;
                   if (widget.receiverId != null) {
                     try {
-                      trainerData = await AuthService.getUserById(widget.receiverId!);
+                      trainerData = await AuthService.getUserById(
+                        widget.receiverId!,
+                      );
                     } catch (_) {
                       trainerData = null;
                     }
                   }
                   if (widget.senderId != null) {
                     try {
-                      studentData = await AuthService.getUserById(widget.senderId!);
+                      studentData = await AuthService.getUserById(
+                        widget.senderId!,
+                      );
                     } catch (_) {
                       studentData = null;
                     }
@@ -1571,14 +1618,18 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => TrainerProfileView(
-                        trainerName: (trainerData?['name'] ?? widget.trainerName).toString(),
-                        specialties: (trainerData?['especialidade'] ?? '').toString(),
+                        trainerName:
+                            (trainerData?['name'] ?? widget.trainerName)
+                                .toString(),
+                        specialties: (trainerData?['especialidade'] ?? '')
+                            .toString(),
                         email: trainerData?['email']?.toString(),
                         cref: trainerData?['cref']?.toString(),
                         city: trainerData?['cidade']?.toString(),
                         price: trainerData?['valorHora']?.toString(),
                         bio: trainerData?['bio']?.toString(),
-                        horasPorSessao: trainerData?['horasPorSessao']?.toString(),
+                        horasPorSessao: trainerData?['horasPorSessao']
+                            ?.toString(),
                         trainerId: widget.receiverId,
                         studentId: widget.senderId,
                         studentName: studentData?['name']?.toString(),
@@ -1650,8 +1701,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     final planLabel = plan == 'SEMANAL'
         ? 'Semanal'
         : plan == 'MENSAL'
-            ? 'Mensal'
-            : 'Diário';
+        ? 'Mensal'
+        : 'Diário';
     final (planFg, planBg) = plan == 'SEMANAL'
         ? (const Color(0xFF0B4DBA), const Color(0xFFEEF4FD))
         : plan == 'MENSAL'
@@ -1666,35 +1717,37 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         final decoded = jsonDecode(raw) as List<dynamic>;
         slots = decoded
             .whereType<Map>()
-            .map((s) => {
-                  'dayName': (s['dayName'] ?? '').toString(),
-                  'time': (s['time'] ?? '').toString(),
-                  'dateLabel': (s['dateLabel'] ?? '').toString(),
-                  'dateIso': (s['dateIso'] ?? '').toString(),
-                })
+            .map(
+              (s) => {
+                'dayName': (s['dayName'] ?? '').toString(),
+                'time': (s['time'] ?? '').toString(),
+                'dateLabel': (s['dateLabel'] ?? '').toString(),
+                'dateIso': (s['dateIso'] ?? '').toString(),
+              },
+            )
             .toList();
       } catch (_) {}
     }
     if (slots.isEmpty && widget.dayName.isNotEmpty) {
-      slots = [{'dayName': widget.dayName, 'time': widget.time}];
+      slots = [
+        {'dayName': widget.dayName, 'time': widget.time},
+      ];
     }
 
     final slotLabels = plan == 'MENSAL'
         ? _monthlySummaryLabels(slots, forChat: false)
-        : slots
-            .map((s) {
-              final dayName = (s['dayName'] ?? '').toString().trim();
-              final time = (s['time'] ?? '').toString().trim();
-              final rawDateLabel = (s['dateLabel'] ?? '').toString().trim();
-              final dateLabel = rawDateLabel.isNotEmpty
-                  ? rawDateLabel
-                  : _fallbackDateLabelForSlot(dayName, time);
-              if (dateLabel.isNotEmpty) {
-                return '$dayName $dateLabel  $time';
-              }
-              return '$dayName  $time';
-            })
-            .toList();
+        : slots.map((s) {
+            final dayName = (s['dayName'] ?? '').toString().trim();
+            final time = (s['time'] ?? '').toString().trim();
+            final rawDateLabel = (s['dateLabel'] ?? '').toString().trim();
+            final dateLabel = rawDateLabel.isNotEmpty
+                ? rawDateLabel
+                : _fallbackDateLabelForSlot(dayName, time);
+            if (dateLabel.isNotEmpty) {
+              return '$dayName $dateLabel  $time';
+            }
+            return '$dayName  $time';
+          }).toList();
 
     // Determina o texto baseado em quem está vendo
     final bannerText = widget.isTrainerSide
@@ -1703,83 +1756,96 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxH = (MediaQuery.of(context).size.height * 0.22).clamp(80.0, 140.0);
+        final maxH = (MediaQuery.of(context).size.height * 0.22).clamp(
+          80.0,
+          140.0,
+        );
         return ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxH),
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
             child: Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: planBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: planFg.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.assignment_outlined, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                bannerText,
-                style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+              margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: planBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: planFg.withValues(alpha: 0.25)),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: planFg,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'Plano $planLabel',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.assignment_outlined, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        bannerText,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: planFg,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Plano $planLabel',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: slotLabels
+                              .map(
+                                (label) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: planFg.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: planFg.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: planFg,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: slotLabels
-                    .map((label) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: planFg.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: planFg.withValues(alpha: 0.3)),
-                            ),
-                            child: Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: planFg,
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
+            ),
           ),
         );
       },
@@ -1792,7 +1858,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     if (_loadingMessages) {
       return const Center(
         child: CircularProgressIndicator(
-            color: Color(0xFF0B4DBA), strokeWidth: 2.5),
+          color: Color(0xFF0B4DBA),
+          strokeWidth: 2.5,
+        ),
       );
     }
     if (_messages.isEmpty && !_peerIsTyping) {
@@ -1842,7 +1910,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           decoration: BoxDecoration(
             color: const Color(0xFFFFF7ED),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1884,40 +1954,45 @@ class _TrainerChatViewState extends State<TrainerChatView> {
           Expanded(
             child: CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
-                const SingleActivator(LogicalKeyboardKey.enter): () => _sendMessage(),
+                const SingleActivator(LogicalKeyboardKey.enter): () =>
+                    _sendMessage(),
               },
               child: TextField(
-              controller: _messageCtrl,
-              focusNode: _inputFocusNode,
-              minLines: 1,
-              maxLines: 5,
-              textInputAction: TextInputAction.newline,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'Digite uma mensagem...',
-                hintStyle:
-                    const TextStyle(color: Colors.black38, fontSize: 14),
-                filled: true,
-                fillColor: const Color(0xFFF7F9FD),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE7EBF3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE7EBF3)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF0B4DBA), width: 1.5),
+                controller: _messageCtrl,
+                focusNode: _inputFocusNode,
+                minLines: 1,
+                maxLines: 5,
+                textInputAction: TextInputAction.newline,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'Digite uma mensagem...',
+                  hintStyle: const TextStyle(
+                    color: Colors.black38,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF7F9FD),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(color: Color(0xFFE7EBF3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(color: Color(0xFFE7EBF3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF0B4DBA),
+                      width: 1.5,
+                    ),
+                  ),
                 ),
               ),
-            ),
             ),
           ),
           const SizedBox(width: 10),
@@ -1931,8 +2006,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
               borderRadius: BorderRadius.circular(999),
               child: const Padding(
                 padding: EdgeInsets.all(13),
-                child: Icon(Icons.send_rounded,
-                    color: Colors.white, size: 20),
+                child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
               ),
             ),
           ),
@@ -2046,16 +2120,17 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMe = message.isMe;
     final displayText = message.text
-      .replaceAll(RegExp(r'\s*\[\[REQ:\d+\]\]'), '')
-      .trim();
+        .replaceAll(RegExp(r'\s*\[\[REQ:\d+\]\]'), '')
+        .trim();
     final timeStr =
         '${message.time.hour.toString().padLeft(2, '0')}:${message.time.minute.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Avatar do personal (esquerda)
