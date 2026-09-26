@@ -549,9 +549,21 @@ class _StudentDashboardState extends State<StudentDashboard>
     final normalizedCandidateTime = _normalizeTimeValue(candidateTime);
     final anchor = _requestAnchor(req);
     final firstSession = _firstSessionStartAt(req);
-    final monthlyEnd = firstSession != null
-        ? _addOneMonthKeepingDay(firstSession).subtract(const Duration(days: 1))
-        : null;
+    final monthlyEnd = firstSession == null
+        ? null
+        : (() {
+            final cycleEndDate = _addOneMonthKeepingDay(
+              firstSession,
+            ).subtract(const Duration(days: 1));
+            return DateTime(
+              cycleEndDate.year,
+              cycleEndDate.month,
+              cycleEndDate.day,
+              23,
+              59,
+              59,
+            );
+          })();
 
     for (final slot in slots) {
       final day = _normalizeDayName((slot['dayName'] ?? '').toString());
@@ -3395,9 +3407,17 @@ class _ApprovedTrainerItem extends StatelessWidget {
     DateTime? lastSession;
 
     if (isMonthly) {
-      final cycleEnd = _addOneMonthKeepingDay(
+      final cycleEndDate = _addOneMonthKeepingDay(
         planBase,
       ).subtract(const Duration(days: 1));
+      final cycleEnd = DateTime(
+        cycleEndDate.year,
+        cycleEndDate.month,
+        cycleEndDate.day,
+        23,
+        59,
+        59,
+      );
       for (final slot in recurringSlots) {
         final weekday = _weekdayFromPt((slot['dayName'] ?? '').toString());
         final hm = _parseHourMinute((slot['time'] ?? '').toString());

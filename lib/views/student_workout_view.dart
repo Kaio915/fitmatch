@@ -548,9 +548,17 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
 
     final planType = (req['planType'] ?? '').toString().toUpperCase();
     if (planType == 'MENSAL' && firstDate != null && patternByKey.isNotEmpty) {
-      final windowEnd = _addOneMonthKeepingDay(
+      final cycleEndDate = _addOneMonthKeepingDay(
         firstDate,
       ).subtract(const Duration(days: 1));
+      final windowEnd = DateTime(
+        cycleEndDate.year,
+        cycleEndDate.month,
+        cycleEndDate.day,
+        23,
+        59,
+        59,
+      );
       DateTime? lastDate;
       String lastTime = '';
 

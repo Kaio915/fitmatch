@@ -379,9 +379,17 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(
+    final cycleEndDate = _addOneMonthKeepingDay(
       firstAt,
     ).subtract(const Duration(days: 1));
+    final windowEnd = DateTime(
+      cycleEndDate.year,
+      cycleEndDate.month,
+      cycleEndDate.day,
+      23,
+      59,
+      59,
+    );
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {

@@ -1136,9 +1136,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final windowEnd = _addOneMonthKeepingDay(
+      final cycleEndDate = _addOneMonthKeepingDay(
         firstSession,
       ).subtract(const Duration(days: 1));
+      final windowEnd = DateTime(
+        cycleEndDate.year,
+        cycleEndDate.month,
+        cycleEndDate.day,
+        23,
+        59,
+        59,
+      );
       final slots = _extractRequestSlots(req);
       for (final slot in slots) {
         final weekday = _weekdayFromPtForFallback(
@@ -1173,9 +1181,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final windowEnd = _addOneMonthKeepingDay(
+      final cycleEndDate = _addOneMonthKeepingDay(
         firstSession,
       ).subtract(const Duration(days: 1));
+      final windowEnd = DateTime(
+        cycleEndDate.year,
+        cycleEndDate.month,
+        cycleEndDate.day,
+        23,
+        59,
+        59,
+      );
       final slots = _extractRequestSlots(req);
 
       for (final slot in slots) {
@@ -1485,9 +1501,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(
+    final cycleEndDate = _addOneMonthKeepingDay(
       firstAt,
     ).subtract(const Duration(days: 1));
+    final windowEnd = DateTime(
+      cycleEndDate.year,
+      cycleEndDate.month,
+      cycleEndDate.day,
+      23,
+      59,
+      59,
+    );
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -5324,9 +5348,17 @@ class _RequestRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(
+    final cycleEndDate = _addOneMonthKeepingDay(
       firstAt,
     ).subtract(const Duration(days: 1));
+    final windowEnd = DateTime(
+      cycleEndDate.year,
+      cycleEndDate.month,
+      cycleEndDate.day,
+      23,
+      59,
+      59,
+    );
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
@@ -6274,9 +6306,17 @@ class _StudentRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(
+    final cycleEndDate = _addOneMonthKeepingDay(
       firstAt,
     ).subtract(const Duration(days: 1));
+    final windowEnd = DateTime(
+      cycleEndDate.year,
+      cycleEndDate.month,
+      cycleEndDate.day,
+      23,
+      59,
+      59,
+    );
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {

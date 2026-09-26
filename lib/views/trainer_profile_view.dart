@@ -567,9 +567,19 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
 
     if (firstStart == null) return null;
+    final cycleEndDate = _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
     return (
       start: firstStart,
-      end: _addOneMonthKeepingDay(firstStart).subtract(const Duration(days: 1)),
+      end: DateTime(
+        cycleEndDate.year,
+        cycleEndDate.month,
+        cycleEndDate.day,
+        23,
+        59,
+        59,
+      ),
     );
   }
 
@@ -1011,9 +1021,17 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     );
     final first = parsed.first;
     final firstDate = first['date'] as DateTime;
-    final windowEnd = _addOneMonthKeepingDay(
+    final cycleEndDate = _addOneMonthKeepingDay(
       firstDate,
     ).subtract(const Duration(days: 1));
+    final windowEnd = DateTime(
+      cycleEndDate.year,
+      cycleEndDate.month,
+      cycleEndDate.day,
+      23,
+      59,
+      59,
+    );
 
     final patterns = <String, Map<String, dynamic>>{};
     for (final item in parsed) {
