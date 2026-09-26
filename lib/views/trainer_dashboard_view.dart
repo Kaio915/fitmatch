@@ -445,8 +445,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }) {
     final slots = _extractRequestSlots(req);
     final anchorIso = (req['approvedAt'] ?? req['createdAt'] ?? '').toString();
+    final normalizedPlanType = (req['planType'] ?? '')
+        .toString()
+        .trim()
+        .toUpperCase();
     final isMonthly =
-        (req['planType'] ?? '').toString().toUpperCase() == 'MENSAL';
+        normalizedPlanType == 'MENSAL' || normalizedPlanType.contains('MENSAL');
     final slotsText = isMonthly
         ? _requestSlotLabelsForAgenda(
             req,
@@ -1410,11 +1414,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   List<String> _requestSlotLabelsForAgenda(Map<String, dynamic> req) {
-    final planType = (req['planType'] ?? 'DIARIO').toString().toUpperCase();
+    final planType = (req['planType'] ?? 'DIARIO')
+        .toString()
+        .trim()
+        .toUpperCase();
     final slots = _extractRequestSlots(req);
     if (slots.isEmpty) return const [];
 
-    if (planType != 'MENSAL') {
+    if (planType != 'MENSAL' && !planType.contains('MENSAL')) {
       return slots.map((slot) {
         final dayName = (slot['dayName'] ?? '').toString().trim();
         final time = (slot['time'] ?? '').toString().trim();
