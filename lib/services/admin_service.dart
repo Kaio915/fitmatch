@@ -229,6 +229,17 @@ class AdminService {
     return jsonDecode(res.body);
   }
 
+  // ✅ Liberar usuário reportado (sai da lista de reportados)
+  static Future<void> releaseReportedUser(int reportedUserId) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/reports/$reportedUserId/release'),
+      headers: await AuthService.authHeaders(),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
   // ✅ Denunciar um usuário ao admin (usado por aluno/personal no chat)
   static Future<void> reportUser({
     required int reporterId,

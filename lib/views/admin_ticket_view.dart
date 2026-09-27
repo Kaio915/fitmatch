@@ -11,7 +11,18 @@ class AdminTicketView extends StatefulWidget {
   final Map<String, dynamic> user;
   final bool readOnly;
 
-  const AdminTicketView({super.key, required this.user, this.readOnly = false});
+  // Quando verdadeiro, mantém o chat aberto para leitura mas desativa o envio
+  // de mensagens (usado na tela de usuários reportados, onde não pode haver
+  // troca de mensagens). Diferente de readOnly, não altera o carregamento das
+  // mensagens nem esconde as ações de moderação.
+  final bool blockMessaging;
+
+  const AdminTicketView({
+    super.key,
+    required this.user,
+    this.readOnly = false,
+    this.blockMessaging = false,
+  });
 
   @override
   State<AdminTicketView> createState() => _AdminTicketViewState();
@@ -852,6 +863,33 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                   ],
                 ),
               ),
+            if (widget.blockMessaging && !widget.readOnly)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: .3),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFFB45309)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Mensagens desativadas',
+                      style: TextStyle(
+                        color: Color(0xFFB45309),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -1308,7 +1346,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                   ),
                 )
                 .toList(),
-            onChanged: widget.readOnly
+            onChanged: (widget.readOnly || widget.blockMessaging)
                 ? null
                 : (v) {
                     if (v == null) return;
@@ -1343,13 +1381,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           Expanded(
             child: TextField(
               controller: _msgController,
-              enabled: !widget.readOnly,
+              enabled: !widget.readOnly && !widget.blockMessaging,
               minLines: 1,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: widget.readOnly
                     ? 'Somente leitura'
-                    : 'Escreva uma mensagem para o usuário...',
+                    : widget.blockMessaging
+                        ? 'Mensagens desativadas'
+                        : 'Escreva uma mensagem para o usuário...',
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -1362,7 +1402,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           SizedBox(
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: widget.readOnly ? null : _sendMessage,
+              onPressed: (widget.readOnly || widget.blockMessaging) ? null : _sendMessage,
               icon: const Icon(Icons.send),
               label: const Text('Enviar'),
               style: ElevatedButton.styleFrom(

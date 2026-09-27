@@ -1,18 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../core/date_utils.dart';
 import '../services/admin_service.dart';
 import 'admin_ticket_view.dart';
-
-const List<String> _reportExclusionReasons = [
-  'Informações falsas ou fraudulentas no cadastro.',
-  'Comportamento inadequado com outros usuários.',
-  'Tentativa de fraude ou golpe.',
-  'Conta duplicada.',
-  'Uso indevido da plataforma (spam/propaganda).',
-];
-
-const String _otherExclusionReason = 'Outro';
 
 class AdminReportedUsersView extends StatefulWidget {
   const AdminReportedUsersView({super.key});
@@ -125,112 +118,59 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
   void _openChat(Map<String, dynamic> u) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AdminTicketView(user: u),
+        builder: (_) => AdminTicketView(user: u, blockMessaging: true),
       ),
     );
   }
 
-  Future<void> _confirmExclude(Map<String, dynamic> user) async {
+  Future<void> _confirmRelease(Map<String, dynamic> user) async {
     final id = user['id'];
     if (id is! int) return;
 
     final name = (user['name'] ?? 'Usuário').toString();
 
-    String? selectedReason;
-    String otherReason = '';
-
-    final shouldExclude = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
-          builder: (context) => StatefulBuilder(
-            builder: (context, setDialogState) => AlertDialog(
-              title: const Text('Excluir conta'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tem certeza que deseja excluir a conta de $name?\n'
-                      'O usuário não conseguirá mais fazer login.',
-                    ),
-                    const SizedBox(height: 16),
-                    for (final reason in _reportExclusionReasons)
-                      RadioListTile<String>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(reason),
-                        value: reason,
-                        groupValue: selectedReason,
-                        onChanged: (v) =>
-                            setDialogState(() => selectedReason = v),
-                      ),
-                    RadioListTile<String>(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Outro'),
-                      value: _otherExclusionReason,
-                      groupValue: selectedReason,
-                      onChanged: (v) =>
-                          setDialogState(() => selectedReason = v),
-                    ),
-                    if (selectedReason == _otherExclusionReason)
-                      TextField(
-                        autofocus: true,
-                        onChanged: (v) => setDialogState(() => otherReason = v),
-                        decoration: const InputDecoration(
-                          hintText: 'Descreva o motivo',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed:
-                      _canConfirmExclusion(selectedReason, otherReason)
-                          ? () => Navigator.pop(context, true)
-                          : null,
-                  child: const Text('Excluir conta'),
-                ),
-              ],
+          builder: (ctx) => AlertDialog(
+            title: const Text('Liberar usuário'),
+            content: Text(
+              'Tem certeza que deseja liberar $name?\n\n'
+              'O usuário sairá da lista de reportados e continuará usando o '
+              'app normalmente.',
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF15803D),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Liberar'),
+              ),
+            ],
           ),
         ) ??
         false;
 
-    if (!shouldExclude) return;
-
-    final finalReason = selectedReason == _otherExclusionReason
-        ? otherReason.trim()
-        : (selectedReason ?? '').trim();
+    if (!confirmed) return;
 
     setState(() => _busyIds.add(id));
     try {
-      await AdminService.excludeAccount(id, reason: finalReason);
+      await AdminService.releaseReportedUser(id);
       await _load();
-      _showSnack('Conta excluída com sucesso.');
-    } catch (_) {
-      _showSnack('Não foi possível excluir a conta.', error: true);
+      _showSnack('Usuário liberado com sucesso.');
+    } catch (e) {
+      _showSnack(
+        'Não foi possível liberar: ${e.toString().replaceFirst('Exception: ', '')}',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _busyIds.remove(id));
     }
-  }
-
-  bool _canConfirmExclusion(String? selectedReason, String otherReason) {
-    if (selectedReason == null) return false;
-    if (selectedReason == _otherExclusionReason) {
-      return otherReason.trim().isNotEmpty;
-    }
-    return true;
   }
 
   Future<void> _confirmBan(Map<String, dynamic> user) async {
@@ -324,53 +264,6 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
       _showSnack('Usuário desbanido com sucesso.');
     } catch (_) {
       _showSnack('Não foi possível desbanir o usuário.', error: true);
-    } finally {
-      if (mounted) setState(() => _busyIds.remove(id));
-    }
-  }
-
-  Future<void> _confirmDelete(Map<String, dynamic> user) async {
-    final id = user['id'];
-    if (id is! int) return;
-
-    final name = (user['name'] ?? 'Usuário').toString();
-
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Excluir usuário'),
-            content: Text(
-              'Tem certeza que deseja excluir $name?\n\n'
-              'Essa ação não poderá ser desfeita. O usuário será removido e o '
-              'histórico de conversa também será apagado.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Excluir'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!confirmed) return;
-
-    setState(() => _busyIds.add(id));
-    try {
-      await AdminService.deleteUser(id);
-      await _load();
-      _showSnack('Usuário excluído com sucesso.');
-    } catch (_) {
-      _showSnack('Não foi possível excluir o usuário.', error: true);
     } finally {
       if (mounted) setState(() => _busyIds.remove(id));
     }
@@ -619,14 +512,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     final deleted = (u['deleted'] == true) || status == 'DELETED';
     final isNew = (u['new'] == true);
     final name = (u['name'] ?? '').toString().trim();
-    final avatarLetter =
-        name.isEmpty ? '?' : name.characters.first.toUpperCase();
-    final lastReportAt =
-        formatIsoDateToPtBr((u['lastReportAt'] ?? '').toString());
-    final reportCount =
-        (u['reportCount'] is num) ? (u['reportCount'] as num).toInt() : 0;
-    final reason = (u['lastReportReason'] ?? '').toString().trim();
-    final details = (u['lastReportDetails'] ?? '').toString().trim();
+    final reports = (u['reports'] as List?) ?? const <dynamic>[];
     final isBusy = id != null && _busyIds.contains(id);
 
     final statusLabel = banned
@@ -659,18 +545,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: const Color(0xFFE6EEFF),
-            child: Text(
-              avatarLetter,
-              style: const TextStyle(
-                color: Color(0xFF0B4DBA),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
+          _avatar(u, name),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -717,36 +592,26 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
-                  'Denunciado em: $lastReportAt'
-                  '${reportCount > 0 ? '  •  $reportCount denúncia(s)' : ''}',
+                  '${reports.length} denúncia(s)',
                   style: const TextStyle(
                     color: Color(0xFF98A2B3),
-                    fontSize: 14,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (reason.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Motivo: $reason',
-                    style: const TextStyle(
-                      color: Color(0xFFB42318),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-                if (details.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Detalhes: $details',
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 8),
+                if (reports.isEmpty)
+                  const Text(
+                    'Nenhuma denúncia registrada.',
+                    style: TextStyle(color: Color(0xFF98A2B3), fontSize: 14),
+                  )
+                else
+                  for (final r in reports) ...[
+                    _reportItem(Map<String, dynamic>.from(r as Map)),
+                    const SizedBox(height: 8),
+                  ],
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
@@ -764,10 +629,10 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                       )
                     else ...[
                       _actionButton(
-                        label: 'Excluir conta',
-                        icon: Icons.person_off_outlined,
-                        color: const Color(0xFFB42318),
-                        onTap: id == null ? () {} : () => _confirmExclude(u),
+                        label: 'Liberar usuário',
+                        icon: Icons.check_circle_outline,
+                        color: const Color(0xFF15803D),
+                        onTap: id == null ? () {} : () => _confirmRelease(u),
                       ),
                       if (banned)
                         _actionButton(
@@ -783,18 +648,6 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                           color: const Color(0xFF7F1D1D),
                           onTap: id == null ? () {} : () => _confirmBan(u),
                         ),
-                      InkWell(
-                        onTap: id == null ? null : () => _confirmDelete(u),
-                        borderRadius: BorderRadius.circular(999),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.delete_outline,
-                            size: 22,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
                     ],
                   ],
                 ),
@@ -818,6 +671,147 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Mostra a foto (base64) como avatar, com fallback para a inicial do nome.
+  Widget _avatar(Map<String, dynamic> u, String name) {
+    final base64 = (u['photoBase64'] ?? '').toString();
+
+    if (base64.isNotEmpty) {
+      try {
+        final Uint8List bytes = base64Decode(base64);
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: MemoryImage(bytes),
+        );
+      } catch (_) {
+        // base64 inválido → usa a inicial abaixo
+      }
+    }
+
+    final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: const Color(0xFFE6EEFF),
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Color(0xFF0B4DBA),
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+    );
+  }
+
+  String _formatReportTimestamp(String? iso) {
+    if (iso == null || iso.isEmpty) return '-';
+    final date = formatIsoDateToPtBr(iso);
+    final match = RegExp(r'T(\d{2}:\d{2})').firstMatch(iso);
+    final time = match?.group(1);
+    return time == null ? date : '$date $time';
+  }
+
+  Widget _reportItem(Map<String, dynamic> r) {
+    final resolved = (r['resolved'] == true);
+    final reporterName = (r['reporterName'] ?? '').toString().trim();
+    final reason = (r['reason'] ?? '').toString().trim();
+    final details = (r['details'] ?? '').toString().trim();
+    final createdAt = _formatReportTimestamp((r['createdAt'] ?? '').toString());
+    final resolvedAt = _formatReportTimestamp((r['resolvedAt'] ?? '').toString());
+
+    final color = resolved ? const Color(0xFF667085) : const Color(0xFFB42318);
+    final badgeColor = resolved ? const Color(0xFF94A3B8) : const Color(0xFFF59E0B);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: resolved ? const Color(0xFFF8FAFC) : const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: resolved ? const Color(0xFFE2E8F0) : const Color(0xFFFECACA),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                resolved
+                    ? Icons.check_circle_outline
+                    : Icons.report_gmailerrorred,
+                size: 16,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  resolved ? 'Denúncia antiga (liberada)' : 'Denúncia nova',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  resolved ? 'Antigo' : 'Novo',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Denunciado por: ${reporterName.isEmpty ? 'Usuário removido' : reporterName}',
+            style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Data: $createdAt',
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+          ),
+          if (reason.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Motivo: $reason',
+              style: const TextStyle(
+                color: Color(0xFFB42318),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Detalhes: $details',
+              style: const TextStyle(color: Color(0xFF475569), fontSize: 13),
+            ),
+          ],
+          if (resolved && resolvedAt != '-') ...[
+            const SizedBox(height: 2),
+            Text(
+              'Liberado em: $resolvedAt',
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+            ),
+          ],
         ],
       ),
     );
