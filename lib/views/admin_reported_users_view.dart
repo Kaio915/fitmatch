@@ -814,14 +814,21 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
 
   Widget _reportItem(Map<String, dynamic> r) {
     final resolved = (r['resolved'] == true);
+    final isNew = !resolved && r['seen'] != true;
     final reporterEmail = (r['reporterEmail'] ?? '').toString().trim();
     final reason = (r['reason'] ?? '').toString().trim();
     final details = (r['details'] ?? '').toString().trim();
     final createdAt = _formatReportTimestamp((r['createdAt'] ?? '').toString());
     final resolvedAt = _formatReportTimestamp((r['resolvedAt'] ?? '').toString());
 
-    final color = resolved ? const Color(0xFF667085) : const Color(0xFFB42318);
-    final badgeColor = resolved ? const Color(0xFF94A3B8) : const Color(0xFFF59E0B);
+    final color = resolved
+      ? const Color(0xFF667085)
+      : isNew
+        ? const Color(0xFFB42318)
+        : const Color(0xFF667085);
+    final badgeColor = resolved || !isNew
+      ? const Color(0xFF94A3B8)
+      : const Color(0xFFF59E0B);
 
     return Container(
       width: double.infinity,
@@ -864,7 +871,11 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  resolved ? 'Antigo' : 'Novo',
+                  resolved
+                      ? 'Liberada'
+                      : isNew
+                          ? 'Novo'
+                          : 'Antigo',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
