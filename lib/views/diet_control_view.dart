@@ -1558,7 +1558,7 @@ class _DietControlViewState extends State<DietControlView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Os valores serão convertidos automaticamente para 100 g.',
+                    'Os valores serão convertidos automaticamente quando você colocar a quantidade de gramas.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
