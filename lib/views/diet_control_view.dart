@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_refresh_notifier.dart';
@@ -1458,21 +1459,18 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
-    const defaultQuantity = 100.0;
-
     final nameCtrl = TextEditingController(text: (existing?['name'] ?? '').toString());
-    final quantityCtrl = TextEditingController(text: defaultQuantity.toStringAsFixed(0));
     final kcalTotalCtrl = TextEditingController(
-      text: existing == null ? '' : _toDouble(existing['caloriesPer100g']).toStringAsFixed(1),
+      text: existing == null ? '' : (_toDouble(existing['caloriesPer100g']) / 100).toStringAsFixed(2),
     );
     final proteinTotalCtrl = TextEditingController(
-      text: existing == null ? '' : _toDouble(existing['proteinPer100g']).toStringAsFixed(1),
+      text: existing == null ? '' : (_toDouble(existing['proteinPer100g']) / 100).toStringAsFixed(2),
     );
     final carbsTotalCtrl = TextEditingController(
-      text: existing == null ? '' : _toDouble(existing['carbsPer100g']).toStringAsFixed(1),
+      text: existing == null ? '' : (_toDouble(existing['carbsPer100g']) / 100).toStringAsFixed(2),
     );
     final fatTotalCtrl = TextEditingController(
-      text: existing == null ? '' : _toDouble(existing['fatPer100g']).toStringAsFixed(1),
+      text: existing == null ? '' : (_toDouble(existing['fatPer100g']) / 100).toStringAsFixed(2),
     );
 
     final bool favorite = existing?['favorite'] == true;
@@ -1491,7 +1489,7 @@ class _DietControlViewState extends State<DietControlView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Adicione um alimento que não está na lista. Informe a quantidade específica e os valores totais daquela quantidade.',
+                    'Adicione um alimento que não está na lista. Pesquise a informação nutricional e informe quanto existe em 1 g do alimento.',
                     style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
                   ),
                   const SizedBox(height: 12),
@@ -1505,32 +1503,17 @@ class _DietControlViewState extends State<DietControlView> {
                   ),
                   const SizedBox(height: 10),
                   TextField(
-                    controller: quantityCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Quantidade em Gramas',
-                      hintText: 'Ex: 200 ou 200,5',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'A quantidade específica que você quer registrar',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
                     controller: kcalTotalCtrl,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
-                      labelText: 'Calorias Totais',
-                      hintText: 'Ex: 830 ou 830,5',
+                      labelText: 'Calorias em 1 g',
+                      hintText: 'Ex: 1,30',
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Calorias totais desses Xg',
+                    'Pesquise quantas calorias existem em 1 g desse alimento.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 10),
@@ -1541,8 +1524,8 @@ class _DietControlViewState extends State<DietControlView> {
                           controller: proteinTotalCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
-                            labelText: 'Proteína (g)',
-                            hintText: 'Ex: 15,5',
+                            labelText: 'Proteína em 1 g',
+                            hintText: 'Ex: 0,03',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -1553,8 +1536,8 @@ class _DietControlViewState extends State<DietControlView> {
                           controller: carbsTotalCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
-                            labelText: 'Carboidratos (g)',
-                            hintText: 'Ex: 112',
+                            labelText: 'Carboidratos em 1 g',
+                            hintText: 'Ex: 0,28',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -1565,8 +1548,8 @@ class _DietControlViewState extends State<DietControlView> {
                           controller: fatTotalCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
-                            labelText: 'Gordura (g)',
-                            hintText: 'Ex: 0,6',
+                            labelText: 'Gordura em 1 g',
+                            hintText: 'Ex: 0,01',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -1575,7 +1558,7 @@ class _DietControlViewState extends State<DietControlView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Total desses Xg',
+                    'Os valores serão convertidos automaticamente para 100 g.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
@@ -1594,34 +1577,33 @@ class _DietControlViewState extends State<DietControlView> {
               ),
               onPressed: () async {
                 final name = nameCtrl.text.trim();
-                final qty = _tryParseNumber(quantityCtrl.text);
-                final kcalTotal = _tryParseNumber(kcalTotalCtrl.text);
-                final proteinTotal = _tryParseNumber(proteinTotalCtrl.text);
-                final carbsTotal = _tryParseNumber(carbsTotalCtrl.text);
-                final fatTotal = _tryParseNumber(fatTotalCtrl.text);
+                final kcalPerGram = _tryParseNumber(kcalTotalCtrl.text);
+                final proteinPerGram = _tryParseNumber(proteinTotalCtrl.text);
+                final carbsPerGram = _tryParseNumber(carbsTotalCtrl.text);
+                final fatPerGram = _tryParseNumber(fatTotalCtrl.text);
 
                 if (name.isEmpty ||
-                    qty == null ||
-                    kcalTotal == null ||
-                    proteinTotal == null ||
-                    carbsTotal == null ||
-                    fatTotal == null ||
-                    qty <= 0) {
+                    kcalPerGram == null ||
+                    proteinPerGram == null ||
+                    carbsPerGram == null ||
+                    fatPerGram == null ||
+                    kcalPerGram < 0 ||
+                    proteinPerGram < 0 ||
+                    carbsPerGram < 0 ||
+                    fatPerGram < 0) {
                   _showSnack('Preencha todos os campos corretamente.');
                   return;
                 }
-
-                final factor = 100 / qty;
 
                 try {
                   if (existing == null) {
                     await AuthService.createDietFood(
                       userId: widget.userId,
                       name: name,
-                      caloriesPer100g: kcalTotal * factor,
-                      proteinPer100g: proteinTotal * factor,
-                      carbsPer100g: carbsTotal * factor,
-                      fatPer100g: fatTotal * factor,
+                      caloriesPer100g: kcalPerGram * 100,
+                      proteinPer100g: proteinPerGram * 100,
+                      carbsPer100g: carbsPerGram * 100,
+                      fatPer100g: fatPerGram * 100,
                       favorite: favorite,
                     );
                   } else {
@@ -1629,10 +1611,10 @@ class _DietControlViewState extends State<DietControlView> {
                       userId: widget.userId,
                       foodId: _toInt(existing['id']),
                       name: name,
-                      caloriesPer100g: kcalTotal * factor,
-                      proteinPer100g: proteinTotal * factor,
-                      carbsPer100g: carbsTotal * factor,
-                      fatPer100g: fatTotal * factor,
+                      caloriesPer100g: kcalPerGram * 100,
+                      proteinPer100g: proteinPerGram * 100,
+                      carbsPer100g: carbsPerGram * 100,
+                      fatPer100g: fatPerGram * 100,
                       favorite: favorite,
                     );
                   }
@@ -1811,6 +1793,10 @@ class _DietControlViewState extends State<DietControlView> {
     final weightCtrl = TextEditingController();
     final heightCtrl = TextEditingController();
     final ageCtrl = TextEditingController();
+    final heightMask = MaskTextInputFormatter(
+      mask: '0,00',
+      filter: {'0': RegExp(r'[0-9]')},
+    );
 
     String? selectedSex;
     String? selectedActivity;
@@ -1858,8 +1844,10 @@ class _DietControlViewState extends State<DietControlView> {
                         child: TextField(
                           controller: heightCtrl,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [heightMask],
                           decoration: const InputDecoration(
-                            labelText: 'Altura (cm)',
+                            labelText: 'Altura (m)',
+                            hintText: 'Ex: 1,75',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -1916,10 +1904,12 @@ class _DietControlViewState extends State<DietControlView> {
               ),
               onPressed: () async {
                 final weight = _tryParseNumber(weightCtrl.text);
-                final height = _tryParseNumber(heightCtrl.text);
+                final heightInMeters = _tryParseNumber(heightCtrl.text);
+                final height = heightInMeters == null ? null : heightInMeters * 100;
                 final age = _tryParseNumber(ageCtrl.text);
                 if (weight == null ||
                     height == null ||
+                  height <= 0 ||
                     age == null ||
                     selectedSex == null ||
                     selectedActivity == null) {
