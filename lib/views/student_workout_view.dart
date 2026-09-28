@@ -15,12 +15,14 @@ class StudentWorkoutView extends StatefulWidget {
   final int studentId;
   final int trainerId;
   final String trainerName;
+  final String? selectedRequestId;
 
   const StudentWorkoutView({
     super.key,
     required this.studentId,
     required this.trainerId,
     required this.trainerName,
+    this.selectedRequestId,
   });
 
   @override
@@ -1247,8 +1249,15 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
   Widget build(BuildContext context) {
     final unassignedPlans = List<Map<String, dynamic>>.from(_plans);
     final panelModels = <Map<String, dynamic>>[];
+    final selectedRequestId = widget.selectedRequestId?.trim();
+    final requestsForDisplay = selectedRequestId == null || selectedRequestId.isEmpty
+        ? _approvedRequestPlans
+        : _approvedRequestPlans.where((request) {
+            return (request['id'] ?? request['requestId'] ?? '').toString() ==
+                selectedRequestId;
+          }).toList();
 
-    for (final req in _approvedRequestPlans) {
+    for (final req in requestsForDisplay) {
       final requestSlots = _requestSlotsFromRequest(req);
       final slotKeys = requestSlots
           .map(
@@ -1292,7 +1301,8 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       });
     }
 
-    if (unassignedPlans.isNotEmpty) {
+    if ((selectedRequestId == null || selectedRequestId.isEmpty) &&
+      unassignedPlans.isNotEmpty) {
       panelModels.add({
         'key': 'legacy',
         'request': null,

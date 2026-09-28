@@ -1223,8 +1223,7 @@ class _TrainerWorkoutOrganizerViewState
       if (targetContext == null) return;
       Scrollable.ensureVisible(
         targetContext,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
+        duration: Duration.zero,
         alignment: 0.08,
       );
     });
@@ -1571,7 +1570,6 @@ class _TrainerWorkoutOrganizerViewState
                 padding: const EdgeInsets.all(16),
                 children: [
                   _sectionCard(
-                    key: _workoutBuilderKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1694,6 +1692,7 @@ class _TrainerWorkoutOrganizerViewState
                   ),
                   const SizedBox(height: 12),
                   _sectionCard(
+                    key: _workoutBuilderKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

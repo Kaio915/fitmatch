@@ -3837,6 +3837,9 @@ class _ApprovedTrainerItem extends StatelessWidget {
                                         studentId: studentId!,
                                         trainerId: planTrainerId,
                                         trainerName: trainerName,
+                                        selectedRequestId:
+                                            (plan['id'] ?? plan['requestId'])
+                                                ?.toString(),
                                       ),
                                     ),
                                   );
