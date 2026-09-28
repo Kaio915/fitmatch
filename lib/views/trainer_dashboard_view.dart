@@ -4862,6 +4862,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                       studentBlocked: _blockedStudentIds.contains(
                         int.tryParse((req['studentId'] ?? '').toString()) ?? -1,
                       ),
+                      studentBanned: (req['banned'] ?? false) == true,
                       planType: (req['planType'] ?? 'DIARIO').toString(),
                       daysJson: req['daysJson']?.toString(),
                       approvedAtIso: req['approvedAt']?.toString(),
@@ -5098,6 +5099,7 @@ class _RequestRow extends StatelessWidget {
   final String time;
   final String status;
   final bool studentBlocked;
+  final bool studentBanned;
   final String planType;
   final String? daysJson;
   final String? approvedAtIso;
@@ -5118,6 +5120,7 @@ class _RequestRow extends StatelessWidget {
     required this.time,
     this.status = 'PENDING',
     this.studentBlocked = false,
+    this.studentBanned = false,
     this.planType = 'DIARIO',
     this.daysJson,
     this.approvedAtIso,
@@ -5713,42 +5716,74 @@ class _RequestRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
-                  icon: Icon(
-                    studentBlocked
-                        ? Icons.lock_open_rounded
-                        : Icons.block_outlined,
-                    size: 14,
-                  ),
-                  label: Text(
-                    studentBlocked ? 'Desbloquear aluno' : 'Bloquear aluno',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: studentBlocked
-                        ? const Color(0xFF0B4DBA)
-                        : const Color(0xFFB91C1C),
-                    backgroundColor: studentBlocked
-                        ? const Color(0xFFEFF6FF)
-                        : const Color(0xFFFEF2F2),
-                    side: BorderSide(
-                      color: studentBlocked
-                          ? const Color(0xFF93C5FD)
-                          : const Color(0xFFFCA5A5),
-                    ),
+                if (studentBanned)
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 9,
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    shape: RoundedRectangleBorder(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.block_rounded,
+                          size: 14,
+                          color: Color(0xFFB91C1C),
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          'Banido',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFB91C1C),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
+                    icon: Icon(
+                      studentBlocked
+                          ? Icons.lock_open_rounded
+                          : Icons.block_outlined,
+                      size: 14,
+                    ),
+                    label: Text(
+                      studentBlocked ? 'Desbloquear aluno' : 'Bloquear aluno',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: studentBlocked
+                          ? const Color(0xFF0B4DBA)
+                          : const Color(0xFFB91C1C),
+                      backgroundColor: studentBlocked
+                          ? const Color(0xFFEFF6FF)
+                          : const Color(0xFFFEF2F2),
+                      side: BorderSide(
+                        color: studentBlocked
+                            ? const Color(0xFF93C5FD)
+                            : const Color(0xFFFCA5A5),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -5847,7 +5882,7 @@ class _RequestRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (isPending)
+                if (isPending && !studentBanned)
                   OutlinedButton.icon(
                     onPressed: onReject,
                     icon: const Icon(Icons.close_rounded, size: 15),
@@ -5868,7 +5903,7 @@ class _RequestRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (isPending)
+                if (isPending && !studentBanned)
                   ElevatedButton.icon(
                     onPressed: onConfirm,
                     icon: const Icon(Icons.check_rounded, size: 16),
