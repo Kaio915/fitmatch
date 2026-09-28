@@ -3499,6 +3499,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           'allowedWorkoutDaysItems': <String>{},
           'allowedWorkoutSlotItems': <String>{},
           'allowedWorkoutSlots': <Map<String, String>>[],
+          'allowedWorkoutPlans': <Map<String, dynamic>>[],
           'latestPlanAt': null,
         };
       }
@@ -3522,6 +3523,19 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         final key = '${slot['dayName']}|${slot['time']}';
         if (!allowedSlotItems.add(key)) continue;
         allowedSlots.add(slot);
+      }
+
+      final allowedPlans =
+          entry['allowedWorkoutPlans'] as List<Map<String, dynamic>>;
+      final requestId = row['requestId'] ?? row['id'];
+      if (!allowedPlans.any((plan) => plan['requestId'] == requestId)) {
+        allowedPlans.add({
+          'requestId': requestId,
+          'planType': row['planType'],
+          'dayName': row['dayName'],
+          'time': row['time'],
+          'daysJson': row['daysJson'],
+        });
       }
 
       final rowDate =
@@ -3555,6 +3569,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         'plansSummary': items.join(' • '),
         'allowedWorkoutDays': workoutDays,
         'allowedWorkoutSlots': workoutSlots,
+        'allowedWorkoutPlans': List<Map<String, dynamic>>.from(
+          row['allowedWorkoutPlans'] as List<Map<String, dynamic>>,
+        ),
         'latestApprovedAtIso': (row['latestPlanAt'] as DateTime?)
             ?.toIso8601String(),
       };
@@ -3986,6 +4003,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                                                   '')
                                                               .toString(),
                                                     },
+                                                  )
+                                                  .toList() ??
+                                              const [],
+                                          allowedPlans:
+                                              (student['allowedWorkoutPlans']
+                                                      as List?)
+                                                  ?.whereType<Map>()
+                                                  .map(
+                                                    (plan) =>
+                                                        Map<String, dynamic>.from(
+                                                          plan,
+                                                        ),
                                                   )
                                                   .toList() ??
                                               const [],
@@ -6389,6 +6418,10 @@ class _StudentRow extends StatelessWidget {
   }
 
   String _buildPlanAndScheduleText() {
+    final summary = (plansSummary ?? '').trim();
+    if (summary.isNotEmpty) {
+      return summary;
+    }
     final planLabel = _formatPlanType(planType);
     final normalizedPlanType = planType?.trim().toUpperCase();
 
@@ -6447,9 +6480,9 @@ class _StudentRow extends StatelessWidget {
     }
 
     if (scheduleLabel.isEmpty) {
-      final summary = (plansSummary ?? '').trim();
-      if (summary.isNotEmpty) {
-        return summary;
+      final fallbackSummary = (plansSummary ?? '').trim();
+      if (fallbackSummary.isNotEmpty) {
+        return fallbackSummary;
       }
     }
 

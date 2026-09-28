@@ -1278,13 +1278,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       final planType = (req['planType'] ?? '').toString().toUpperCase();
       String panelTitle;
       if (planType == 'DIARIO' && requestSlots.isNotEmpty) {
-        final slot = requestSlots.first;
-        final dayName = (slot['dayName'] ?? '').toString().trim();
-        final rawTime = (slot['time'] ?? '').toString().trim();
-        final timeLabel = rawTime.endsWith(':00')
-            ? '${rawTime.split(':').first}h'
-            : rawTime;
-        panelTitle = 'Plano diário: $dayName as $timeLabel';
+        panelTitle = 'Plano diário:';
       } else {
         panelTitle = '${_planTitleFromType(req['planType']?.toString())}:';
       }

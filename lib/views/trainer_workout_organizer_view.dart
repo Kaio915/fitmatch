@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
@@ -9,6 +10,7 @@ class TrainerWorkoutOrganizerView extends StatefulWidget {
   final String studentName;
   final List<String> allowedDays;
   final List<Map<String, String>> allowedSlots;
+  final List<Map<String, dynamic>> allowedPlans;
 
   const TrainerWorkoutOrganizerView({
     super.key,
@@ -17,6 +19,7 @@ class TrainerWorkoutOrganizerView extends StatefulWidget {
     required this.studentName,
     this.allowedDays = const [],
     this.allowedSlots = const [],
+    this.allowedPlans = const [],
   });
 
   @override
@@ -61,6 +64,8 @@ class _TrainerWorkoutOrganizerViewState
   final TextEditingController _favoriteNameCtrl = TextEditingController();
   final TextEditingController _favoriteSearchCtrl = TextEditingController();
   final TextEditingController _customNameCtrl = TextEditingController();
+  final ScrollController _pageScrollController = ScrollController();
+  final GlobalKey _workoutBuilderKey = GlobalKey();
 
   String _favoriteSearchText = '';
 
@@ -156,6 +161,72 @@ class _TrainerWorkoutOrganizerViewState
     return list;
   }
 
+  String _planTypeLabel(dynamic value) {
+    switch (value?.toString().toUpperCase()) {
+      case 'DIARIO':
+        return 'Plano Diário';
+      case 'SEMANAL':
+        return 'Plano Semanal';
+      case 'MENSAL':
+        return 'Plano Mensal';
+      default:
+        return 'Plano de treino';
+    }
+  }
+
+  List<Map<String, dynamic>> get _planGroups {
+    return widget.allowedPlans.isEmpty
+        ? const []
+        : widget.allowedPlans
+              .map((plan) => Map<String, dynamic>.from(plan))
+              .toList();
+  }
+
+  List<Map<String, String>> _planSlots(Map<String, dynamic> plan) {
+    final slots = <Map<String, String>>[];
+    final raw = (plan['daysJson'] ?? '').toString().trim();
+    if (raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        for (final item in decoded.whereType<Map>()) {
+          final day = (item['dayName'] ?? '').toString().trim();
+          final time = (item['time'] ?? '').toString().trim();
+          if (day.isNotEmpty && time.isNotEmpty) {
+            slots.add({'dayName': day, 'time': time});
+          }
+        }
+      } catch (_) {}
+    }
+    if (slots.isEmpty) {
+      final day = (plan['dayName'] ?? '').toString().trim();
+      final time = (plan['time'] ?? '').toString().trim();
+      if (day.isNotEmpty) slots.add({'dayName': day, 'time': time});
+    }
+    return slots;
+  }
+
+  Widget _slotChip(Map<String, String> slot) {
+    final label = (slot['time'] ?? '').trim().isEmpty
+        ? slot['dayName'] ?? ''
+        : '${slot['dayName']} ${slot['time']}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECFDF3),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF86EFAC)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF166534),
+        ),
+      ),
+    );
+  }
+
   List<String> get _timeOptionsForSelectedDay {
     final times = _slotOptions
         .where((slot) => (slot['dayName'] ?? '') == _selectedDay)
@@ -243,6 +314,7 @@ class _TrainerWorkoutOrganizerViewState
     _favoriteNameCtrl.dispose();
     _favoriteSearchCtrl.dispose();
     _customNameCtrl.dispose();
+    _pageScrollController.dispose();
     super.dispose();
   }
 
@@ -1145,6 +1217,17 @@ class _TrainerWorkoutOrganizerViewState
       }
     });
     _applyExercises(exercises);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageScrollController.hasClients) return;
+      final targetContext = _workoutBuilderKey.currentContext;
+      if (targetContext == null) return;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    });
   }
 
   void _startEditFavorite(Map<String, dynamic> favorite) {
@@ -1421,8 +1504,9 @@ class _TrainerWorkoutOrganizerViewState
     ).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
   }
 
-  Widget _sectionCard({required Widget child}) {
+  Widget _sectionCard({Key? key, required Widget child}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1483,9 +1567,11 @@ class _TrainerWorkoutOrganizerViewState
           : RefreshIndicator(
               onRefresh: _loadData,
               child: ListView(
+                controller: _pageScrollController,
                 padding: const EdgeInsets.all(16),
                 children: [
                   _sectionCard(
+                    key: _workoutBuilderKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1530,7 +1616,7 @@ class _TrainerWorkoutOrganizerViewState
                         ),
                         const SizedBox(height: 10),
                         const Text(
-                          'Dias e horários permitidos',
+                          'Planos ativos e horários permitidos',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -1538,12 +1624,31 @@ class _TrainerWorkoutOrganizerViewState
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: _slotOptions
-                              .map(
-                                (slot) => Container(
+                        if (_planGroups.isNotEmpty)
+                          ..._planGroups.map(
+                            (plan) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 104,
+                                    child: Text(
+                                      _planTypeLabel(plan['planType']),
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: _planSlots(plan)
+                                          .map(
+                                            (slot) => Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
                                     vertical: 5,
@@ -1555,20 +1660,35 @@ class _TrainerWorkoutOrganizerViewState
                                       color: const Color(0xFF86EFAC),
                                     ),
                                   ),
-                                  child: Text(
-                                    (slot['time'] ?? '').toString().trim().isEmpty
-                                        ? (slot['dayName'] ?? '').toString()
-                                        : '${slot["dayName"]} ${slot["time"]}',
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF166534),
+                                              child: Text(
+                                                (slot['time'] ?? '')
+                                                        .toString()
+                                                        .trim()
+                                                        .isEmpty
+                                                    ? (slot['dayName'] ?? '')
+                                                        .toString()
+                                                    : '${slot["dayName"]} ${slot["time"]}',
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF166534),
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
                                     ),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                        ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _slotOptions.map(_slotChip).toList(),
+                          ),
                       ],
                     ),
                   ),
