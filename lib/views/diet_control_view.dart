@@ -710,11 +710,6 @@ class _DietControlViewState extends State<DietControlView> {
                       selected: scope == 'FUTURE',
                       onSelected: (_) => setDialogState(() => scope = 'FUTURE'),
                     ),
-                    ChoiceChip(
-                      label: const Text('Todo o histórico'),
-                      selected: scope == 'ALL',
-                      onSelected: (_) => setDialogState(() => scope = 'ALL'),
-                    ),
                   ],
                 ),
               ],
@@ -760,9 +755,7 @@ class _DietControlViewState extends State<DietControlView> {
       _showSnack(
         scope == 'TODAY'
             ? 'Alimento atualizado para hoje.'
-            : scope == 'FUTURE'
-                ? 'Alimento atualizado para hoje e dias futuros.'
-                : 'Alimento atualizado em todo o histórico.',
+          : 'Alimento atualizado para hoje e dias futuros.',
         color: const Color(0xFF16A34A),
       );
     } catch (e) {
@@ -954,15 +947,6 @@ class _DietControlViewState extends State<DietControlView> {
         }
       }
 
-      final shouldRenameMealSection =
-          mealType.trim().toLowerCase() != favoriteName.toLowerCase();
-      if (shouldRenameMealSection) {
-        await _renameMealTypeInCurrentDay(
-          fromMealType: mealType,
-          toMealType: favoriteName,
-        );
-      }
-
       await _loadAll(keepUi: true);
       _showSnack(
         replacingExisting
@@ -975,77 +959,6 @@ class _DietControlViewState extends State<DietControlView> {
         e.toString().replaceFirst('Exception: ', ''),
         color: const Color(0xFFDC2626),
       );
-    }
-  }
-
-  Future<void> _renameMealTypeInCurrentDay({
-    required String fromMealType,
-    required String toMealType,
-  }) async {
-    final fromMealTypeTrimmed = fromMealType.trim();
-    final toMealTypeTrimmed = toMealType.trim();
-    if (fromMealTypeTrimmed.isEmpty || toMealTypeTrimmed.isEmpty) return;
-
-    final sourceMeal = _meals.cast<Map<String, dynamic>?>().firstWhere(
-          (meal) =>
-              (meal?['mealType'] ?? '').toString().trim().toLowerCase() ==
-              fromMealTypeTrimmed.toLowerCase(),
-          orElse: () => null,
-        );
-    if (sourceMeal == null) return;
-
-    final sourceEntries = (sourceMeal['entries'] as List<dynamic>? ?? const [])
-        .whereType<Map>()
-        .map((entry) => Map<String, dynamic>.from(entry))
-        .toList();
-    if (sourceEntries.isEmpty) return;
-
-    final dateIso = _toDateIso(_selectedDate);
-    final addedEntryIds = <int>[];
-    try {
-      for (final entry in sourceEntries) {
-        final foodId = _toInt(entry['foodId']);
-        final quantity = _toDouble(entry['quantityGrams']);
-        if (foodId <= 0 || quantity <= 0) continue;
-
-        final created = await AuthService.addDietEntry(
-          userId: widget.userId,
-          foodId: foodId,
-          mealType: toMealTypeTrimmed,
-          quantityGrams: quantity,
-          dateIso: dateIso,
-        );
-        final createdId = _toInt(created['id']);
-        if (createdId > 0) {
-          addedEntryIds.add(createdId);
-        }
-      }
-
-      for (final entry in sourceEntries) {
-        final entryId = _toInt(entry['id']);
-        if (entryId <= 0) continue;
-        await AuthService.deleteDietEntry(
-          userId: widget.userId,
-          entryId: entryId,
-        );
-      }
-
-      // Após renomear a refeição do dia, oculta o carryover do nome antigo
-      // para evitar cartão duplicado com itens bloqueados.
-      _carryoverByMealType.remove(fromMealTypeTrimmed);
-      _carryoverByDate[dateIso]?.remove(fromMealTypeTrimmed);
-      _suppressedCarryoverByDate
-          .putIfAbsent(dateIso, () => <String>{})
-          .add(fromMealTypeTrimmed);
-      await _persistLocalDietState();
-    } catch (_) {
-      // Rollback best-effort: remove entradas criadas no novo tipo.
-      for (final addedId in addedEntryIds) {
-        try {
-          await AuthService.deleteDietEntry(userId: widget.userId, entryId: addedId);
-        } catch (_) {}
-      }
-      rethrow;
     }
   }
 
@@ -1193,18 +1106,10 @@ class _DietControlViewState extends State<DietControlView> {
     if (!confirmed) return;
 
     try {
-      final templateName = (template['name'] ?? '').toString().trim();
-      final templateMealType = (template['mealType'] ?? '').toString().trim();
-
       await AuthService.deleteDietSavedMeal(
         userId: widget.userId,
         savedMealId: savedMealId,
       );
-
-      await _removeMealTypesFromCurrentDay({
-        if (templateName.isNotEmpty) templateName,
-        if (templateMealType.isNotEmpty) templateMealType,
-      });
 
       await _loadAll(keepUi: true);
       _showSnack('Refeição favorita excluída.', color: const Color(0xFF16A34A));
@@ -1214,54 +1119,6 @@ class _DietControlViewState extends State<DietControlView> {
         color: const Color(0xFFDC2626),
       );
     }
-  }
-
-  Future<void> _removeMealTypesFromCurrentDay(Set<String> mealTypes) async {
-    if (mealTypes.isEmpty) return;
-
-    final normalizedTargets = mealTypes
-        .map((mealType) => mealType.trim())
-        .where((mealType) => mealType.isNotEmpty)
-        .map((mealType) => mealType.toLowerCase())
-        .toSet();
-    if (normalizedTargets.isEmpty) return;
-
-    final dateIso = _toDateIso(_selectedDate);
-    final deletedEntryIds = <int>[];
-
-    for (final meal in _meals) {
-      final currentMealType = (meal['mealType'] ?? '').toString().trim();
-      if (!normalizedTargets.contains(currentMealType.toLowerCase())) continue;
-
-      final entries = (meal['entries'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .map((entry) => Map<String, dynamic>.from(entry));
-
-      for (final entry in entries) {
-        final entryId = _toInt(entry['id']);
-        if (entryId <= 0) continue;
-        await AuthService.deleteDietEntry(userId: widget.userId, entryId: entryId);
-        deletedEntryIds.add(entryId);
-      }
-    }
-
-    if (deletedEntryIds.isNotEmpty) {
-      for (final entryId in deletedEntryIds) {
-        _excludedEntryIds.remove(entryId);
-      }
-      _excludedEntryIdsByDate[dateIso] = Set<int>.from(_excludedEntryIds);
-    }
-
-    for (final mealType in mealTypes) {
-      final trimmed = mealType.trim();
-      if (trimmed.isEmpty) continue;
-      _carryoverByMealType.remove(trimmed);
-      _carryoverByDate[dateIso]?.remove(trimmed);
-      _suppressedCarryoverByDate.putIfAbsent(dateIso, () => <String>{}).add(trimmed);
-      _suppressedMealTypeSince[trimmed] = dateIso;
-    }
-
-    await _persistLocalDietState();
   }
 
   Future<void> _unlockCarryoverEntry(String mealType, Map<String, dynamic> entry) async {
@@ -2913,7 +2770,6 @@ class _DietControlViewState extends State<DietControlView> {
                 children: _savedMealTemplates.map((template) {
                   final name =
                       (template['name'] ?? template['mealType'] ?? 'Refeição favorita').toString();
-                  final mealType = (template['mealType'] ?? '').toString();
                   final items = (template['items'] as List<dynamic>? ?? const [])
                       .whereType<Map>()
                       .map((e) => Map<String, dynamic>.from(e))
@@ -2948,14 +2804,6 @@ class _DietControlViewState extends State<DietControlView> {
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
                                       color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    mealType,
-                                    style: const TextStyle(
-                                      color: Color(0xFF64748B),
-                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
