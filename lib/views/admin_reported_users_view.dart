@@ -7,6 +7,15 @@ import '../core/date_utils.dart';
 import '../services/admin_service.dart';
 import 'admin_ticket_view.dart';
 
+const List<String> _banReasons = [
+  'Excesso de solicitações de cadastro.',
+  'Violação das diretrizes da plataforma.',
+  'Tentativa de fraude ou golpe.',
+  'Comportamento inadequado com outros usuários.',
+  'Conta duplicada.',
+  'Uso indevido da plataforma (spam/propaganda).',
+];
+
 class AdminReportedUsersView extends StatefulWidget {
   const AdminReportedUsersView({super.key});
 
@@ -173,51 +182,138 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     }
   }
 
-  Future<void> _confirmBan(Map<String, dynamic> user) async {
+  Future<void> _showBanReasonSheet(Map<String, dynamic> user) async {
     final id = user['id'];
     if (id is! int) return;
 
-    final name = (user['name'] ?? 'Usuário').toString();
+    String? selectedReason;
 
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Banir usuário'),
-            content: Text(
-              'Tem certeza que deseja banir $name?\n\n'
-              'O usuário será banido da plataforma e a conta será excluída '
-              'automaticamente.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7F1D1D),
-                  foregroundColor: Colors.white,
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDCE6F5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .08),
+                  blurRadius: 18,
                 ),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Banir'),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.gavel, color: Color(0xFF7F1D1D)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Selecione o motivo do banimento',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: _banReasons.map((reason) {
+                          final checked = selectedReason == reason;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => setModalState(() {
+                              selectedReason = checked ? null : reason;
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Checkbox(
+                                    value: checked,
+                                    onChanged: (_) => setModalState(() {
+                                      selectedReason = checked ? null : reason;
+                                    }),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 11),
+                                      child: Text(reason),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final reason = (selectedReason ?? '').trim();
+                        if (reason.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Selecione um motivo de banimento'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(sheetCtx);
+                        await _banUser(id, reason);
+                      },
+                      icon: const Icon(Icons.gavel),
+                      label: const Text('Banir usuário'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7F1D1D),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ) ??
-        false;
+        );
+      },
+    );
+  }
 
-    if (!confirmed) return;
-
+  Future<void> _banUser(int id, String reason) async {
     setState(() => _busyIds.add(id));
     try {
-      await AdminService.banUser(id, reason: AdminService.banReason);
+      await AdminService.banUser(id, reason: reason);
       await _load();
       _showSnack('Usuário banido com sucesso.');
     } catch (e) {
-      _showSnack(
-        'Não foi possível banir: ${e.toString().replaceFirst('Exception: ', '')}',
-        error: true,
-      );
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _showSnack('Não foi possível banir: $msg', error: true);
     } finally {
       if (mounted) setState(() => _busyIds.remove(id));
     }
@@ -628,12 +724,13 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                         ),
                       )
                     else ...[
-                      _actionButton(
-                        label: 'Liberar usuário',
-                        icon: Icons.check_circle_outline,
-                        color: const Color(0xFF15803D),
-                        onTap: id == null ? () {} : () => _confirmRelease(u),
-                      ),
+                      if (!banned)
+                        _actionButton(
+                          label: 'Liberar usuário',
+                          icon: Icons.check_circle_outline,
+                          color: const Color(0xFF15803D),
+                          onTap: id == null ? () {} : () => _confirmRelease(u),
+                        ),
                       if (banned)
                         _actionButton(
                           label: 'Desbanir',
@@ -646,7 +743,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                           label: 'Banir',
                           icon: Icons.gavel,
                           color: const Color(0xFF7F1D1D),
-                          onTap: id == null ? () {} : () => _confirmBan(u),
+                          onTap: id == null ? () {} : () => _showBanReasonSheet(u),
                         ),
                     ],
                   ],
@@ -717,7 +814,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
 
   Widget _reportItem(Map<String, dynamic> r) {
     final resolved = (r['resolved'] == true);
-    final reporterName = (r['reporterName'] ?? '').toString().trim();
+    final reporterEmail = (r['reporterEmail'] ?? '').toString().trim();
     final reason = (r['reason'] ?? '').toString().trim();
     final details = (r['details'] ?? '').toString().trim();
     final createdAt = _formatReportTimestamp((r['createdAt'] ?? '').toString());
@@ -779,7 +876,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Denunciado por: ${reporterName.isEmpty ? 'Usuário removido' : reporterName}',
+            'Denunciado por: ${reporterEmail.isEmpty ? 'Usuário removido' : reporterEmail}',
             style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
           ),
           const SizedBox(height: 2),

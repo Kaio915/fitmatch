@@ -1447,6 +1447,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                   TextField(
                     autofocus: true,
                     maxLines: 3,
+                    maxLength: 150,
                     onChanged: (v) => setDialogState(() => explanation = v),
                     decoration: InputDecoration(
                       hintText: selectedReason == 'Outro'

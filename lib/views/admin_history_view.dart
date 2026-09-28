@@ -374,6 +374,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                     const SizedBox(height: 12),
                     TextField(
                       maxLines: 3,
+                      maxLength: 150,
                       decoration: const InputDecoration(
                         labelText: 'Descreva o motivo',
                         border: OutlineInputBorder(),

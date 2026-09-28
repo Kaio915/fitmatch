@@ -917,7 +917,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             ),
             _templateBar(),
             _composer(),
-            if (!widget.readOnly) _actionsBar(),
+            if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
           ],
         ),
       ),
