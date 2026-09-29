@@ -520,8 +520,50 @@ class _DietControlViewState extends State<DietControlView> {
         }
       }
 
+      final historicalEntryCounts = <String, int>{};
+      final historicalSourceByFood = <String, String>{};
+
+      void countHistoricalEntry(
+        String mealType,
+        Map<String, dynamic> entry,
+        String sourceDateIso,
+      ) {
+        final signature = _entrySignature(mealType.trim(), entry);
+        final previousSourceDate = historicalSourceByFood[signature];
+        if (previousSourceDate != null && previousSourceDate != sourceDateIso) {
+          return;
+        }
+        historicalSourceByFood[signature] = sourceDateIso;
+        historicalEntryCounts[signature] =
+            (historicalEntryCounts[signature] ?? 0) + 1;
+      }
+
+      for (var i = 0; i < lookbackDates.length; i++) {
+        final dateIso = lookbackDates[i];
+        final dayData = lookbackDailies[i];
+        final pastMeals = (dayData['meals'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e));
+        for (final meal in pastMeals) {
+          final mealType = (meal['mealType'] ?? '').toString().trim();
+          if (mealType.isEmpty) continue;
+          final suppressionDate = _suppressedMealTypeSince[mealType];
+          if (suppressionDate != null &&
+              suppressionDate.compareTo(dateIso) > 0) {
+            continue;
+          }
+          final pastEntries = (meal['entries'] as List<dynamic>? ?? const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e));
+          for (final entry in pastEntries) {
+            countHistoricalEntry(mealType, entry, dateIso);
+          }
+        }
+      }
+
       final carryoverByMealType = <String, List<Map<String, dynamic>>>{};
       final carryoverSignatures = <String>{};
+      final carryoverEntryCounts = <String, int>{};
       final carryoverSourceByFood = <String, String>{};
 
       void addCarryover(
@@ -533,7 +575,9 @@ class _DietControlViewState extends State<DietControlView> {
         if (normalizedMealType.isEmpty) return;
         final signature = _entrySignature(normalizedMealType, entry);
         final existingCount = existingEntryCounts[signature] ?? 0;
-        if (existingCount > 0) return;
+        final carryoverCount = carryoverEntryCounts[signature] ?? 0;
+        final historicalCount = historicalEntryCounts[signature] ?? 1;
+        if (existingCount + carryoverCount >= historicalCount) return;
 
         final foodKey = signature;
         final previousSourceDate = carryoverSourceByFood[foodKey];
@@ -549,6 +593,7 @@ class _DietControlViewState extends State<DietControlView> {
         if (carryoverSignatures.contains(entrySignature)) return;
 
         carryoverSignatures.add(entrySignature);
+          carryoverEntryCounts[signature] = carryoverCount + 1;
         carryoverByMealType
             .putIfAbsent(normalizedMealType, () => <Map<String, dynamic>>[])
             .add({...entry, 'mealType': normalizedMealType});
