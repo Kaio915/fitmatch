@@ -506,27 +506,52 @@ class _DietControlViewState extends State<DietControlView> {
       }
 
       final existingSignatures = <String>{};
+      final existingEntryCounts = <String, int>{};
       for (final meal in meals) {
         final mealType = (meal['mealType'] ?? '').toString().trim();
         final entries = (meal['entries'] as List<dynamic>? ?? const [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e));
         for (final entry in entries) {
-          existingSignatures.add(_entrySignature(mealType, entry));
+          final signature = _entrySignature(mealType, entry);
+          existingSignatures.add(signature);
+          existingEntryCounts[signature] =
+              (existingEntryCounts[signature] ?? 0) + 1;
         }
       }
 
       final carryoverByMealType = <String, List<Map<String, dynamic>>>{};
       final carryoverSignatures = <String>{};
+      final carryoverEntryCounts = <String, int>{};
+      final carryoverSourceByFood = <String, String>{};
 
-      void addCarryover(String mealType, Map<String, dynamic> entry) {
+      void addCarryover(
+        String mealType,
+        Map<String, dynamic> entry,
+        String sourceDateIso,
+      ) {
         final normalizedMealType = mealType.trim();
         if (normalizedMealType.isEmpty) return;
         final signature = _entrySignature(normalizedMealType, entry);
-        if (existingSignatures.contains(signature)) return;
-        if (carryoverSignatures.contains(signature)) return;
+        final existingCount = existingEntryCounts[signature] ?? 0;
+        final carryoverCount = carryoverEntryCounts[signature] ?? 0;
+        if (existingCount > 0 && carryoverCount >= existingCount) return;
 
-        carryoverSignatures.add(signature);
+        final foodKey = signature;
+        final previousSourceDate = carryoverSourceByFood[foodKey];
+        if (previousSourceDate != null && previousSourceDate != sourceDateIso) {
+          return;
+        }
+        carryoverSourceByFood[foodKey] = sourceDateIso;
+
+        final entrySignature = _entryIdentitySignature(
+          normalizedMealType,
+          entry,
+        );
+        if (carryoverSignatures.contains(entrySignature)) return;
+
+        carryoverSignatures.add(entrySignature);
+        carryoverEntryCounts[signature] = carryoverCount + 1;
         carryoverByMealType
             .putIfAbsent(normalizedMealType, () => <Map<String, dynamic>>[])
             .add({...entry, 'mealType': normalizedMealType});
@@ -555,7 +580,7 @@ class _DietControlViewState extends State<DietControlView> {
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e));
           for (final entry in pastEntries) {
-            addCarryover(mealType, entry);
+            addCarryover(mealType, entry, dateIso);
           }
         }
       }
@@ -578,7 +603,7 @@ class _DietControlViewState extends State<DietControlView> {
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e));
           for (final entry in pastEntries) {
-            addCarryover(mealType, entry);
+            addCarryover(mealType, entry, fallbackCarryoverDateIso);
           }
         }
         // Cadeia SP do fallback
@@ -592,7 +617,11 @@ class _DietControlViewState extends State<DietControlView> {
             return;
           }
           for (final entry in entries) {
-            addCarryover(mealType, Map<String, dynamic>.from(entry));
+            addCarryover(
+              mealType,
+              Map<String, dynamic>.from(entry),
+              fallbackCarryoverDateIso!,
+            );
           }
         });
       }
@@ -613,7 +642,7 @@ class _DietControlViewState extends State<DietControlView> {
         for (final entryGroup in carryoverByMealType.entries) {
           for (var i = 0; i < entryGroup.value.length; i++) {
             final entry = entryGroup.value[i];
-            if (_entrySignature(entryGroup.key, entry) == signature) {
+            if (_entryIdentitySignature(entryGroup.key, entry) == signature) {
               entryGroup.value[i] = _entryWithQuantity(entry, quantity);
             }
           }
@@ -792,7 +821,7 @@ class _DietControlViewState extends State<DietControlView> {
     final currentQty = _toDouble(entry['quantityGrams']);
     final foodName = (entry['foodName'] ?? 'Alimento').toString();
     final mealType = (entry['mealType'] ?? '').toString().trim();
-    final entrySignature = _entrySignature(mealType, entry);
+    final entrySignature = _entryIdentitySignature(mealType, entry);
 
     String _fmt(double v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 1);
 
@@ -2384,6 +2413,14 @@ class _DietControlViewState extends State<DietControlView> {
     };
   }
 
+  String _entryIdentitySignature(String mealType, Map<String, dynamic> entry) {
+    final entryId = _toInt(entry['id']);
+    if (entryId > 0) {
+      return '${_entrySignature(mealType, entry)}|entry:$entryId';
+    }
+    return _entrySignature(mealType, entry);
+  }
+
   double _macroForQty(String key) {
     final selected = _resolveFoodFromTypedText();
     if (selected == null) return 0;
@@ -2785,6 +2822,18 @@ class _DietControlViewState extends State<DietControlView> {
     final carbs = totals['carbs'] ?? _carbs;
     final fat = totals['fat'] ?? _fat;
     final remainingKcal = totals['remainingKcal'] ?? _remainingKcal;
+    final reachedDailyGoal = remainingKcal <= 0;
+    final remainingValue = reachedDailyGoal
+        ? '+${remainingKcal.abs().toStringAsFixed(0)}'
+        : remainingKcal.toStringAsFixed(0);
+    final remainingTitle = reachedDailyGoal ? 'Meta alcançada' : 'Restante';
+    final remainingUnit = reachedDailyGoal ? 'kcal acima da meta' : 'kcal';
+    final remainingColor = reachedDailyGoal
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFF59E0B);
+    final remainingIcon = reachedDailyGoal
+        ? Icons.check_circle_outline_rounded
+        : Icons.trending_down_rounded;
     final showTips = _showMetricCoachTips && !_isPastDay;
 
     Widget withCoachTip({
@@ -2856,11 +2905,14 @@ class _DietControlViewState extends State<DietControlView> {
                   SizedBox(
                     width: row3w,
                     child: _MetricCard(
-                      title: 'Restante',
-                      value: remainingKcal.toStringAsFixed(0),
-                      unit: 'kcal',
-                      color: const Color(0xFFF59E0B),
-                      icon: Icons.trending_down_rounded,
+                      title: remainingTitle,
+                      value: remainingValue,
+                      unit: remainingUnit,
+                      color: remainingColor,
+                      icon: remainingIcon,
+                      hint: reachedDailyGoal
+                          ? 'Você alcançou sua meta diária.'
+                          : null,
                     ),
                   ),
                 ],
@@ -2963,11 +3015,14 @@ class _DietControlViewState extends State<DietControlView> {
             SizedBox(
               width: cardWidth,
               child: _MetricCard(
-                title: 'Restante',
-                value: remainingKcal.toStringAsFixed(0),
-                unit: 'kcal',
-                color: const Color(0xFFF59E0B),
-                icon: Icons.trending_down_rounded,
+                title: remainingTitle,
+                value: remainingValue,
+                unit: remainingUnit,
+                color: remainingColor,
+                icon: remainingIcon,
+                hint: reachedDailyGoal
+                    ? 'Você alcançou sua meta diária.'
+                    : null,
               ),
             ),
             SizedBox(
