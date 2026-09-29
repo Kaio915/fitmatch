@@ -1607,6 +1607,24 @@ class AuthService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  static Future<void> renameDietEntriesMealType({
+    required int userId,
+    required String oldMealType,
+    required String newMealType,
+    required String dateIso,
+  }) async {
+    final res = await http.patch(
+      Uri.parse('$_baseUrl/diet/$userId/entries/meal-type'),
+      headers: await _headers(json: true),
+      body: jsonEncode({
+        'oldMealType': oldMealType,
+        'newMealType': newMealType,
+        'date': dateIso,
+      }),
+    );
+    if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
+  }
+
   static Future<void> deleteDietEntry({
     required int userId,
     required int entryId,

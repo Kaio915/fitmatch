@@ -1374,6 +1374,17 @@ class _DietControlViewState extends State<DietControlView> {
     if (!confirmed) return;
 
     try {
+      final savedMealType = (template['mealType'] ?? '').toString().trim();
+      final defaultMealType = _defaultMealTypeForFavorite(savedMealType);
+      if (defaultMealType != null) {
+        await AuthService.renameDietEntriesMealType(
+          userId: widget.userId,
+          oldMealType: savedMealType,
+          newMealType: defaultMealType,
+          dateIso: _toDateIso(_selectedDate),
+        );
+      }
+
       await AuthService.deleteDietSavedMeal(
         userId: widget.userId,
         savedMealId: savedMealId,
@@ -1387,6 +1398,16 @@ class _DietControlViewState extends State<DietControlView> {
         color: const Color(0xFFDC2626),
       );
     }
+  }
+
+  String? _defaultMealTypeForFavorite(String mealType) {
+    for (final defaultMealType in _mealTypes) {
+      if (mealType.toLowerCase() ==
+          '$defaultMealType - favorito'.toLowerCase()) {
+        return defaultMealType;
+      }
+    }
+    return null;
   }
 
   Future<void> _unlockCarryoverEntry(
