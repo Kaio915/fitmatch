@@ -42,7 +42,7 @@ class _DietControlViewState extends State<DietControlView> {
   bool _loading = true;
   bool _loadingDay = false;
   bool _savingEntry = false;
-  bool _searchingEdamam = false;
+  bool _searchingFoods = false;
   int _searchSeq = 0;
 
   List<Map<String, dynamic>> _foods = [];
@@ -785,7 +785,7 @@ class _DietControlViewState extends State<DietControlView> {
 
     final selectedFood = _resolveFoodFromTypedText();
     if (selectedFood == null) {
-      _showSnack('Digite um alimento válido para buscar na Edamam.');
+      _showSnack('Digite um alimento válido para buscar.');
       return;
     }
 
@@ -798,7 +798,7 @@ class _DietControlViewState extends State<DietControlView> {
     final kcal100 = _toDouble(selectedFood['caloriesPer100g']);
     if (kcal100 <= 0) {
       _showSnack(
-        'Não foi possível obter as calorias desse alimento na Edamam.',
+        'Não foi possível obter as calorias desse alimento.',
       );
       return;
     }
@@ -2186,11 +2186,11 @@ class _DietControlViewState extends State<DietControlView> {
     _foodSearchDebounce?.cancel();
 
     final query = value.trim();
-    if (query.isEmpty) {
+    if (query.length < 2) {
       setState(() {
         _foodSuggestions = [];
         _showFoodSuggestions = false;
-        _searchingEdamam = false;
+        _searchingFoods = false;
         _selectedFoodId = null;
         _selectedExternalFood = null;
       });
@@ -2215,20 +2215,20 @@ class _DietControlViewState extends State<DietControlView> {
     setState(() {
       _foodSuggestions = localMatches;
       _showFoodSuggestions = true;
-      _searchingEdamam = true;
+      _searchingFoods = true;
       _selectedFoodId = null;
       _selectedExternalFood = null;
     });
 
     _foodSearchDebounce = Timer(
-      const Duration(milliseconds: 450),
+      const Duration(milliseconds: 500),
       () => _loadFoodSuggestions(query),
     );
   }
 
   Future<void> _loadFoodSuggestions(String query) async {
     final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return;
+    if (normalized.length < 2) return;
 
     final requestSeq = ++_searchSeq;
     final localMatches = _foods
@@ -2246,10 +2246,8 @@ class _DietControlViewState extends State<DietControlView> {
         .toList();
 
     try {
-      final remote = await AuthService.searchEdamamFoods(
-        userId: widget.userId,
+      final remote = await AuthService.searchAlimentos(
         query: query,
-        limit: 12,
       );
 
       if (!mounted ||
@@ -2270,7 +2268,7 @@ class _DietControlViewState extends State<DietControlView> {
 
       for (final food in remote) {
         final row = Map<String, dynamic>.from(food);
-        row.putIfAbsent('source', () => 'edamam');
+        row.putIfAbsent('source', () => 'fatsecret');
         final name = (row['name'] ?? '').toString().trim().toLowerCase();
         if (name.isEmpty || names.contains(name)) continue;
         names.add(name);
@@ -2280,7 +2278,7 @@ class _DietControlViewState extends State<DietControlView> {
       setState(() {
         _foodSuggestions = merged;
         _showFoodSuggestions = true;
-        _searchingEdamam = false;
+        _searchingFoods = false;
       });
     } catch (_) {
       if (!mounted ||
@@ -2292,7 +2290,7 @@ class _DietControlViewState extends State<DietControlView> {
       setState(() {
         _foodSuggestions = localMatches;
         _showFoodSuggestions = true;
-        _searchingEdamam = false;
+        _searchingFoods = false;
       });
     }
   }
@@ -2300,7 +2298,7 @@ class _DietControlViewState extends State<DietControlView> {
   void _selectFood(Map<String, dynamic> food) {
     final selectedId = _toInt(food['id']);
     final source = (food['source'] ?? '').toString().toLowerCase();
-    final isLocal = selectedId > 0 && source != 'edamam';
+    final isLocal = selectedId > 0 && source == 'local';
 
     setState(() {
       _selectedFoodId = isLocal ? selectedId : null;
@@ -2308,8 +2306,27 @@ class _DietControlViewState extends State<DietControlView> {
       _foodSearchCtrl.text = (food['name'] ?? '').toString();
       _showFoodSuggestions = false;
       _foodSuggestions = [];
-      _searchingEdamam = false;
+      _searchingFoods = false;
     });
+  }
+
+  String _foodSourceLabel(dynamic rawSource) {
+    final source = rawSource?.toString().trim();
+    if (source == null || source.isEmpty) return 'Fonte desconhecida';
+
+    switch (source.toLowerCase()) {
+      case 'local':
+        return 'Já cadastrado';
+      case 'fatsecret':
+        return 'FatSecret';
+      case 'openfoodfacts':
+      case 'open food facts':
+        return 'Open Food Facts';
+      case 'edamam':
+        return 'Edamam';
+      default:
+        return source[0].toUpperCase() + source.substring(1);
+    }
   }
 
   Map<String, dynamic>? _resolveFoodFromTypedText() {
@@ -3366,7 +3383,7 @@ class _DietControlViewState extends State<DietControlView> {
                             readOnly: _isPastDay,
                             decoration: const InputDecoration(
                               hintText:
-                                  'Digite o alimento (busca automática Edamam)...',
+                                  'Digite o alimento (busca automática)...',
                               border: OutlineInputBorder(),
                               isDense: true,
                             ),
@@ -3405,7 +3422,7 @@ class _DietControlViewState extends State<DietControlView> {
                               child: _foodSuggestions.isEmpty
                                   ? Padding(
                                       padding: const EdgeInsets.all(10),
-                                      child: _searchingEdamam
+                                      child: _searchingFoods
                                           ? const Row(
                                               children: [
                                                 SizedBox(
@@ -3418,7 +3435,7 @@ class _DietControlViewState extends State<DietControlView> {
                                                 ),
                                                 SizedBox(width: 8),
                                                 Text(
-                                                  'Buscando na Edamam...',
+                                                  'Buscando alimentos...',
                                                   style: TextStyle(
                                                     color: Color(0xFF64748B),
                                                   ),
@@ -3437,10 +3454,9 @@ class _DietControlViewState extends State<DietControlView> {
                                       itemCount: _foodSuggestions.length,
                                       itemBuilder: (_, i) {
                                         final food = _foodSuggestions[i];
-                                        final source =
-                                            (food['source'] ?? 'edamam')
-                                                .toString()
-                                                .toLowerCase();
+                                        final sourceLabel = _foodSourceLabel(
+                                          food['source'],
+                                        );
                                         return ListTile(
                                           dense: true,
                                           title: Text(
@@ -3451,7 +3467,7 @@ class _DietControlViewState extends State<DietControlView> {
                                             'P ${_toDouble(food['proteinPer100g']).toStringAsFixed(1)} g • '
                                             'C ${_toDouble(food['carbsPer100g']).toStringAsFixed(1)} g • '
                                             'G ${_toDouble(food['fatPer100g']).toStringAsFixed(1)} g'
-                                            '${source == 'local' ? ' • Já cadastrado' : ' • Edamam'}',
+                                            ' • $sourceLabel',
                                           ),
                                           onTap: () => _selectFood(food),
                                         );
@@ -3545,7 +3561,7 @@ class _DietControlViewState extends State<DietControlView> {
                   ),
                 ],
               ),
-              if (_searchingEdamam)
+              if (_searchingFoods)
                 const Padding(
                   padding: EdgeInsets.only(top: 10),
                   child: LinearProgressIndicator(minHeight: 3),

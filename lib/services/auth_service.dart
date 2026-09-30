@@ -1394,18 +1394,15 @@ class AuthService {
     return data.cast<Map<String, dynamic>>();
   }
 
-  static Future<List<Map<String, dynamic>>> searchEdamamFoods({
-    required int userId,
+  static Future<List<Map<String, dynamic>>> searchAlimentos({
     required String query,
-    int limit = 12,
   }) async {
     final q = query.trim();
-    if (q.isEmpty) return [];
+    if (q.length < 2) return [];
 
-    final uri = Uri.parse('$_baseUrl/diet/$userId/edamam/search').replace(
+    final uri = Uri.parse('$_baseUrl/api/alimentos/buscar').replace(
       queryParameters: {
-        'query': q,
-        'limit': limit.toString(),
+        'termo': q,
       },
     );
 
