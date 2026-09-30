@@ -1420,6 +1420,7 @@ class AuthService {
     required double carbsPer100g,
     required double fatPer100g,
     bool favorite = false,
+    bool custom = true,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/foods'),
@@ -1431,6 +1432,7 @@ class AuthService {
         'carbsPer100g': carbsPer100g,
         'fatPer100g': fatPer100g,
         'favorite': favorite,
+        'custom': custom,
       }),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));

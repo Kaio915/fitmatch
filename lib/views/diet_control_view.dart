@@ -1452,6 +1452,7 @@ class _DietControlViewState extends State<DietControlView> {
             proteinPer100g: _toDouble(entry['protein']) * factor,
             carbsPer100g: _toDouble(entry['carbs']) * factor,
             fatPer100g: _toDouble(entry['fat']) * factor,
+            custom: false,
           );
           foodId = _toInt(created['id']);
         }
@@ -1772,7 +1773,10 @@ class _DietControlViewState extends State<DietControlView> {
     }
 
     final searchCtrl = TextEditingController();
-    var filtered = List<Map<String, dynamic>>.from(_foods);
+    var filtered = _foods
+      .where((food) => food['custom'] != false)
+      .map((food) => Map<String, dynamic>.from(food))
+      .toList();
 
     await showDialog<void>(
       context: context,
@@ -1782,6 +1786,7 @@ class _DietControlViewState extends State<DietControlView> {
             final q = query.trim().toLowerCase();
             setDialogState(() {
               filtered = _foods.where((f) {
+                if (f['custom'] == false) return false;
                 final name = (f['name'] ?? '').toString().toLowerCase();
                 return q.isEmpty || name.contains(q);
               }).toList();
@@ -1804,7 +1809,7 @@ class _DietControlViewState extends State<DietControlView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Edite ou delete os alimentos personalizados que você cadastrou.',
+                    'Edite os alimentos personalizados que você cadastrou.',
                     style: TextStyle(color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 10),
@@ -1883,30 +1888,6 @@ class _DietControlViewState extends State<DietControlView> {
                                         await _showFoodDialog(existing: food);
                                         if (!mounted) return;
                                         applyFilter(searchCtrl.text);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                        color: Color(0xFFDC2626),
-                                      ),
-                                      onPressed: () async {
-                                        try {
-                                          await AuthService.deleteDietFood(
-                                            userId: widget.userId,
-                                            foodId: _toInt(food['id']),
-                                          );
-                                          await _loadAll(keepUi: true);
-                                          applyFilter(searchCtrl.text);
-                                        } catch (e) {
-                                          _showSnack(
-                                            e.toString().replaceFirst(
-                                              'Exception: ',
-                                              '',
-                                            ),
-                                            color: const Color(0xFFDC2626),
-                                          );
-                                        }
                                       },
                                     ),
                                   ],
@@ -2408,6 +2389,7 @@ class _DietControlViewState extends State<DietControlView> {
         proteinPer100g: proteinPer100g,
         carbsPer100g: carbsPer100g,
         fatPer100g: fatPer100g,
+        custom: false,
       );
       return _toInt(created['id']);
     } catch (e) {
