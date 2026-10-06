@@ -99,10 +99,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     if (base64.isNotEmpty) {
       try {
         final Uint8List bytes = base64Decode(base64);
-        return CircleAvatar(
-          radius: 24,
-          backgroundImage: MemoryImage(bytes),
-        );
+        return CircleAvatar(radius: 24, backgroundImage: MemoryImage(bytes));
       } catch (_) {
         // base64 inválido → usa a inicial abaixo
       }
@@ -137,12 +134,12 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
       final matchesStatus = statusFilter == 'ALL'
           ? true
           : statusFilter == 'DELETED'
-              ? deleted
-              : statusFilter == 'BANNED'
-                  ? banned
-                  : statusFilter == 'APPROVED'
-                      ? (status == 'APPROVED' && !deleted)
-                      : status == statusFilter;
+          ? deleted
+          : statusFilter == 'BANNED'
+          ? banned
+          : statusFilter == 'APPROVED'
+          ? (status == 'APPROVED' && !deleted)
+          : status == statusFilter;
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -198,7 +195,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     final name = (user['name'] ?? 'Usuário').toString();
     final typeLabel = widget.userType == 'personal' ? 'Personal' : 'Aluno';
 
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Excluir todos os cadastros'),
@@ -286,7 +284,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
     final name = (user['name'] ?? 'Usuário').toString();
 
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Excluir cadastro'),
@@ -339,7 +338,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     String? selectedReason;
     String otherReason = '';
 
-    final shouldExclude = await showDialog<bool>(
+    final shouldExclude =
+        await showDialog<bool>(
           context: context,
           builder: (context) => StatefulBuilder(
             builder: (context, setDialogState) => AlertDialog(
@@ -355,6 +355,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedReason,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Motivo da exclusão',
                       border: OutlineInputBorder(),
@@ -379,8 +380,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                         labelText: 'Descreva o motivo',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (v) =>
-                          setDialogState(() => otherReason = v),
+                      onChanged: (v) => setDialogState(() => otherReason = v),
                     ),
                   ],
                 ],
@@ -596,8 +596,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
       );
     }
 
-    final color =
-        disabled ? const Color(0xFF98A2B3) : const Color(0xFF7F1D1D);
+    final color = disabled ? const Color(0xFF98A2B3) : const Color(0xFF7F1D1D);
 
     return InkWell(
       onTap: (id is int && !disabled) ? () => _showBanReasonSheet(u) : null,
@@ -634,7 +633,8 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
     final name = (user['name'] ?? 'Usuário').toString();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Desbanir usuário'),
@@ -697,7 +697,9 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         decoration: BoxDecoration(
           color: const Color(0xFF0B4DBA).withValues(alpha: .12),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFF0B4DBA).withValues(alpha: .3)),
+          border: Border.all(
+            color: const Color(0xFF0B4DBA).withValues(alpha: .3),
+          ),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
@@ -720,6 +722,7 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
 
   Widget _deleteIconButton(Map<String, dynamic> u, bool isDeleting) {
     final id = u['id'];
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     if (isDeleting) {
       return const SizedBox(
         height: 18,
@@ -733,12 +736,29 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     return InkWell(
       onTap: id == null ? null : () => _showDeleteOptions(u),
       borderRadius: BorderRadius.circular(999),
-      child: const Padding(
-        padding: EdgeInsets.all(4),
-        child: Icon(
-          Icons.delete_outline,
-          size: 20,
-          color: Colors.red,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.red.withValues(alpha: .3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+            if (isNarrow) ...[
+              const SizedBox(width: 4),
+              const Text(
+                'Excluir',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -839,10 +859,13 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   }
 
   Future<void> _confirmClearHistory(String? status) async {
-    final singularSegment = widget.userType == 'personal' ? 'Personal' : 'Aluno';
+    final singularSegment = widget.userType == 'personal'
+        ? 'Personal'
+        : 'Aluno';
     final label = _clearHistoryLabel(status ?? 'ALL', singularSegment);
 
-    final shouldClear = await showDialog<bool>(
+    final shouldClear =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Limpar histórico'),
@@ -949,7 +972,11 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     );
   }
 
-  Widget _statusChip(String status, {bool deleted = false, bool banned = false}) {
+  Widget _statusChip(
+    String status, {
+    bool deleted = false,
+    bool banned = false,
+  }) {
     if (banned) {
       return _statusBadge('Banido', const Color(0xFF7F1D1D));
     }
@@ -999,6 +1026,78 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
   @override
   Widget build(BuildContext context) {
     final segment = widget.userType == 'personal' ? 'Personais' : 'Alunos';
+    final isNarrow = MediaQuery.of(context).size.width < 600;
+    final isWide = MediaQuery.of(context).size.width > 800;
+
+    final searchField = Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        decoration: const InputDecoration(
+          hintText: 'Buscar por nome ou email',
+          prefixIcon: Icon(Icons.search),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+        ),
+        onChanged: (v) {
+          search = v;
+          _applyFilter();
+        },
+      ),
+    );
+
+    final statusDropdown = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: statusFilter,
+          items: const [
+            DropdownMenuItem(value: 'ALL', child: Text('Todos')),
+            DropdownMenuItem(value: 'APPROVED', child: Text('Aprovados')),
+            DropdownMenuItem(value: 'REJECTED', child: Text('Rejeitados')),
+            DropdownMenuItem(value: 'DELETED', child: Text('Excluídos')),
+            DropdownMenuItem(value: 'BANNED', child: Text('Banidos')),
+          ],
+          onChanged: (v) {
+            if (v == null) return;
+            statusFilter = v;
+            _applyFilter();
+          },
+        ),
+      ),
+    );
+
+    final sortDropdown = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: sortBy,
+          items: const [
+            DropdownMenuItem(value: 'DATA', child: Text('Data')),
+            DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+          ],
+          onChanged: (v) {
+            if (v == null) return;
+            sortBy = v;
+            _applyFilter();
+          },
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5FA),
@@ -1007,22 +1106,23 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
         toolbarHeight: 76,
         titleSpacing: 20,
         actions: [
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B4DBA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (!isNarrow)
+            IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B4DBA),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
         title: Wrap(
@@ -1090,152 +1190,109 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                     ),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: TextField(
-                                  decoration: const InputDecoration(
-                                    hintText: 'Buscar por nome ou email',
-                                    prefixIcon: Icon(Icons.search),
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  onChanged: (v) {
-                                    search = v;
-                                    _applyFilter();
-                                  },
-                                ),
+                        if (isWide)
+                          Row(
+                            children: [
+                              Expanded(child: searchField),
+                              const SizedBox(width: 10),
+                              statusDropdown,
+                              const SizedBox(width: 10),
+                              sortDropdown,
+                            ],
+                          )
+                        else
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              SizedBox(
+                                width: isNarrow ? double.infinity : 260,
+                                child: searchField,
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: statusFilter,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'ALL',
-                                      child: Text('Todos'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'APPROVED',
-                                      child: Text('Aprovados'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'REJECTED',
-                                      child: Text('Rejeitados'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'DELETED',
-                                      child: Text('Excluídos'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'BANNED',
-                                      child: Text('Banidos'),
-                                    ),
-                                  ],
-                                  onChanged: (v) {
-                                    if (v == null) return;
-                                    statusFilter = v;
-                                    _applyFilter();
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: sortBy,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'DATA',
-                                      child: Text('Data'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'NOME',
-                                      child: Text('Nome'),
-                                    ),
-                                  ],
-                                  onChanged: (v) {
-                                    if (v == null) return;
-                                    sortBy = v;
-                                    _applyFilter();
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                              statusDropdown,
+                              sortDropdown,
+                            ],
+                          ),
                         const SizedBox(height: 14),
-                        Column(
-                          children: [
-                            Row(
-                              children: [
-                                _metricCard(
-                                  label: 'Aprovados',
-                                  value: _countByStatus('APPROVED'),
-                                  icon: Icons.check_circle,
-                                  color: Colors.green,
-                                ),
-                                const SizedBox(width: 10),
-                                _metricCard(
-                                  label: 'Rejeitados',
-                                  value: _countByStatus('REJECTED'),
-                                  icon: Icons.cancel,
-                                  color: Colors.red,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                _metricCard(
-                                  label: 'Excluídos',
-                                  value: _countByStatus('DELETED'),
-                                  icon: Icons.person_off,
-                                  color: Colors.blueGrey,
-                                ),
-                                const SizedBox(width: 10),
-                                _metricCard(
-                                  label: 'Banidos',
-                                  value: _countByStatus('BANNED'),
-                                  icon: Icons.block,
-                                  color: const Color(0xFF7F1D1D),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        if (isWide)
+                          Row(
+                            children: [
+                              _metricCard(
+                                label: 'Aprovados',
+                                value: _countByStatus('APPROVED'),
+                                icon: Icons.check_circle,
+                                color: Colors.green,
+                              ),
+                              const SizedBox(width: 10),
+                              _metricCard(
+                                label: 'Rejeitados',
+                                value: _countByStatus('REJECTED'),
+                                icon: Icons.cancel,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 10),
+                              _metricCard(
+                                label: 'Excluídos',
+                                value: _countByStatus('DELETED'),
+                                icon: Icons.person_off,
+                                color: Colors.blueGrey,
+                              ),
+                              const SizedBox(width: 10),
+                              _metricCard(
+                                label: 'Banidos',
+                                value: _countByStatus('BANNED'),
+                                icon: Icons.block,
+                                color: const Color(0xFF7F1D1D),
+                              ),
+                            ],
+                          )
+                        else
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  _metricCard(
+                                    label: 'Aprovados',
+                                    value: _countByStatus('APPROVED'),
+                                    icon: Icons.check_circle,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _metricCard(
+                                    label: 'Rejeitados',
+                                    value: _countByStatus('REJECTED'),
+                                    icon: Icons.cancel,
+                                    color: Colors.red,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  _metricCard(
+                                    label: 'Excluídos',
+                                    value: _countByStatus('DELETED'),
+                                    icon: Icons.person_off,
+                                    color: Colors.blueGrey,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _metricCard(
+                                    label: 'Banidos',
+                                    value: _countByStatus('BANNED'),
+                                    icon: Icons.block,
+                                    color: const Color(0xFF7F1D1D),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
-                            onPressed:
-                                _clearing ? null : _showClearHistoryOptions,
+                            onPressed: _clearing
+                                ? null
+                                : _showClearHistoryOptions,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               disabledForegroundColor: Colors.white70,
@@ -1261,7 +1318,9 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                   ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _clearing ? 'Limpando...' : 'Limpar histórico',
+                                  _clearing
+                                      ? 'Limpando...'
+                                      : 'Limpar histórico',
                                   style: const TextStyle(color: Colors.white),
                                 ),
                                 const SizedBox(width: 4),
@@ -1304,12 +1363,14 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                               final deleted =
                                   (u['deleted'] == true) || status == 'DELETED';
                               final banned = (u['banned'] == true);
-                              final currentBanned = (u['currentBanned'] == true);
+                              final currentBanned =
+                                  (u['currentBanned'] == true);
                               final created = (u['createdAt'] ?? '').toString();
                               final date = formatIsoDateToPtBr(created);
                               final isDeleting =
                                   id != null && _deletingIds.contains(id);
-                              final isDeletingEntry = historyId != null &&
+                              final isDeletingEntry =
+                                  historyId != null &&
                                   _deletingHistoryIds.contains(historyId);
                               final displayName = (u['name'] ?? '')
                                   .toString()
@@ -1336,160 +1397,164 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                     ),
                                   ],
                                 ),
-                                child: Row(
-                                  children: [
-                                    _avatar(u, avatarLetter),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            displayName.isEmpty
-                                                ? '-'
-                                                : displayName,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 20,
-                                              color: Color(0xFF111827),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            (u['email'] ?? '-').toString(),
-                                            style: const TextStyle(
-                                              color: Color(0xFF667085),
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          if (deleted &&
-                                              (u['rejectionReason'] ?? '')
-                                                  .toString()
-                                                  .trim()
-                                                  .isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Motivo da exclusão: ${(u['rejectionReason'] ?? '').toString().trim()}',
-                                              style: const TextStyle(
-                                                color: Color(0xFFB42318),
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                          if ((u['cref'] ?? '')
-                                              .toString()
-                                              .trim()
-                                              .isNotEmpty) ...[
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              'CREF: ${(u['cref'] ?? '').toString()}',
-                                              style: const TextStyle(
-                                                color: Color(0xFF0B4DBA),
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Cadastro: $date',
-                                            style: const TextStyle(
-                                              color: Color(0xFF98A2B3),
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          if (banned &&
-                                              (u['bannedReason'] ?? '')
-                                                  .toString()
-                                                  .trim()
-                                                  .isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Motivo do banimento: ${(u['bannedReason'] ?? '').toString().trim()}',
-                                              style: const TextStyle(
-                                                color: Color(0xFF7F1D1D),
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ] else if (!banned &&
-                                              status == 'REJECTED' &&
-                                              (u['rejectionReason'] ?? '')
-                                                  .toString()
-                                                  .trim()
-                                                  .isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Motivo: ${(u['rejectionReason'] ?? '').toString().trim()}',
-                                              style: const TextStyle(
-                                                color: Color(0xFFB42318),
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
+                                child: LayoutBuilder(
+                                  builder: (context, cardConstraints) {
+                                    final contentWidth = isNarrow
+                                        ? cardConstraints.maxWidth - 62
+                                        : null;
+
+                                    final chatIcon = InkWell(
+                                      onTap: () => _openChat(u),
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.chat_outlined,
+                                          size: 20,
+                                          color: Color(0xFF0B4DBA),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
+                                    );
+
+                                    final actionButtons = <Widget>[
+                                      _statusChip(
+                                        status,
+                                        deleted: deleted,
+                                        banned: banned,
+                                      ),
+                                      if (status == 'APPROVED' &&
+                                          !deleted &&
+                                          !banned)
+                                        _excludeAccountButton(u),
+                                      if (banned)
+                                        _unbanButton(u)
+                                      else if (currentBanned) ...[
+                                        _statusBadge(
+                                          'Banido',
+                                          const Color(0xFF7F1D1D),
+                                        ),
+                                        _unbanButton(u),
+                                      ] else
+                                        _banAccountButton(
+                                          u,
+                                          disabled: _isCurrentlyPending(u),
+                                        ),
+                                      if (banned ||
+                                          status == 'REJECTED' ||
+                                          deleted)
+                                        _deleteIconButton(
+                                          u,
+                                          isDeleting || isDeletingEntry,
+                                        ),
+                                    ];
+
+                                    final infoColumn = Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        InkWell(
-                                          onTap: () => _openChat(u),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          child: const Padding(
-                                            padding: EdgeInsets.all(4),
-                                            child: Icon(
-                                              Icons.chat_outlined,
-                                              size: 20,
-                                              color: Color(0xFF0B4DBA),
-                                            ),
+                                        Text(
+                                          displayName.isEmpty
+                                              ? '-'
+                                              : displayName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 20,
+                                            color: Color(0xFF111827),
                                           ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          (u['email'] ?? '-').toString(),
+                                          maxLines: isNarrow ? 2 : null,
+                                          overflow: isNarrow ? TextOverflow.ellipsis : null,
+                                          style: TextStyle(
+                                            color: const Color(0xFF667085),
+                                            fontSize: isNarrow ? 14 : 18,
+                                          ),
+                                        ),
+                                        if (deleted &&
+                                            (u['rejectionReason'] ?? '')
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Motivo da exclusão: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFB42318),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                        if ((u['cref'] ?? '')
+                                            .toString()
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'CREF: ${(u['cref'] ?? '').toString()}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF0B4DBA),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Cadastro: $date',
+                                          style: const TextStyle(
+                                            color: Color(0xFF98A2B3),
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        if (banned &&
+                                            (u['bannedReason'] ?? '')
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Motivo do banimento: ${(u['bannedReason'] ?? '').toString().trim()}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF7F1D1D),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ] else if (!banned &&
+                                            status == 'REJECTED' &&
+                                            (u['rejectionReason'] ?? '')
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Motivo: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFB42318),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+
+                                    final wideActionColumn = Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        chatIcon,
                                         const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            _statusChip(status,
-                                                deleted: deleted, banned: banned),
-                                            if (status == 'APPROVED' &&
-                                                !deleted &&
-                                                !banned) ...[
-                                              const SizedBox(width: 6),
-                                              _excludeAccountButton(u),
-                                            ],
-                                            const SizedBox(width: 6),
-                                            if (banned)
-                                              _unbanButton(u)
-                                            else if (currentBanned) ...[
-                                              _statusBadge(
-                                                'Banido',
-                                                const Color(0xFF7F1D1D),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              _unbanButton(u),
-                                            ] else
-                                              _banAccountButton(
-                                                u,
-                                                disabled:
-                                                    _isCurrentlyPending(u),
-                                              ),
-                                            if (banned ||
-                                                status == 'REJECTED' ||
-                                                deleted) ...[
-                                              const SizedBox(width: 6),
-                                              _deleteIconButton(
-                                                  u,
-                                                  isDeleting ||
-                                                      isDeletingEntry,
-                                              ),
-                                            ],
-                                          ],
+                                        Wrap(
+                                          alignment: WrapAlignment.end,
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: actionButtons,
                                         ),
                                         const SizedBox(height: 10),
                                         if (status == 'DELETED')
@@ -1501,8 +1566,236 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                                             ),
                                           ),
                                       ],
-                                    ),
-                                  ],
+                                    );
+
+                                    if (isWide) {
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                _avatar(u, avatarLetter),
+                                                const SizedBox(width: 16),
+                                                Expanded(child: infoColumn),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          wideActionColumn,
+                                        ],
+                                      );
+                                    }
+
+                                    return Wrap(
+                                      alignment: WrapAlignment.start,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.start,
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: [
+                                        _avatar(u, avatarLetter),
+                                        SizedBox(
+                                          width: isNarrow
+                                              ? contentWidth
+                                              : cardConstraints.maxWidth - 190,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                displayName.isEmpty
+                                                    ? '-'
+                                                    : displayName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 20,
+                                                  color: Color(0xFF111827),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                (u['email'] ?? '-').toString(),
+                                                maxLines: isNarrow ? 2 : null,
+                                                overflow: isNarrow
+                                                    ? TextOverflow.ellipsis
+                                                    : null,
+                                                style: TextStyle(
+                                                  color: const Color(
+                                                    0xFF667085,
+                                                  ),
+                                                  fontSize: isNarrow ? 14 : 18,
+                                                ),
+                                              ),
+                                              if (deleted &&
+                                                  (u['rejectionReason'] ?? '')
+                                                      .toString()
+                                                      .trim()
+                                                      .isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Motivo da exclusão: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFFB42318),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                              if ((u['cref'] ?? '')
+                                                  .toString()
+                                                  .trim()
+                                                  .isNotEmpty) ...[
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  'CREF: ${(u['cref'] ?? '').toString()}',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF0B4DBA),
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Cadastro: $date',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF98A2B3),
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              if (banned &&
+                                                  (u['bannedReason'] ?? '')
+                                                      .toString()
+                                                      .trim()
+                                                      .isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Motivo do banimento: ${(u['bannedReason'] ?? '').toString().trim()}',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF7F1D1D),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ] else if (!banned &&
+                                                  status == 'REJECTED' &&
+                                                  (u['rejectionReason'] ?? '')
+                                                      .toString()
+                                                      .trim()
+                                                      .isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Motivo: ${(u['rejectionReason'] ?? '').toString().trim()}',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFFB42318),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: isNarrow
+                                              ? cardConstraints.maxWidth
+                                              : 112,
+                                          child: Column(
+                                            crossAxisAlignment: isNarrow
+                                                ? CrossAxisAlignment.start
+                                                : CrossAxisAlignment.end,
+                                            children: [
+                                              if (isNarrow)
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  children: [
+                                                    chatIcon,
+                                                    ...actionButtons,
+                                                  ],
+                                                )
+                                              else ...([
+                                                InkWell(
+                                                  onTap: () => _openChat(u),
+                                                  borderRadius:
+                                                      BorderRadius.circular(999),
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.all(4),
+                                                    child: Icon(
+                                                      Icons.chat_outlined,
+                                                      size: 20,
+                                                      color: Color(0xFF0B4DBA),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Wrap(
+                                                  spacing: 6,
+                                                  runSpacing: 6,
+                                                  children: [
+                                                    _statusChip(
+                                                      status,
+                                                      deleted: deleted,
+                                                      banned: banned,
+                                                    ),
+                                                    if (status == 'APPROVED' &&
+                                                        !deleted &&
+                                                        !banned) ...[
+                                                      const SizedBox(width: 6),
+                                                      _excludeAccountButton(u),
+                                                    ],
+                                                    const SizedBox(width: 6),
+                                                    if (banned)
+                                                      _unbanButton(u)
+                                                    else if (currentBanned) ...[
+                                                      _statusBadge(
+                                                        'Banido',
+                                                        const Color(0xFF7F1D1D),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      _unbanButton(u),
+                                                    ] else
+                                                      _banAccountButton(
+                                                        u,
+                                                        disabled:
+                                                            _isCurrentlyPending(
+                                                              u,
+                                                            ),
+                                                      ),
+                                                    if (banned ||
+                                                        status == 'REJECTED' ||
+                                                        deleted) ...[
+                                                      const SizedBox(width: 6),
+                                                      _deleteIconButton(
+                                                        u,
+                                                        isDeleting ||
+                                                            isDeletingEntry,
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ]),
+                                              const SizedBox(height: 10),
+                                              if (status == 'DELETED')
+                                                const Text(
+                                                  'Conta desativada',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF98A2B3),
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               );
                             },

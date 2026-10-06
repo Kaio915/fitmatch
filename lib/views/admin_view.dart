@@ -130,10 +130,7 @@ class _AdminViewState extends State<AdminView> {
 
     try {
       final Uint8List bytes = base64Decode(base64);
-      return CircleAvatar(
-        radius: 28,
-        backgroundImage: MemoryImage(bytes),
-      );
+      return CircleAvatar(radius: 28, backgroundImage: MemoryImage(bytes));
     } catch (_) {
       return CircleAvatar(
         radius: 28,
@@ -188,7 +185,9 @@ class _AdminViewState extends State<AdminView> {
                           'personal',
                         ),
                         trainers.isEmpty
-                            ? _emptyBox('Nenhuma solicitação de Personal Trainer pendente')
+                            ? _emptyBox(
+                                'Nenhuma solicitação de Personal Trainer pendente',
+                              )
                             : _pendingGrid(trainers),
 
                         const SizedBox(height: 32),
@@ -217,6 +216,7 @@ class _AdminViewState extends State<AdminView> {
   }
 
   Widget _heroBanner() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -234,26 +234,24 @@ class _AdminViewState extends State<AdminView> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings_rounded,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
                   'Central de Moderação',
                   style: TextStyle(
                     color: Colors.white,
@@ -261,35 +259,75 @@ class _AdminViewState extends State<AdminView> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
+                const SizedBox(height: 2),
+                const Text(
                   'Revise solicitações e mantenha a comunidade segura.',
-                  style: TextStyle(
-                    color: Color(0xFFDDE8FF),
-                    fontSize: 13,
+                  style: TextStyle(color: Color(0xFFDDE8FF), fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                _pendingBadge(),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: Colors.white,
                   ),
                 ),
+                SizedBox(width: isMobile ? 0 : 14, height: isMobile ? 10 : 0),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Central de Moderação',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Revise solicitações e mantenha a comunidade segura.',
+                        style: TextStyle(
+                          color: Color(0xFFDDE8FF),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _pendingBadge(),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.28),
-              ),
-            ),
-            child: Text(
-              '$_pendingTotal pendentes',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+    );
+  }
+
+  Widget _pendingBadge() {
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        '$_pendingTotal pendentes',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -306,6 +344,17 @@ class _AdminViewState extends State<AdminView> {
         } else if (constraints.maxWidth > 950) {
           crossAxisCount = 2;
           childAspectRatio = 1.65;
+        }
+
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(height: 14),
+                _userCard(items[i]),
+              ],
+            ],
+          );
         }
 
         return GridView.builder(
@@ -376,10 +425,7 @@ class _AdminViewState extends State<AdminView> {
                 children: [
                   const Text(
                     'Usuários Reportados',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -410,7 +456,11 @@ class _AdminViewState extends State<AdminView> {
     );
   }
 
-  Widget _clickableHistoryCard(BuildContext context, String title, String type) {
+  Widget _clickableHistoryCard(
+    BuildContext context,
+    String title,
+    String type,
+  ) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -442,7 +492,11 @@ class _AdminViewState extends State<AdminView> {
                 color: const Color(0xFFE8EEFF),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.history, color: Color(0xFF0B4DBA), size: 18),
+              child: const Icon(
+                Icons.history,
+                color: Color(0xFF0B4DBA),
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -451,7 +505,10 @@ class _AdminViewState extends State<AdminView> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   const Text(
@@ -500,11 +557,7 @@ class _AdminViewState extends State<AdminView> {
 
         if (isCompact) {
           return Column(
-            children: [
-              trainerCard,
-              const SizedBox(height: 10),
-              studentCard,
-            ],
+            children: [trainerCard, const SizedBox(height: 10), studentCard],
           );
         }
 
@@ -569,7 +622,10 @@ class _AdminViewState extends State<AdminView> {
                   const SizedBox(height: 6),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Color(0xFF667085), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFF667085),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -598,6 +654,7 @@ class _AdminViewState extends State<AdminView> {
     final createdDate = formatIsoDateToPtBr(createdAt);
     final name = (u['name'] ?? '').toString();
     final email = (u['email'] ?? '').toString();
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     const infoStyle = TextStyle(color: Color(0xFF344054));
 
@@ -617,96 +674,15 @@ class _AdminViewState extends State<AdminView> {
       ),
       child: Column(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _avatar(u),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                color: Color(0xFF111827),
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                color: Color(0xFF667085),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF4FF),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFFD6E4FF)),
-                        ),
-                        child: Text(
-                          type == 'personal' ? 'Personal' : 'Aluno',
-                          style: const TextStyle(
-                            color: Color(0xFF1D4ED8),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _infoRow(Icons.badge_outlined, 'CPF', cpf, infoStyle),
-                  const SizedBox(height: 6),
-                  _infoRow(Icons.event_note_outlined, 'Data de Cadastro', createdDate, infoStyle),
-                  if (u['objetivos'] != null) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.flag_outlined, 'Objetivos', '${u['objetivos']}', infoStyle),
-                  ],
-                  if (u['nivel'] != null) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.trending_up_outlined, 'Nível', '${u['nivel']}', infoStyle),
-                  ],
-                  if (type == 'personal' && u['cref'] != null) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.workspace_premium_outlined, 'CREF', '${u['cref']}', infoStyle),
-                  ],
-                  if (u['especialidade'] != null &&
-                      u['especialidade'].toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.fitness_center_outlined, 'Especialidade', '${u['especialidade']}', infoStyle),
-                  ],
-                  if (u['experiencia'] != null &&
-                      u['experiencia'].toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.school_outlined, 'Experiência', '${u['experiencia']}', infoStyle),
-                  ],
-                  if (u['cidade'] != null && u['cidade'].toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.location_on_outlined, 'Cidade', '${u['cidade']}', infoStyle),
-                  ],
-                  if (u['bio'] != null && u['bio'].toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    _infoRow(Icons.notes_outlined, 'Biografia', '${u['bio']}', infoStyle),
-                  ],
-                ],
-              ),
-            ),
+          _pendingCardInfo(
+            u: u,
+            name: name,
+            email: email,
+            cpf: cpf,
+            createdDate: createdDate,
+            type: type,
+            infoStyle: infoStyle,
+            isMobile: isMobile,
           ),
 
           const SizedBox(height: 12),
@@ -716,8 +692,16 @@ class _AdminViewState extends State<AdminView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              icon: Icon(isTemporarilyRejected ? Icons.warning_amber_rounded : Icons.search),
-              label: Text(isTemporarilyRejected ? 'Rejeitado temporariamente' : 'Analisar'),
+              icon: Icon(
+                isTemporarilyRejected
+                    ? Icons.warning_amber_rounded
+                    : Icons.search,
+              ),
+              label: Text(
+                isTemporarilyRejected
+                    ? 'Rejeitado temporariamente'
+                    : 'Analisar',
+              ),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 backgroundColor: isTemporarilyRejected
@@ -725,12 +709,17 @@ class _AdminViewState extends State<AdminView> {
                     : const Color(0xFF0B4DBA),
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(46),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () async {
                 await Navigator.push<bool>(
                   context,
-                  MaterialPageRoute(builder: (_) => AdminTicketView(user: Map<String, dynamic>.from(u))),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        AdminTicketView(user: Map<String, dynamic>.from(u)),
+                  ),
                 );
                 if (!mounted) return;
                 await _load();
@@ -738,6 +727,157 @@ class _AdminViewState extends State<AdminView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _pendingCardInfo({
+    required dynamic u,
+    required String name,
+    required String email,
+    required String cpf,
+    required String createdDate,
+    required String type,
+    required TextStyle infoStyle,
+    required bool isMobile,
+  }) {
+    final infoColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _avatar(u),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      color: Color(0xFF667085),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF4FF),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFD6E4FF)),
+              ),
+              child: Text(
+                type == 'personal' ? 'Personal' : 'Aluno',
+                style: const TextStyle(
+                  color: Color(0xFF1D4ED8),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _infoRow(Icons.badge_outlined, 'CPF', cpf, infoStyle),
+        const SizedBox(height: 6),
+        _infoRow(
+          Icons.event_note_outlined,
+          'Data de Cadastro',
+          createdDate,
+          infoStyle,
+        ),
+        if (u['objetivos'] != null) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.flag_outlined,
+            'Objetivos',
+            '${u['objetivos']}',
+            infoStyle,
+          ),
+        ],
+        if (u['nivel'] != null) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.trending_up_outlined,
+            'Nível',
+            '${u['nivel']}',
+            infoStyle,
+          ),
+        ],
+        if (type == 'personal' && u['cref'] != null) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.workspace_premium_outlined,
+            'CREF',
+            '${u['cref']}',
+            infoStyle,
+          ),
+        ],
+        if (u['especialidade'] != null &&
+            u['especialidade'].toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.fitness_center_outlined,
+            'Especialidade',
+            '${u['especialidade']}',
+            infoStyle,
+          ),
+        ],
+        if (u['experiencia'] != null &&
+            u['experiencia'].toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.school_outlined,
+            'Experiência',
+            '${u['experiencia']}',
+            infoStyle,
+          ),
+        ],
+        if (u['cidade'] != null &&
+            u['cidade'].toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.location_on_outlined,
+            'Cidade',
+            '${u['cidade']}',
+            infoStyle,
+          ),
+        ],
+        if (u['bio'] != null && u['bio'].toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.notes_outlined,
+            'Biografia',
+            '${u['bio']}',
+            infoStyle,
+          ),
+        ],
+      ],
+    );
+
+    if (isMobile) return infoColumn;
+
+    return Expanded(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: infoColumn,
       ),
     );
   }
@@ -777,12 +917,16 @@ class _AdminViewState extends State<AdminView> {
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
           ),
         ],
@@ -822,67 +966,103 @@ class _AdminViewState extends State<AdminView> {
   }
 
   Widget _header(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 800;
+
+    final shieldIcon = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EEFF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.shield_outlined, color: Color(0xFF0B4DBA)),
+    );
+
+    final title = const Text(
+      'Painel Administrativo',
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Color(0xFF101828),
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    final logoutButton = OutlinedButton.icon(
+      onPressed: () async {
+        await AuthService.clearSession();
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      },
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF0B4DBA),
+        side: const BorderSide(color: Color(0xFF98A2B3)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      icon: const Icon(Icons.logout),
+      label: const Text('Sair'),
+    );
+
+    final refreshButton = IconButton(
+      onPressed: _onGlobalRefresh,
+      tooltip: 'Atualizar',
+      icon: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B4DBA),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Icon(
+          Icons.refresh_rounded,
+          size: 18,
+          color: Colors.white,
+        ),
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF3F5FA),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EEFF),
-              borderRadius: BorderRadius.circular(10),
+      decoration: const BoxDecoration(color: Color(0xFFF3F5FA)),
+      child: isWide
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    shieldIcon,
+                    const SizedBox(width: 12),
+                    title,
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    logoutButton,
+                    const SizedBox(width: 8),
+                    refreshButton,
+                  ],
+                ),
+              ],
+            )
+          : Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                shieldIcon,
+                SizedBox(width: 180, child: title),
+                logoutButton,
+                const SizedBox(width: 8),
+                if (MediaQuery.of(context).size.width >= 600) refreshButton,
+              ],
             ),
-            child: const Icon(Icons.shield_outlined, color: Color(0xFF0B4DBA)),
-          ),
-          const SizedBox(width: 10),
-          const Text(
-            'Painel Administrativo',
-            style: TextStyle(
-              color: Color(0xFF101828),
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const Spacer(),
-          OutlinedButton.icon(
-            onPressed: () async {
-              await AuthService.clearSession();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-              }
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF0B4DBA),
-              side: const BorderSide(color: Color(0xFF98A2B3)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            icon: const Icon(Icons.logout),
-            label: const Text('Sair'),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B4DBA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

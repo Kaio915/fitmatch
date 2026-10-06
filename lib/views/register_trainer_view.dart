@@ -77,10 +77,7 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
 
   final _crefMask = MaskTextInputFormatter(
     mask: '######-G/AA',
-    filter: {
-      '#': RegExp(r'[0-9]'),
-      'A': RegExp(r'[A-Za-z]'),
-    },
+    filter: {'#': RegExp(r'[0-9]'), 'A': RegExp(r'[A-Za-z]')},
   );
 
   final ImagePicker _picker = ImagePicker();
@@ -235,7 +232,8 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const RegisterSuccessView(userType: UserType.personal),
+          builder: (_) =>
+              const RegisterSuccessView(userType: UserType.personal),
         ),
       );
     } catch (e) {
@@ -249,245 +247,294 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 1020,
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 16,
-              )
-            ],
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('← Voltar',
-                            style: TextStyle(color: Colors.black)),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: _handleRefresh,
-                        tooltip: 'Atualizar',
-                        icon: Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0B4DBA),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Icon(
-                            Icons.refresh_rounded,
-                            size: 18,
-                            color: Colors.white,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 0),
+            child: Center(
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 1020),
+                padding: EdgeInsets.all(isNarrow ? 16 : 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text(
+                                '← Voltar',
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                            const Spacer(),
+                            if (MediaQuery.of(context).size.width >= 600)
+                              IconButton(
+                                onPressed: _handleRefresh,
+                                tooltip: 'Atualizar',
+                                icon: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0B4DBA),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const FitMatchLogo(
+                          height: 78,
+                          assetPath: 'assets/images/fitmatch_logo3.png',
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Criar Conta',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const FitMatchLogo(height: 78, assetPath: 'assets/images/fitmatch_logo3.png'),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Criar Conta',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Escolha o tipo de conta e preencha seus dados',
-                    style: TextStyle(color: Color.fromARGB(255, 56, 54, 54)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Escolha o tipo de conta e preencha seus dados',
+                          style: TextStyle(
+                            color: Color.fromARGB(255, 56, 54, 54),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
 
-                  // Toggle
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
+                        // Toggle
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
-                            onTap: () {
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        settings: const RouteSettings(
+                                          name: AppRoutes.registerStudent,
+                                        ),
+                                        builder: (_) =>
+                                            const RegisterStudentView(),
+                                      ),
+                                    );
+                                  },
+                                  child: const SizedBox(
+                                    height: 44,
+                                    child: Center(
+                                      child: Text(
+                                        'Aluno',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color.fromARGB(137, 0, 0, 0),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Personal Trainer',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        _input(
+                          'Nome Completo *',
+                          'Seu nome completo',
+                          nameController,
+                          focusNode: _nameFocus,
+                          nextFocus: _emailFocus,
+                        ),
+                        _input(
+                          'Email *',
+                          'seuemail@email.com',
+                          emailController,
+                          isEmail: true,
+                          focusNode: _emailFocus,
+                          nextFocus: _passwordFocus,
+                        ),
+                        _passwordField(
+                          focusNode: _passwordFocus,
+                          nextFocus: _confirmPasswordFocus,
+                        ),
+                        _confirmPasswordField(
+                          focusNode: _confirmPasswordFocus,
+                          nextFocus: _cpfFocus,
+                        ),
+
+                        _cpfField(focusNode: _cpfFocus, nextFocus: _crefFocus),
+                        _photoField(),
+
+                        _crefField(
+                          focusNode: _crefFocus,
+                          nextFocus: _cidadeFocus,
+                        ),
+
+                        _cidadeAutocomplete(
+                          focusNode: _cidadeFocus,
+                          onNext: () {
+                            if (_especialidadeSelecionada == 'Outro') {
+                              _especialidadeOutroFocus.requestFocus();
+                            } else {
+                              _valorFocus.requestFocus();
+                            }
+                          },
+                        ),
+
+                        _especialidadeDropdown(
+                          outroFocus: _especialidadeOutroFocus,
+                          outroNextFocus: _valorFocus,
+                        ),
+                        _input(
+                          'Valor por Hora',
+                          'Ex: 120',
+                          valorController,
+                          required: false,
+                          inputFormatters: [_CurrencyInputFormatter()],
+                          focusNode: _valorFocus,
+                        ),
+
+                        // ✅ BIO COM LIMITE REAL
+                        _textarea(
+                          'Biografia *',
+                          'Fale um pouco sobre você, quantos anos de profissão, onde já trabalhou, etc.',
+                          bioController,
+                          minLen: _bioMinLen,
+                          maxLen: _bioMaxLen,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0B4DBA),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: loading
+                                ? null
+                                : () {
+                                    if (_photo == null) {
+                                      _showSnack(
+                                        kIsWeb
+                                            ? 'Selecione uma foto do seu computador'
+                                            : 'Tire uma foto pela câmera',
+                                      );
+                                      return;
+                                    }
+
+                                    if (_formKey.currentState!.validate()) {
+                                      _registerTrainer();
+                                    }
+                                  },
+                            child: loading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Criar Conta de Personal Trainer',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  settings: const RouteSettings(
-                                    name: AppRoutes.registerStudent,
-                                  ),
-                                  builder: (_) => const RegisterStudentView(),
+                                  builder: (_) =>
+                                      LoginView(userType: UserType.personal),
                                 ),
                               );
                             },
-                            child: const SizedBox(
-                              height: 44,
-                              child: Center(
-                                child: Text(
-                                  'Aluno',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color.fromARGB(137, 0, 0, 0),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Personal Trainer',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black),
-                              ),
+                            child: const Text(
+                              'Já tem uma conta? Entrar',
+                              style: TextStyle(color: Colors.black),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  _input('Nome Completo *', 'Seu nome completo', nameController,
-                      focusNode: _nameFocus, nextFocus: _emailFocus),
-                  _input('Email *', 'seuemail@email.com', emailController,
-                      isEmail: true,
-                      focusNode: _emailFocus, nextFocus: _passwordFocus),
-                    _passwordField(
-                        focusNode: _passwordFocus,
-                        nextFocus: _confirmPasswordFocus),
-                    _confirmPasswordField(
-                        focusNode: _confirmPasswordFocus, nextFocus: _cpfFocus),
-
-                  _cpfField(focusNode: _cpfFocus, nextFocus: _crefFocus),
-                  _photoField(),
-
-                  _crefField(focusNode: _crefFocus, nextFocus: _cidadeFocus),
-
-                  _cidadeAutocomplete(
-                    focusNode: _cidadeFocus,
-                    onNext: () {
-                      if (_especialidadeSelecionada == 'Outro') {
-                        _especialidadeOutroFocus.requestFocus();
-                      } else {
-                        _valorFocus.requestFocus();
-                      }
-                    },
-                  ),
-
-                    _especialidadeDropdown(
-                        outroFocus: _especialidadeOutroFocus,
-                        outroNextFocus: _valorFocus),
-                    _input('Valor por Hora', 'Ex: 120', valorController,
-                      required: false,
-                      inputFormatters: [_CurrencyInputFormatter()],
-                      focusNode: _valorFocus),
-
-                  // ✅ BIO COM LIMITE REAL
-                  _textarea(
-                    'Biografia *',
-                    'Fale um pouco sobre você, quantos anos de profissão, onde já trabalhou, etc.',
-                    bioController,
-                    minLen: _bioMinLen,
-                    maxLen: _bioMaxLen,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0B4DBA),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: loading
-                          ? null
-                          : () {
-                              if (_photo == null) {
-                                _showSnack(kIsWeb
-                                    ? 'Selecione uma foto do seu computador'
-                                    : 'Tire uma foto pela câmera');
-                                return;
-                              }
-
-                              if (_formKey.currentState!.validate()) {
-                                _registerTrainer();
-                              }
-                            },
-                      child: loading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Criar Conta de Personal Trainer',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 16),
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                LoginView(userType: UserType.personal),
-                          ),
-                        );
-                      },
-                      child: const Text('Já tem uma conta? Entrar',
-                          style: TextStyle(color: Colors.black)),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -498,8 +545,10 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Cidade *',
-              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
+          const Text(
+            'Cidade *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          ),
           const SizedBox(height: 6),
           TextFormField(
             controller: cidadeController,
@@ -517,18 +566,22 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
                 return;
               }
 
-              _cidadeDebounce = Timer(const Duration(milliseconds: 300), () async {
-                final typedAtRequest = cidadeController.text.trim();
-                final resultado =
-                    await AuthService.buscarCidadesIbge(typedAtRequest);
+              _cidadeDebounce = Timer(
+                const Duration(milliseconds: 300),
+                () async {
+                  final typedAtRequest = cidadeController.text.trim();
+                  final resultado = await AuthService.buscarCidadesIbge(
+                    typedAtRequest,
+                  );
 
-                if (!mounted) return;
+                  if (!mounted) return;
 
-                // Evita exibir resultados antigos quando o usuário digita rápido.
-                if (typedAtRequest == cidadeController.text.trim()) {
-                  setState(() => cidades = resultado);
-                }
-              });
+                  // Evita exibir resultados antigos quando o usuário digita rápido.
+                  if (typedAtRequest == cidadeController.text.trim()) {
+                    setState(() => cidades = resultado);
+                  }
+                },
+              );
             },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Campo obrigatório';
@@ -542,8 +595,10 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    const BorderSide(color: Color(0xFF0B4DBA), width: 2),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0B4DBA),
+                  width: 2,
+                ),
               ),
             ),
           ),
@@ -564,7 +619,8 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
                   return ListTile(
                     title: Text("${cidade['nome']} - ${cidade['uf']}"),
                     onTap: () {
-                      cidadeController.text = "${cidade['nome']} - ${cidade['uf']}";
+                      cidadeController.text =
+                          "${cidade['nome']} - ${cidade['uf']}";
                       setState(() => cidades = []);
                     },
                   );
@@ -579,220 +635,264 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   Widget _cpfField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('CPF *',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: cpfController,
-          focusNode: focusNode,
-          inputFormatters: [_cpfMask],
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (v.isEmpty) return 'Campo obrigatório';
-            if (!_isValidCPF(v)) return 'CPF inválido';
-            return null;
-          },
-          decoration: _decoration('000.000.000-00'),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CPF *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: cpfController,
+            focusNode: focusNode,
+            inputFormatters: [_cpfMask],
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return 'Campo obrigatório';
+              if (!_isValidCPF(v)) return 'CPF inválido';
+              return null;
+            },
+            decoration: _decoration('000.000.000-00'),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _crefField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('CREF *',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: crefController,
-          focusNode: focusNode,
-          inputFormatters: [_crefMask],
-          textCapitalization: TextCapitalization.characters,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
-          validator: (value) {
-            final v = (value ?? '').trim().toUpperCase();
-            if (v.isEmpty) return 'Campo obrigatório';
-            if (!RegExp(r'^\d{6}-G\/[A-Z]{2}$').hasMatch(v)) {
-              return 'Formato: 123456-G/SP';
-            }
-            return null;
-          },
-          decoration: _decoration('Ex: 123456-G/SP'),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CREF *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: crefController,
+            focusNode: focusNode,
+            inputFormatters: [_crefMask],
+            textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
+            validator: (value) {
+              final v = (value ?? '').trim().toUpperCase();
+              if (v.isEmpty) return 'Campo obrigatório';
+              if (!RegExp(r'^\d{6}-G\/[A-Z]{2}$').hasMatch(v)) {
+                return 'Formato: 123456-G/SP';
+              }
+              return null;
+            },
+            decoration: _decoration('Ex: 123456-G/SP'),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _passwordField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Senha *',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: passwordController,
-          focusNode: focusNode,
-          obscureText: !_showPassword,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (v.isEmpty) return 'Campo obrigatório';
-            if (v.length < 6) return 'Mínimo 6 caracteres';
-            return null;
-          },
-          decoration: _decoration('Mínimo 6 caracteres').copyWith(
-            suffixIcon: IconButton(
-              onPressed: () => setState(() => _showPassword = !_showPassword),
-              icon: Icon(
-                _showPassword ? Icons.visibility_off : Icons.visibility,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Senha *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: passwordController,
+            focusNode: focusNode,
+            obscureText: !_showPassword,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return 'Campo obrigatório';
+              if (v.length < 6) return 'Mínimo 6 caracteres';
+              return null;
+            },
+            decoration: _decoration('Mínimo 6 caracteres').copyWith(
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => _showPassword = !_showPassword),
+                icon: Icon(
+                  _showPassword ? Icons.visibility_off : Icons.visibility,
+                ),
               ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
   Widget _confirmPasswordField({FocusNode? focusNode, FocusNode? nextFocus}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Confirmar Senha *',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: confirmPasswordController,
-          focusNode: focusNode,
-          obscureText: !_showConfirmPassword,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (v.isEmpty) return 'Campo obrigatório';
-            if (v != passwordController.text.trim()) {
-              return 'As senhas não coincidem';
-            }
-            return null;
-          },
-          decoration: _decoration('Repita a senha').copyWith(
-            suffixIcon: IconButton(
-              onPressed: () =>
-                  setState(() => _showConfirmPassword = !_showConfirmPassword),
-              icon: Icon(
-                _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
-              ),
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Confirmar Senha *',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
           ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _especialidadeDropdown({FocusNode? outroFocus, FocusNode? outroNextFocus}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Especialidade',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          initialValue: _especialidadeSelecionada,
-          items: _especialidades
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-              .toList(),
-          onChanged: (value) {
-            setState(() => _especialidadeSelecionada = value);
-            if (value != 'Outro') {
-              especialidadeOutroController.clear();
-            }
-          },
-          validator: (value) {
-            if (value == 'Outro' && especialidadeOutroController.text.trim().isEmpty) {
-              return 'Descreva a especialidade';
-            }
-            return null;
-          },
-          decoration: _decoration('Selecione uma especialidade'),
-        ),
-        if (_especialidadeSelecionada == 'Outro') ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           TextFormField(
-            controller: especialidadeOutroController,
-            focusNode: outroFocus,
+            controller: confirmPasswordController,
+            focusNode: focusNode,
+            obscureText: !_showConfirmPassword,
             textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => outroNextFocus?.requestFocus(),
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
             validator: (value) {
-              if (_especialidadeSelecionada == 'Outro' &&
-                  (value == null || value.trim().isEmpty)) {
-                return 'Campo obrigatório';
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return 'Campo obrigatório';
+              if (v != passwordController.text.trim()) {
+                return 'As senhas não coincidem';
               }
               return null;
             },
-            decoration: _decoration('Digite sua especialidade'),
+            decoration: _decoration('Repita a senha').copyWith(
+              suffixIcon: IconButton(
+                onPressed: () => setState(
+                  () => _showConfirmPassword = !_showConfirmPassword,
+                ),
+                icon: Icon(
+                  _showConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                ),
+              ),
+            ),
           ),
         ],
-      ]),
+      ),
+    );
+  }
+
+  Widget _especialidadeDropdown({
+    FocusNode? outroFocus,
+    FocusNode? outroNextFocus,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Especialidade',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          ),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<String>(
+            initialValue: _especialidadeSelecionada,
+            isExpanded: MediaQuery.of(context).size.width < 600,
+            menuMaxHeight: MediaQuery.of(context).size.height * 0.42,
+            items: _especialidades
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              setState(() => _especialidadeSelecionada = value);
+              if (value != 'Outro') {
+                especialidadeOutroController.clear();
+              }
+            },
+            validator: (value) {
+              if (value == 'Outro' &&
+                  especialidadeOutroController.text.trim().isEmpty) {
+                return 'Descreva a especialidade';
+              }
+              return null;
+            },
+            decoration: _decoration('Selecione uma especialidade'),
+          ),
+          if (_especialidadeSelecionada == 'Outro') ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: especialidadeOutroController,
+              focusNode: outroFocus,
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => outroNextFocus?.requestFocus(),
+              validator: (value) {
+                if (_especialidadeSelecionada == 'Outro' &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'Campo obrigatório';
+                }
+                return null;
+              },
+              decoration: _decoration('Digite sua especialidade'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _photoField() {
-    final label =
-        kIsWeb ? 'Foto * (Web: escolher arquivo)' : 'Foto * (Mobile: usar câmera)';
+    final label = kIsWeb
+        ? 'Foto * (Web: escolher arquivo)'
+        : 'Foto * (Mobile: usar câmera)';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _pickPhoto,
-              icon: Icon(kIsWeb ? Icons.upload_file : Icons.camera_alt),
-              label: Text(kIsWeb ? 'Selecionar' : 'Tirar foto'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B4DBA),
-                foregroundColor: Colors.white,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _photo == null ? 'Nenhuma foto' : _photo!.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.black54),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (_photo != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: kIsWeb
-                ? Image.memory(
-                    _photoBytes!,
-                    height: 130,
-                    fit: BoxFit.cover,
-                  )
-                : Image.file(
-                    File(_photo!.path),
-                    height: 130,
-                    fit: BoxFit.cover,
-                  ),
           ),
-      ]),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _pickPhoto,
+                icon: Icon(kIsWeb ? Icons.upload_file : Icons.camera_alt),
+                label: Text(kIsWeb ? 'Selecionar' : 'Tirar foto'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0B4DBA),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _photo == null ? 'Nenhuma foto' : _photo!.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_photo != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: kIsWeb
+                  ? Image.memory(_photoBytes!, height: 130, fit: BoxFit.cover)
+                  : Image.file(
+                      File(_photo!.path),
+                      height: 130,
+                      fit: BoxFit.cover,
+                    ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -810,27 +910,37 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          obscureText: obscure,
-          inputFormatters: inputFormatters,
-          focusNode: focusNode,
-          textInputAction: nextFocus == null ? TextInputAction.done : TextInputAction.next,
-          onFieldSubmitted: (_) => nextFocus?.requestFocus(),
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (required && v.isEmpty) return 'Campo obrigatório';
-            if (isEmail && !v.contains('@')) return 'Email inválido';
-            if (isPassword && v.length < 6) return 'Mínimo 6 caracteres';
-            return null;
-          },
-          decoration: _decoration(hint),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            obscureText: obscure,
+            inputFormatters: inputFormatters,
+            focusNode: focusNode,
+            textInputAction: nextFocus == null
+                ? TextInputAction.done
+                : TextInputAction.next,
+            onFieldSubmitted: (_) => nextFocus?.requestFocus(),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (required && v.isEmpty) return 'Campo obrigatório';
+              if (isEmail && !v.contains('@')) return 'Email inválido';
+              if (isPassword && v.length < 6) return 'Mínimo 6 caracteres';
+              return null;
+            },
+            decoration: _decoration(hint),
+          ),
+        ],
+      ),
     );
   }
 
@@ -845,33 +955,41 @@ class _RegisterTrainerViewState extends State<RegisterTrainerView> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          maxLength: maxLen, // ✅ impede passar do limite
-          maxLengthEnforcement: MaxLengthEnforcement.enforced,
-          inputFormatters: [
-            // evita quebras esquisitas
-            FilteringTextInputFormatter.deny(RegExp(r'[\r\n]')),
-          ],
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (required && v.isEmpty) return 'Campo obrigatório';
-            if (minLen != null && v.length < minLen) {
-              return 'Escreva pelo menos $minLen caracteres';
-            }
-            if (maxLen != null && v.length > maxLen) {
-              return 'Máximo de $maxLen caracteres';
-            }
-            return null;
-          },
-          decoration: _decoration(hint),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            maxLines: maxLines,
+            maxLength: maxLen, // ✅ impede passar do limite
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            inputFormatters: [
+              // evita quebras esquisitas
+              FilteringTextInputFormatter.deny(RegExp(r'[\r\n]')),
+            ],
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (required && v.isEmpty) return 'Campo obrigatório';
+              if (minLen != null && v.length < minLen) {
+                return 'Escreva pelo menos $minLen caracteres';
+              }
+              if (maxLen != null && v.length > maxLen) {
+                return 'Máximo de $maxLen caracteres';
+              }
+              return null;
+            },
+            decoration: _decoration(hint),
+          ),
+        ],
+      ),
     );
   }
 

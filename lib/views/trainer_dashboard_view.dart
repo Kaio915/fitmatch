@@ -85,6 +85,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   bool _loadingStudents = false;
   Timer? _dashboardRefreshTimer;
   final ScrollController _studentsScrollController = ScrollController();
+  final ScrollController _daysScrollController = ScrollController();
   List<Map<String, String>> _oneTimeManualBlocks = [];
   List<Map<String, String>> _oneTimeManualUnblocks = [];
   final Set<String> _weeklyManualBlockKeys = <String>{};
@@ -165,6 +166,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _dashboardRefreshTimer?.cancel();
     _studentsScrollController.dispose();
+    _daysScrollController.dispose();
     _pageScrollController.dispose();
     super.dispose();
   }
@@ -584,6 +586,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   Future<void> _showEditProfileDialog() async {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final cidadeCtrl = TextEditingController(text: _editCidade);
     final valorHoraCtrl = TextEditingController(text: _editValorHora);
     final especialidadeCtrl = TextEditingController(text: _editEspecialidade);
@@ -591,59 +594,85 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          'Editar Perfil',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16 : 40,
+          vertical: 24,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
           children: [
-            CityAutocompleteField(
-              initialValue: cidadeCtrl.text,
-              onChanged: (value) => cidadeCtrl.text = value,
+            IconButton(
+              onPressed: () => Navigator.pop(ctx),
+              tooltip: 'Voltar',
+              icon: const Icon(Icons.arrow_back),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _profileSpecialties.contains(especialidadeCtrl.text)
-                  ? especialidadeCtrl.text
-                  : null,
-              onChanged: (value) {
-                if (value != null) especialidadeCtrl.text = value;
-              },
-              items: _profileSpecialties
-                  .map(
-                    (value) =>
-                        DropdownMenuItem(value: value, child: Text(value)),
-                  )
-                  .toList(),
-              decoration: const InputDecoration(
-                labelText: 'Especialidade',
-                prefixIcon: Icon(Icons.fitness_center_rounded),
-                border: OutlineInputBorder(),
+            const Expanded(
+              child: Text(
+                'Editar Perfil',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: valorHoraCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Valor por hora (R\$)',
-                prefixIcon: Icon(Icons.attach_money_rounded),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bioCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Biografia',
-                prefixIcon: Icon(Icons.description_outlined),
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 4,
             ),
           ],
+        ),
+        content: SizedBox(
+          width: isMobile ? 280 : null,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CityAutocompleteField(
+                initialValue: cidadeCtrl.text,
+                onChanged: (value) => cidadeCtrl.text = value,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue:
+                    _profileSpecialties.contains(especialidadeCtrl.text)
+                    ? especialidadeCtrl.text
+                    : null,
+                isExpanded: isMobile,
+                onChanged: (value) {
+                  if (value != null) especialidadeCtrl.text = value;
+                },
+                items: _profileSpecialties
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Especialidade',
+                  prefixIcon: Icon(Icons.fitness_center_rounded),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: valorHoraCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Valor por hora (R\$)',
+                  prefixIcon: Icon(Icons.attach_money_rounded),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bioCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Biografia',
+                  prefixIcon: Icon(Icons.description_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -696,16 +725,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   // Resumo de solicitações pendentes
-  List<Map<String, dynamic>> get _pendingRequests => _allTrainerRequests.where((
-    r,
-  ) {
-    final id = r['id'] is int
-        ? r['id'] as int
-        : int.tryParse((r['id'] ?? '').toString());
-    final hiddenByDb = r['hiddenForTrainer'] == true;
-    final hiddenLocally = id != null && _hiddenRequestIds.contains(id);
-    return (r['status'] ?? '') == 'PENDING' && !hiddenByDb && !hiddenLocally;
-  }).toList();
+  List<Map<String, dynamic>> get _pendingRequests =>
+      _allTrainerRequests.where((r) {
+        final id = r['id'] is int
+            ? r['id'] as int
+            : int.tryParse((r['id'] ?? '').toString());
+        final hiddenByDb =
+            r['hiddenForTrainer'] == true ||
+            r['hiddenForTrainer'].toString().toLowerCase() == 'true';
+        final hiddenLocally = id != null && _hiddenRequestIds.contains(id);
+        final status = (r['status'] ?? '').toString().trim().toUpperCase();
+        return status == 'PENDING' && !hiddenByDb && !hiddenLocally;
+      }).toList();
 
   int get _totalPending => _pendingRequests.length;
 
@@ -2443,8 +2474,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   Future<void> _undoLastBlock() async {
-    if (_blockHistory.isEmpty || _undoingBlock || widget.trainerId == null)
+    if (_blockHistory.isEmpty || _undoingBlock || widget.trainerId == null) {
       return;
+    }
     final lastAction = _blockHistory.last;
     setState(() => _undoingBlock = true);
     try {
@@ -2791,6 +2823,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   // ── Top bar ──────────────────────────────────────────────────────────────
 
   Widget _buildTopBar() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -2839,22 +2872,23 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                 ),
                 tooltip: 'Sair',
               ),
-              IconButton(
-                onPressed: _onGlobalRefresh,
-                tooltip: 'Atualizar',
-                icon: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
-                    color: Colors.white,
+              if (!isMobile)
+                IconButton(
+                  onPressed: _onGlobalRefresh,
+                  tooltip: 'Atualizar',
+                  icon: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Icon(
+                      Icons.refresh_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -2922,6 +2956,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return OutlinedButton.icon(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
@@ -2932,7 +2967,11 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         side: BorderSide(
           color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        minimumSize: isMobile ? const Size.fromHeight(48) : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 14,
+          vertical: isMobile ? 10 : 12,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: Icon(icon, size: 17),
@@ -3255,7 +3294,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   const SizedBox(height: 14),
                 ],
                 // Info chips + botão editar
-                Row(
+                Flex(
+                  direction: Axis.horizontal,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
@@ -3344,6 +3384,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   // ── Meus Alunos ──────────────────────────────────────────────────────────────
 
   Widget _buildMyStudentsCard() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     const dayOrder = {
       'Segunda': 1,
       'Terça': 2,
@@ -3749,13 +3790,14 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   SizedBox(
                     height: visibleStudents.length > 4
                         ? 392
-                        : (visibleStudents.length * 98).toDouble(),
+                        : (visibleStudents.length * (isMobile ? 170 : 98))
+                              .toDouble(),
                     child: Scrollbar(
                       controller: _studentsScrollController,
                       thumbVisibility: visibleStudents.length > 4,
                       child: ListView.builder(
                         controller: _studentsScrollController,
-                        itemExtent: 98,
+                        itemExtent: isMobile ? 170 : 98,
                         itemCount: visibleStudents.length,
                         itemBuilder: (_, index) {
                           final student = visibleStudents[index];
@@ -4012,9 +4054,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                                                   ?.whereType<Map>()
                                                   .map(
                                                     (plan) =>
-                                                        Map<String, dynamic>.from(
-                                                          plan,
-                                                        ),
+                                                        Map<
+                                                          String,
+                                                          dynamic
+                                                        >.from(plan),
                                                   )
                                                   .toList() ??
                                               const [],
@@ -4160,6 +4203,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   // ── Agenda do personal ────────────────────────────────────────────────────
 
   Widget _buildScheduleCard() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final slots = _schedule[_days[_selectedDay]] ?? [];
     final available = slots
         .where(
@@ -4330,10 +4374,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           ),
           const SizedBox(height: 8),
           // Seletor de dia
-          SizedBox(
-            height: 56,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
+          Scrollbar(
+            controller: _daysScrollController,
+            thumbVisibility: isMobile,
+            thickness: 3,
+            radius: const Radius.circular(8),
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            child: SizedBox(
+              height: 56,
+              child: ListView.separated(
+                controller: _daysScrollController,
+                scrollDirection: Axis.horizontal,
               itemCount: _days.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
@@ -4443,6 +4494,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   ),
                 );
               },
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -4585,9 +4637,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 6,
-                childAspectRatio: 2.5,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isMobile ? 3 : 6,
+                childAspectRatio: isMobile ? 1.6 : 2.5,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -4760,6 +4812,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   // ── Solicitações ──────────────────────────────────────────────────────────
 
   Widget _buildRequestsCard() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return _SectionCard(
       title: 'Solicitações de Alunos',
       icon: Icons.inbox_rounded,
@@ -4792,14 +4845,17 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               ),
             )
           : (() {
+              // Histórico completo: exibe TODAS as solicitações do personal,
+              // independente do status (PENDING, APPROVED ou REJECTED). Apenas
+              // itens removidos localmente pelo próprio personal nesta sessão
+              // (_hiddenRequestIds) ficam ocultos.
               final visibleRequests = _allTrainerRequests.where((req) {
                 final id = req['id'] is int
                     ? req['id'] as int
                     : int.tryParse((req['id'] ?? '').toString());
-                final hiddenByDb = req['hiddenForTrainer'] == true;
                 final hiddenLocally =
                     id != null && _hiddenRequestIds.contains(id);
-                return !hiddenByDb && !hiddenLocally;
+                return !hiddenLocally;
               }).toList();
 
               if (visibleRequests.isEmpty) {
@@ -4824,7 +4880,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Nenhuma solicitação pendente',
+                        'Nenhuma solicitação encontrada',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -4837,11 +4893,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                         style: TextStyle(fontSize: 12.5, color: Colors.black38),
                       ),
                       const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: _loadRequests,
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Atualizar'),
-                      ),
+                      if (!isMobile)
+                        TextButton.icon(
+                          onPressed: _loadRequests,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Atualizar'),
+                        ),
                     ],
                   ),
                 );
@@ -4858,7 +4915,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           : int.tryParse(req['id'].toString()) ?? 0,
                       dayName: (req['dayName'] ?? '').toString(),
                       time: (req['time'] ?? '').toString(),
-                      status: (req['status'] ?? 'PENDING').toString(),
+                      status: (req['status'] ?? 'PENDING')
+                          .toString()
+                          .toUpperCase(),
                       studentBlocked: _blockedStudentIds.contains(
                         int.tryParse((req['studentId'] ?? '').toString()) ?? -1,
                       ),
@@ -5556,6 +5615,7 @@ class _RequestRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final (planFg, planBg, planLabel, planIcon) = _planStyle(planType);
     final displaySlotLabels = _displaySlotLabels();
     final isPending = status == 'PENDING';
@@ -5614,7 +5674,8 @@ class _RequestRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Flex(
+              direction: isMobile ? Axis.vertical : Axis.horizontal,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
@@ -5626,8 +5687,10 @@ class _RequestRow extends StatelessWidget {
                   ),
                   child: Icon(statusUi.$4, size: 18, color: statusUi.$1),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 8 : 0),
+                Flexible(
+                  flex: isMobile ? 0 : 1,
+                  fit: FlexFit.loose,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -5715,7 +5778,7 @@ class _RequestRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isMobile ? 0 : 8, height: isMobile ? 8 : 0),
                 if (studentBanned)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -5747,43 +5810,6 @@ class _RequestRow extends StatelessWidget {
                       ],
                     ),
                   )
-                else
-                  OutlinedButton.icon(
-                    onPressed: studentBlocked ? onUnblockStudent : onBlockStudent,
-                    icon: Icon(
-                      studentBlocked
-                          ? Icons.lock_open_rounded
-                          : Icons.block_outlined,
-                      size: 14,
-                    ),
-                    label: Text(
-                      studentBlocked ? 'Desbloquear aluno' : 'Bloquear aluno',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: studentBlocked
-                          ? const Color(0xFF0B4DBA)
-                          : const Color(0xFFB91C1C),
-                      backgroundColor: studentBlocked
-                          ? const Color(0xFFEFF6FF)
-                          : const Color(0xFFFEF2F2),
-                      side: BorderSide(
-                        color: studentBlocked
-                            ? const Color(0xFF93C5FD)
-                            : const Color(0xFFFCA5A5),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 9,
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -5818,9 +5844,47 @@ class _RequestRow extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               children: [
+                if (!studentBanned)
+                  OutlinedButton.icon(
+                    onPressed: studentBlocked
+                        ? onUnblockStudent
+                        : onBlockStudent,
+                    icon: Icon(
+                      studentBlocked
+                          ? Icons.lock_open_rounded
+                          : Icons.block_outlined,
+                      size: 15,
+                    ),
+                    label: Text(
+                      studentBlocked
+                          ? 'Desbloquear aluno'
+                          : 'Bloquear aluno',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: studentBlocked
+                          ? const Color(0xFF0B4DBA)
+                          : const Color(0xFFB91C1C),
+                      backgroundColor: studentBlocked
+                          ? const Color(0xFFEFF6FF)
+                          : const Color(0xFFFEF2F2),
+                      side: BorderSide(
+                        color: studentBlocked
+                            ? const Color(0xFF93C5FD)
+                            : const Color(0xFFFCA5A5),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
                 OutlinedButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline_rounded, size: 15),
@@ -5974,6 +6038,7 @@ class _StudentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -5982,7 +6047,11 @@ class _StudentRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFBFD3F5)),
       ),
-      child: Row(
+      child: Flex(
+        direction: isMobile ? Axis.vertical : Axis.horizontal,
+        crossAxisAlignment: isMobile
+            ? CrossAxisAlignment.stretch
+            : CrossAxisAlignment.center,
         children: [
           Container(
             width: 44,
@@ -6015,54 +6084,182 @@ class _StudentRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 8 : 0),
+          Flexible(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: studentName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                          color: Colors.black87,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: studentName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' • ${_buildPlanAndScheduleText()}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      TextSpan(
-                        text: ' • ${_buildPlanAndScheduleText()}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
+                    ),
+                    if (isMobile)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        tooltip: 'Ações do aluno',
+                        onSelected: (action) {
+                          switch (action) {
+                            case 'remove':
+                              onRemove?.call();
+                              break;
+                            case 'organize':
+                              onOrganizeWorkout?.call();
+                              break;
+                            case 'block':
+                              (blocked ? onUnblock : onBlock)?.call();
+                              break;
+                            case 'report':
+                              onReport?.call();
+                              break;
+                            case 'profile':
+                              onViewProfile();
+                              break;
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'remove',
+                            child: Text('Remover'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'organize',
+                            child: Text('Organizar treino'),
+                          ),
+                          PopupMenuItem(
+                            value: 'block',
+                            child: Text(blocked ? 'Desbloquear' : 'Bloquear'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: Text('Denunciar'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'profile',
+                            child: Text('Ver perfil'),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  ],
                 ),
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              if (onRemove != null) ...[
+              if (!isMobile) ...[
+                if (onRemove != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: onRemove,
+                    icon: const Icon(Icons.person_remove_rounded, size: 14),
+                    label: const Text(
+                      'Remover',
+                      style: TextStyle(fontSize: 11.5),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0B4DBA),
+                      side: const BorderSide(color: Color(0xFF0B4DBA)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 9,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (onOrganizeWorkout != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: onOrganizeWorkout,
+                    icon: const Icon(Icons.fitness_center_rounded, size: 14),
+                    label: const Text(
+                      'Organizar treino',
+                      style: TextStyle(fontSize: 11.5),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF065F46),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 9,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 OutlinedButton.icon(
-                  onPressed: onRemove,
-                  icon: const Icon(Icons.person_remove_rounded, size: 14),
+                  onPressed: blocked ? onUnblock : onBlock,
+                  icon: Icon(
+                    blocked ? Icons.lock_open_rounded : Icons.block_outlined,
+                    size: 14,
+                  ),
+                  label: Text(
+                    blocked ? 'Desbloquear' : 'Bloquear',
+                    style: const TextStyle(fontSize: 11.5),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: blocked
+                        ? const Color(0xFF0B4DBA)
+                        : const Color(0xFFB91C1C),
+                    side: BorderSide(
+                      color: blocked
+                          ? const Color(0xFF0B4DBA)
+                          : const Color(0xFFEF4444),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 9,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: onViewProfile,
+                  icon: const Icon(Icons.person_outline_rounded, size: 15),
                   label: const Text(
-                    'Remover',
-                    style: TextStyle(fontSize: 11.5),
+                    'Ver perfil',
+                    style: TextStyle(fontSize: 12),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0B4DBA),
                     side: const BorderSide(color: Color(0xFF0B4DBA)),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 9,
                     ),
                     shape: RoundedRectangleBorder(
@@ -6071,18 +6268,16 @@ class _StudentRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-              ],
-              if (onOrganizeWorkout != null) ...[
                 OutlinedButton.icon(
-                  onPressed: onOrganizeWorkout,
-                  icon: const Icon(Icons.fitness_center_rounded, size: 14),
+                  onPressed: onReport,
+                  icon: const Icon(Icons.flag_outlined, size: 15),
                   label: const Text(
-                    'Organizar treino',
+                    'Denunciar',
                     style: TextStyle(fontSize: 11.5),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF065F46),
-                    side: const BorderSide(color: Color(0xFF10B981)),
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFFCA5A5)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 9,
@@ -6092,73 +6287,7 @@ class _StudentRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
               ],
-              OutlinedButton.icon(
-                onPressed: blocked ? onUnblock : onBlock,
-                icon: Icon(
-                  blocked ? Icons.lock_open_rounded : Icons.block_outlined,
-                  size: 14,
-                ),
-                label: Text(
-                  blocked ? 'Desbloquear' : 'Bloquear',
-                  style: const TextStyle(fontSize: 11.5),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: blocked
-                      ? const Color(0xFF0B4DBA)
-                      : const Color(0xFFB91C1C),
-                  side: BorderSide(
-                    color: blocked
-                        ? const Color(0xFF0B4DBA)
-                        : const Color(0xFFEF4444),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 9,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: onViewProfile,
-                icon: const Icon(Icons.person_outline_rounded, size: 15),
-                label: const Text('Ver perfil', style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF0B4DBA),
-                  side: const BorderSide(color: Color(0xFF0B4DBA)),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: onReport,
-                icon: const Icon(Icons.flag_outlined, size: 15),
-                label: const Text(
-                  'Denunciar',
-                  style: TextStyle(fontSize: 11.5),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFB42318),
-                  side: const BorderSide(color: Color(0xFFFCA5A5)),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 9,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
               if (onChat != null) ...[
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
@@ -6638,6 +6767,7 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
       decoration: BoxDecoration(
@@ -6677,15 +6807,32 @@ class _SectionCard extends StatelessWidget {
                 child: Icon(icon, size: 19, color: Colors.white),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+              if (isMobile)
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[const Spacer(), trailing!],
+              if (trailing != null) ...[
+                if (isMobile) const SizedBox(width: 8) else const Spacer(),
+                trailing!,
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -6709,6 +6856,7 @@ class _DashSlotTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final Color bgColor;
     final Color borderColor;
     final Color iconColor;
@@ -6777,12 +6925,12 @@ class _DashSlotTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(iconData, size: 17, color: iconColor),
-                const SizedBox(height: 4),
+                Icon(iconData, size: isMobile ? 14 : 17, color: iconColor),
+                SizedBox(height: isMobile ? 2 : 4),
                 Text(
                   slot.time,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: isMobile ? 11 : 13,
                     fontWeight: FontWeight.w800,
                     color: textColor,
                   ),
@@ -6791,14 +6939,14 @@ class _DashSlotTile extends StatelessWidget {
                     (slot.studentName ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 2 : 6),
                     child: Text(
                       slot.studentName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10.5,
+                      style: TextStyle(
+                        fontSize: isMobile ? 8 : 10.5,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF6B7280),
                       ),
@@ -6861,8 +7009,12 @@ class _StatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 10 : 14,
+        horizontal: isMobile ? 6 : 10,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
@@ -6881,14 +7033,18 @@ class _StatBox extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black45,
-              fontWeight: FontWeight.w500,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: isMobile ? 10 : 11,
+                color: Colors.black45,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

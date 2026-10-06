@@ -1250,7 +1250,8 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     final unassignedPlans = List<Map<String, dynamic>>.from(_plans);
     final panelModels = <Map<String, dynamic>>[];
     final selectedRequestId = widget.selectedRequestId?.trim();
-    final requestsForDisplay = selectedRequestId == null || selectedRequestId.isEmpty
+    final requestsForDisplay =
+        selectedRequestId == null || selectedRequestId.isEmpty
         ? _approvedRequestPlans
         : _approvedRequestPlans.where((request) {
             return (request['id'] ?? request['requestId'] ?? '').toString() ==
@@ -1302,7 +1303,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     }
 
     if ((selectedRequestId == null || selectedRequestId.isEmpty) &&
-      unassignedPlans.isNotEmpty) {
+        unassignedPlans.isNotEmpty) {
       panelModels.add({
         'key': 'legacy',
         'request': null,
@@ -1320,27 +1321,32 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           tooltip: 'Voltar',
         ),
-        title: Text('Treinos • ${widget.trainerName}'),
+        title: Text(
+          'Treinos • ${widget.trainerName}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         backgroundColor: const Color(0xFF0B4DBA),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
       ),

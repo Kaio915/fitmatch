@@ -21,7 +21,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
     "O nome informado não corresponde aos dados oficiais.",
     "A especialidade precisa ser melhor detalhada.",
     "A biografia está incompleta. Por favor, adicione mais informações.",
-    "Os dados de experiência precisam ser ajustados."
+    "Os dados de experiência precisam ser ajustados.",
   ];
 
   final List<String> rejectionTemplates = [
@@ -29,7 +29,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
     "Cadastro rejeitado por inconsistência nas informações fornecidas.",
     "Cadastro rejeitado por ausência de documentação válida.",
     "Cadastro rejeitado por não atender aos requisitos mínimos.",
-    "Prazo de 24h para correção expirado."
+    "Prazo de 24h para correção expirado.",
   ];
 
   void _sendMessage(String text) {
@@ -69,24 +69,34 @@ class _AdminReviewViewState extends State<AdminReviewView> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text("Análise de Cadastro",
-            style: TextStyle(color: Colors.black)),
+        title: const Text(
+          "Análise de Cadastro",
+          style: TextStyle(color: Colors.black),
+        ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: _userInfoCard(u),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 3,
-              child: _ticketArea(),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final content = constraints.maxWidth < 700
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _userInfoCard(u),
+                      const SizedBox(height: 24),
+                      _ticketArea(),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(flex: 2, child: _userInfoCard(u)),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 3, child: _ticketArea()),
+                    ],
+                  );
+            return SingleChildScrollView(child: content);
+          },
         ),
       ),
     );
@@ -99,9 +109,10 @@ class _AdminReviewViewState extends State<AdminReviewView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(u['name'],
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            u['name'],
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           Text(u['email']),
           const Divider(height: 32),
@@ -156,7 +167,9 @@ class _AdminReviewViewState extends State<AdminReviewView> {
                             const Text(
                               "Administrador",
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 12),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(msg['text']),
@@ -164,8 +177,10 @@ class _AdminReviewViewState extends State<AdminReviewView> {
                             Text(
                               msg['time'],
                               style: const TextStyle(
-                                  fontSize: 10, color: Colors.grey),
-                            )
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -235,7 +250,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -267,7 +282,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
               foregroundColor: Colors.white,
             ),
             child: const Text("Confirmar Rejeição"),
-          )
+          ),
         ],
       ),
     );
@@ -278,7 +293,7 @@ class _AdminReviewViewState extends State<AdminReviewView> {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8)
+        BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8),
       ],
     );
   }

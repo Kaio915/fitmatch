@@ -912,6 +912,68 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Widget _topBar() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 600;
+    final isVeryNarrow = screenWidth < 380;
+    final trailingActions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () async {
+            await AuthService.clearSession();
+            if (mounted) {
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/', (route) => false);
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isVeryNarrow ? 9 : 14,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.logout, color: Colors.white, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Sair',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (!isNarrow)
+          IconButton(
+            onPressed: _onGlobalRefresh,
+            tooltip: 'Atualizar',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+      ],
+    );
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -923,66 +985,21 @@ class _StudentDashboardState extends State<StudentDashboard>
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Column(
         children: [
-          Row(
-            children: [
-              const FitMatchLogo(
-                height: 56,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final logo = FitMatchLogo(
+                height: constraints.maxWidth < 380 ? 40 : 56,
                 assetPath: 'assets/images/logo_perfil.png',
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () async {
-                  await AuthService.clearSession();
-                  if (mounted) {
-                    Navigator.of(
-                      context,
-                    ).pushNamedAndRemoveUntil('/', (route) => false);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.logout, color: Colors.white, size: 16),
-                      SizedBox(width: 6),
-                      Text(
-                        'Sair',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _onGlobalRefresh,
-                tooltip: 'Atualizar',
-                icon: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 600) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [logo, trailingActions],
+                );
+              }
+              return Row(children: [logo, const Spacer(), trailingActions]);
+            },
           ),
           const SizedBox(height: 12),
           Row(
@@ -1060,7 +1077,8 @@ class _StudentDashboardState extends State<StudentDashboard>
         side: BorderSide(
           color: isActive ? const Color(0xFF3B82F6) : const Color(0xFFBFD3F5),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        minimumSize: const Size.fromHeight(48),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: Icon(icon, size: 17),
@@ -1288,14 +1306,16 @@ class _StudentDashboardState extends State<StudentDashboard>
                 const SizedBox(height: 14),
                 Container(height: 1, color: const Color(0xFFF0F4FB)),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Icon(
                       Icons.star_rounded,
                       size: 16,
                       color: Color(0xFFF59E0B),
                     ),
-                    const SizedBox(width: 6),
                     const Text(
                       'Avaliações dos Personais',
                       style: TextStyle(
@@ -1304,7 +1324,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                         color: Colors.black87,
                       ),
                     ),
-                    const Spacer(),
                     if (_receivedRatings.isNotEmpty)
                       Text(
                         '${_avgReceivedRating.toStringAsFixed(1)} (${_receivedRatings.length})',
@@ -1407,6 +1426,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Widget _buildTabs() {
+    final isDesktop = MediaQuery.of(context).size.width > 600;
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
@@ -1422,6 +1442,13 @@ class _StudentDashboardState extends State<StudentDashboard>
       ),
       child: TabBar(
         controller: _tabController,
+        // Web/Desktop (largura > 600px): abas distribuídas igualmente por toda a
+        // largura da barra (preenche de ponta a ponta). Mobile: mantém scroll +
+        // alinhamento à esquerda.
+        isScrollable: !isDesktop,
+        padding: EdgeInsets.zero,
+        labelPadding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 12),
+        tabAlignment: isDesktop ? TabAlignment.fill : TabAlignment.start,
         indicator: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
@@ -1438,10 +1465,14 @@ class _StudentDashboardState extends State<StudentDashboard>
         labelColor: Colors.white,
         unselectedLabelColor: Colors.black45,
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        unselectedLabelStyle: const TextStyle(
+        indicatorPadding: EdgeInsets.symmetric(horizontal: isDesktop ? 8 : 0),
+        labelStyle: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: isDesktop ? 13 : 12,
+        ),
+        unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w500,
-          fontSize: 13,
+          fontSize: isDesktop ? 13 : 12,
         ),
         dividerColor: Colors.transparent,
         tabs: const [
@@ -2123,47 +2154,82 @@ class _StudentDashboardState extends State<StudentDashboard>
             ),
             const SizedBox(height: 10),
             // Filtros
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChipBtn(
-                    label: 'Todos',
-                    selected: _filterMode == 'Todos',
-                    onTap: () => setState(() {
-                      _filterMode = 'Todos';
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 600) {
+                  return PopupMenuButton<String>(
+                    onSelected: (value) => setState(() {
+                      _filterMode = value;
                       _runSearch();
                     }),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'Todos', child: Text('Todos')),
+                      PopupMenuItem(value: 'Nome', child: Text('Nome')),
+                      PopupMenuItem(value: 'Cidade', child: Text('Cidade')),
+                      PopupMenuItem(
+                        value: 'Especialidade',
+                        child: Text('Especialidade'),
+                      ),
+                    ],
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4FB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFDDE5F3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.tune_rounded,
+                            size: 18,
+                            color: Color(0xFF0B4DBA),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Filtrar: $_filterMode',
+                              style: const TextStyle(
+                                color: Color(0xFF0B4DBA),
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.expand_more_rounded),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final filter in const [
+                        'Todos',
+                        'Nome',
+                        'Cidade',
+                        'Especialidade',
+                      ]) ...[
+                        _FilterChipBtn(
+                          label: filter,
+                          selected: _filterMode == filter,
+                          onTap: () => setState(() {
+                            _filterMode = filter;
+                            _runSearch();
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  _FilterChipBtn(
-                    label: 'Nome',
-                    selected: _filterMode == 'Nome',
-                    onTap: () => setState(() {
-                      _filterMode = 'Nome';
-                      _runSearch();
-                    }),
-                  ),
-                  const SizedBox(width: 6),
-                  _FilterChipBtn(
-                    label: 'Cidade',
-                    selected: _filterMode == 'Cidade',
-                    onTap: () => setState(() {
-                      _filterMode = 'Cidade';
-                      _runSearch();
-                    }),
-                  ),
-                  const SizedBox(width: 6),
-                  _FilterChipBtn(
-                    label: 'Especialidade',
-                    selected: _filterMode == 'Especialidade',
-                    onTap: () => setState(() {
-                      _filterMode = 'Especialidade';
-                      _runSearch();
-                    }),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 18),
             // Contagem de resultados
@@ -2357,6 +2423,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
                   final conn = _myConnections[i];
+                  final isNarrow = MediaQuery.of(context).size.width < 600;
                   final trainerId = conn['trainerId'];
                   final trainerName = (conn['trainerName'] ?? 'Personal')
                       .toString();
@@ -2370,14 +2437,14 @@ class _StudentDashboardState extends State<StudentDashboard>
                       ? (_followingAvailableSlots[trainerIdInt] ?? 0)
                       : 0;
                   return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isNarrow ? 10 : 14,
+                      vertical: isNarrow ? 10 : 12,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFAF7FF),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE4D9FF)),
+                      border: Border.all(color: const Color(0xFFDDE5F3)),
                     ),
                     child: Row(
                       children: [
@@ -2386,7 +2453,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                           height: 44,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF7C3AED), Color(0xFF9F67FA)],
+                              colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
                             ),
                             shape: BoxShape.circle,
                           ),
@@ -2410,11 +2477,30 @@ class _StudentDashboardState extends State<StudentDashboard>
                                   ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: isNarrow ? 8 : 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 14,
+                                    color: Color(0xFFF59E0B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    avgRating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
                               Text(
                                 trainerName,
                                 style: const TextStyle(
@@ -2422,6 +2508,8 @@ class _StudentDashboardState extends State<StudentDashboard>
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black87,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const Text(
                                 'Personal Trainer',
@@ -2433,113 +2521,102 @@ class _StudentDashboardState extends State<StudentDashboard>
                             ],
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.star_rounded,
-                                  size: 14,
-                                  color: Color(0xFFF59E0B),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  avgRating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black87,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: Color(0xFF22C55E),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Icon(
-                                  Icons.schedule_rounded,
-                                  size: 14,
-                                  color: Color(0xFF22C55E),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$availableSlots disp. mês',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black87,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$availableSlots disp. mês',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF16A34A),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            OutlinedButton(
-                              onPressed: () async {
-                                final navigator = Navigator.of(context);
-                                Map<String, dynamic>? trainerData;
-                                if (trainerIdInt != null) {
-                                  try {
-                                    trainerData = await AuthService.getUserById(
-                                      trainerIdInt,
-                                    );
-                                  } catch (_) {
-                                    trainerData = null;
-                                  }
-                                }
-
-                                if (!mounted) return;
-                                navigator
-                                    .push(
-                                      MaterialPageRoute(
-                                        builder: (_) => TrainerProfileView(
-                                          trainerId: trainerIdInt,
-                                          studentId: widget.studentId,
-                                          studentName: widget.userName,
-                                          trainerName:
-                                              (trainerData?['name'] ??
-                                                      trainerName)
-                                                  .toString(),
-                                          specialties:
-                                              (trainerData?['especialidade'] ??
-                                                      '')
-                                                  .toString(),
-                                          city: trainerData?['cidade']
-                                              ?.toString(),
-                                          cref: trainerData?['cref']
-                                              ?.toString(),
-                                          price: trainerData?['valorHora']
-                                              ?.toString(),
-                                          bio: trainerData?['bio']?.toString(),
-                                          horasPorSessao:
-                                              trainerData?['horasPorSessao']
-                                                  ?.toString(),
-                                        ),
-                                      ),
-                                    )
-                                    .then((_) {
-                                      if (mounted) {
-                                        _loadConnections();
-                                      }
-                                    });
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF7C3AED),
-                                side: const BorderSide(
-                                  color: Color(0xFF7C3AED),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                textStyle: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                ],
                               ),
-                              child: const Text('Ver Perfil'),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              OutlinedButton(
+                                onPressed: () async {
+                                  final navigator = Navigator.of(context);
+                                  Map<String, dynamic>? trainerData;
+                                  if (trainerIdInt != null) {
+                                    try {
+                                      trainerData =
+                                          await AuthService.getUserById(
+                                            trainerIdInt,
+                                          );
+                                    } catch (_) {
+                                      trainerData = null;
+                                    }
+                                  }
+
+                                  if (!mounted) return;
+                                  navigator
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder: (_) => TrainerProfileView(
+                                            trainerId: trainerIdInt,
+                                            studentId: widget.studentId,
+                                            studentName: widget.userName,
+                                            trainerName:
+                                                (trainerData?['name'] ??
+                                                        trainerName)
+                                                    .toString(),
+                                            specialties:
+                                                (trainerData?['especialidade'] ??
+                                                        '')
+                                                    .toString(),
+                                            city: trainerData?['cidade']
+                                                ?.toString(),
+                                            cref: trainerData?['cref']
+                                                ?.toString(),
+                                            price: trainerData?['valorHora']
+                                                ?.toString(),
+                                            bio: trainerData?['bio']
+                                                ?.toString(),
+                                            horasPorSessao:
+                                                trainerData?['horasPorSessao']
+                                                    ?.toString(),
+                                          ),
+                                        ),
+                                      )
+                                      .then((_) {
+                                        if (mounted) {
+                                          _loadConnections();
+                                        }
+                                      });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0B4DBA),
+                                  side: const BorderSide(
+                                    color: Color(0xFF0B4DBA),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                child: const Text('Ver Perfil'),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -2857,7 +2934,6 @@ class _RequestItem extends StatelessWidget {
     final canChat =
         status == 'PENDING' || status == 'APPROVED' || status == 'REJECTED';
     final (planFg, planBg, planLabel, planIcon) = _planStyle(planType);
-    final isMultiDay = days.length > 1;
 
     void confirmDelete() {
       showDialog(
@@ -2998,7 +3074,7 @@ class _RequestItem extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           // Horários selecionados
-          if (isMultiDay)
+          if (MediaQuery.of(context).size.width >= 600 && days.length > 1)
             Wrap(
               spacing: 6,
               runSpacing: 4,
@@ -3028,7 +3104,7 @@ class _RequestItem extends StatelessWidget {
                   )
                   .toList(),
             )
-          else
+          else if (MediaQuery.of(context).size.width >= 600)
             Text(
               '$dayName · $time',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -3623,6 +3699,8 @@ class _ApprovedTrainerItem extends StatelessWidget {
                     Flexible(
                       child: Text(
                         trainerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -3734,6 +3812,8 @@ class _ApprovedTrainerItem extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 planLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -4237,27 +4317,36 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.72,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -4334,6 +4423,19 @@ class _TrainerCard extends StatelessWidget {
     final specList = spec.isNotEmpty
         ? spec.split(RegExp(r'[,;/]'))
         : <String>[];
+
+    if (MediaQuery.of(context).size.width < 600) {
+      return _buildMobileCard(
+        context,
+        name: name,
+        trainerId: trainerId,
+        city: city,
+        specList: specList,
+        price: price,
+        cref: cref,
+        availableSlots: availableSlots,
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -4453,11 +4555,21 @@ class _TrainerCard extends StatelessWidget {
                                   color: Colors.black38,
                                 ),
                                 const SizedBox(width: 2),
-                                Text(
-                                  city,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black45,
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width < 600
+                                        ? 86
+                                        : double.infinity,
+                                  ),
+                                  child: Text(
+                                    city,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black45,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -4472,11 +4584,21 @@ class _TrainerCard extends StatelessWidget {
                                   color: Colors.black38,
                                 ),
                                 const SizedBox(width: 2),
-                                Text(
-                                  'CREF $cref',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black45,
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width < 600
+                                        ? 92
+                                        : double.infinity,
+                                  ),
+                                  child: Text(
+                                    'CREF $cref',
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black45,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -4643,6 +4765,225 @@ class _TrainerCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileCard(
+    BuildContext context, {
+    required String name,
+    required int? trainerId,
+    required String city,
+    required List<String> specList,
+    required String price,
+    required String cref,
+    required int availableSlots,
+  }) {
+    Widget avatar() {
+      return Container(
+        width: 58,
+        height: 58,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Color(0xFF0B4DBA), Color(0xFF2563EB)],
+          ),
+        ),
+        padding: const EdgeInsets.all(2.5),
+        child: ClipOval(
+          child: trainerId != null
+              ? Image.network(
+                  AuthService.getUserPhotoUrl(trainerId),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.person_rounded,
+                    color: Color(0xFF0B4DBA),
+                  ),
+                )
+              : const Icon(Icons.person_rounded, color: Color(0xFF0B4DBA)),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEBF0FA)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                avatar(),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.verified_rounded,
+                            size: 14,
+                            color: Color(0xFF0B4DBA),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      _TrainerStarRating(
+                        media: data['mediaAvaliacao'] != null
+                            ? (data['mediaAvaliacao'] as num).toDouble()
+                            : null,
+                        total: data['totalAvaliacoes'] != null
+                            ? (data['totalAvaliacoes'] as num).toInt()
+                            : 0,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                if (city.isNotEmpty)
+                  Text(
+                    '📍 $city',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.black45,
+                    ),
+                  ),
+                if (cref.isNotEmpty)
+                  Text(
+                    'CREF $cref',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.black45,
+                    ),
+                  ),
+                if (price.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'R\$ $price/h',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (specList.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: specList.take(3).map((item) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF4FF),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      item.trim(),
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF1D4ED8),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$availableSlots disp. mês',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF059669),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: onTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0B4DBA),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 7,
+                    ),
+                    minimumSize: const Size(0, 34),
+                  ),
+                  child: const Text('Ver'),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  onPressed: (studentId != null && trainerId != null)
+                      ? () => showReportUserDialog(
+                          context,
+                          reporterId: studentId!,
+                          reportedUserId: trainerId,
+                        )
+                      : null,
+                  icon: const Icon(Icons.flag_outlined, size: 13),
+                  label: const Text('Denunciar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
+                    minimumSize: const Size(0, 34),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -71,10 +71,7 @@ class _LoginViewState extends State<LoginView> {
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -120,12 +117,16 @@ class _LoginViewState extends State<LoginView> {
         if (type == 'aluno') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => EditStudentCadastroView(user: user)),
+            MaterialPageRoute(
+              builder: (_) => EditStudentCadastroView(user: user),
+            ),
           );
         } else if (type == 'personal') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => EditTrainerCadastroView(user: user)),
+            MaterialPageRoute(
+              builder: (_) => EditTrainerCadastroView(user: user),
+            ),
           );
         } else {
           _showSnack('Tipo de usuário inválido para edição.');
@@ -143,18 +144,22 @@ class _LoginViewState extends State<LoginView> {
 
       if (status == 'PENDING' || status == 'TEMPORARILY_REJECTED') {
         await AuthService.clearSession();
-        _showSnack(status == 'PENDING'
-            ? 'Seu cadastro está em análise. Para editar seus dados, use a opção "Editar cadastro".'
-            : 'Seu cadastro foi rejeitado temporariamente. Para corrigir, use a opção "Editar cadastro".');
+        _showSnack(
+          status == 'PENDING'
+              ? 'Seu cadastro está em análise. Para editar seus dados, use a opção "Editar cadastro".'
+              : 'Seu cadastro foi rejeitado temporariamente. Para corrigir, use a opção "Editar cadastro".',
+        );
         return;
       }
 
-        if (type == 'aluno') {
+      if (type == 'aluno') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => StudentDashboard(
-              studentId: user['id'] != null ? (user['id'] as num).toInt() : null,
+              studentId: user['id'] != null
+                  ? (user['id'] as num).toInt()
+                  : null,
               userName: (user['name'] ?? '').toString(),
               email: user['email']?.toString(),
               objetivos: user['objetivos']?.toString(),
@@ -171,7 +176,9 @@ class _LoginViewState extends State<LoginView> {
           context,
           MaterialPageRoute(
             builder: (_) => TrainerDashboardView(
-              trainerId: user['id'] != null ? (user['id'] as num).toInt() : null,
+              trainerId: user['id'] != null
+                  ? (user['id'] as num).toInt()
+                  : null,
               name: (user['name'] ?? '').toString(),
               cref: user['cref']?.toString(),
               cidade: user['cidade']?.toString(),
@@ -216,209 +223,244 @@ class _LoginViewState extends State<LoginView> {
       body: SafeArea(
         child: Stack(
           children: [
-            Positioned(
-              top: 16,
-              left: 16,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeView()),
-                    (route) => false,
-                  );
-                },
-              ),
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: IconButton(
-                onPressed: _onGlobalRefresh,
-                tooltip: 'Atualizar',
-                icon: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0B4DBA),
-                    borderRadius: BorderRadius.circular(999),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 24,
                   ),
-                  child: const Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            Center(
-              child: Container(
-                width: 420,
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 16,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 48,
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const FitMatchLogo(height: 90, assetPath: 'assets/images/fitmatch_logo3.png'),
-                    const SizedBox(height: 20),
-                    Text(
-                      _editingCadastro ? 'Editar cadastro' : 'Entrar',
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _editingCadastro
-                          ? 'Entre para corrigir os seus dados'
-                          : 'Acesse sua conta FitMatch',
-                      style: const TextStyle(color: Colors.black),
-                    ),
-                    const SizedBox(height: 24),
-
-                    _input(
-                      'Email',
-                      'seu@email.com',
-                      controller: _emailController,
-                      forceError: _fieldError != null,
-                      focusNode: _emailFocusNode,
-                      textInputAction: TextInputAction.next,
-                      onSubmitted: _onEmailSubmitted,
-                    ),
-                    _input(
-                      'Senha',
-                      'Sua senha',
-                      obscure: !_passwordVisible,
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-                        icon: Icon(
-                          _passwordVisible ? Icons.visibility_off : Icons.visibility,
-                          color: const Color(0xFF0B4DBA),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
                         ),
-                      ),
-                      controller: _passwordController,
-                      forceError: _fieldError != null,
-                      focusNode: _passwordFocusNode,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: _onPasswordSubmitted,
+                      ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0B4DBA),
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const FitMatchLogo(
+                          height: 90,
+                          assetPath: 'assets/images/fitmatch_logo3.png',
                         ),
-                      ),
-                      onPressed: loading ? null : _login,
-                      child: loading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _editingCadastro ? 'Editar cadastro' : 'Entrar',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    if (_editingCadastro)
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _editingCadastro = false;
-                          _fieldError = null;
-                        }),
-                        child: const Text('Voltar'),
-                      )
-                    else
-                      OutlinedButton.icon(
-                        onPressed: () => setState(() => _editingCadastro = true),
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Editar cadastro'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF0B4DBA),
-                          side: const BorderSide(color: Color(0xFF0B4DBA)),
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                        const SizedBox(height: 20),
+                        Text(
+                          _editingCadastro ? 'Editar cadastro' : 'Entrar',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-
-                    const SizedBox(height: 16),
-
-                    if (!_editingCadastro)
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () {
-                          if (widget.userType == UserType.aluno) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                settings: const RouteSettings(
-                                  name: AppRoutes.registerStudent,
-                                ),
-                                builder: (_) => const RegisterStudentView(),
-                              ),
-                            );
-                          } else {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                settings: const RouteSettings(
-                                  name: AppRoutes.registerTrainer,
-                                ),
-                                builder: (_) => const RegisterTrainerView(),
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text.rich(
-                          TextSpan(
-                            text: 'Não tem uma conta? ',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'Cadastre-se',
-                                style: TextStyle(
-                                  color: Color(0xFF0B4DBA),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _editingCadastro
+                              ? 'Entre para corrigir os seus dados'
+                              : 'Acesse sua conta FitMatch',
+                          style: const TextStyle(color: Colors.black),
                         ),
-                      ),
+                        const SizedBox(height: 24),
+
+                        _input(
+                          'Email',
+                          'seu@email.com',
+                          controller: _emailController,
+                          forceError: _fieldError != null,
+                          focusNode: _emailFocusNode,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: _onEmailSubmitted,
+                        ),
+                        _input(
+                          'Senha',
+                          'Sua senha',
+                          obscure: !_passwordVisible,
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () => _passwordVisible = !_passwordVisible,
+                            ),
+                            icon: Icon(
+                              _passwordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: const Color(0xFF0B4DBA),
+                            ),
+                          ),
+                          controller: _passwordController,
+                          forceError: _fieldError != null,
+                          focusNode: _passwordFocusNode,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: _onPasswordSubmitted,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0B4DBA),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: loading ? null : _login,
+                          child: loading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _editingCadastro
+                                      ? 'Editar cadastro'
+                                      : 'Entrar',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        if (_editingCadastro)
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _editingCadastro = false;
+                              _fieldError = null;
+                            }),
+                            child: const Text('Voltar'),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                setState(() => _editingCadastro = true),
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar cadastro'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0B4DBA),
+                              side: const BorderSide(color: Color(0xFF0B4DBA)),
+                              minimumSize: const Size.fromHeight(48),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(height: 16),
+
+                        if (!_editingCadastro)
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () {
+                                if (widget.userType == UserType.aluno) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      settings: const RouteSettings(
+                                        name: AppRoutes.registerStudent,
+                                      ),
+                                      builder: (_) =>
+                                          const RegisterStudentView(),
+                                    ),
+                                  );
+                                } else {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      settings: const RouteSettings(
+                                        name: AppRoutes.registerTrainer,
+                                      ),
+                                      builder: (_) =>
+                                          const RegisterTrainerView(),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: const Text.rich(
+                                TextSpan(
+                                  text: 'Não tem uma conta? ',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Cadastre-se',
+                                      style: TextStyle(
+                                        color: Color(0xFF0B4DBA),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+              ),
+            );
+          },
         ),
+        Positioned(
+          top: 16,
+          left: 16,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeView()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ),
+        if (MediaQuery.of(context).size.width >= 600)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B4DBA),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
+      ),
       ),
     );
   }
@@ -448,7 +490,10 @@ class _LoginViewState extends State<LoginView> {
           labelText: label,
           suffixIcon: suffixIcon,
           hintText: hint,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: borderColor, width: 1.4),

@@ -228,13 +228,14 @@ class _TrainerWorkoutOrganizerViewState
   }
 
   List<String> get _timeOptionsForSelectedDay {
-    final times = _slotOptions
-        .where((slot) => (slot['dayName'] ?? '') == _selectedDay)
-        .map((slot) => (slot['time'] ?? '').trim())
-        .where((time) => time.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final times =
+        _slotOptions
+            .where((slot) => (slot['dayName'] ?? '') == _selectedDay)
+            .map((slot) => (slot['time'] ?? '').trim())
+            .where((time) => time.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     return times;
   }
 
@@ -350,12 +351,14 @@ class _TrainerWorkoutOrganizerViewState
     final text = raw.trim();
     final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
     if (match == null) return text;
-    final hh = (int.tryParse(match.group(1) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
-    final mm = (int.tryParse(match.group(2) ?? '') ?? 0)
-        .toString()
-        .padLeft(2, '0');
+    final hh = (int.tryParse(match.group(1) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
+    final mm = (int.tryParse(match.group(2) ?? '') ?? 0).toString().padLeft(
+      2,
+      '0',
+    );
     return '$hh:$mm';
   }
 
@@ -498,12 +501,20 @@ class _TrainerWorkoutOrganizerViewState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () {
+                  if (!dialogContext.mounted) return;
+                  Navigator.of(dialogContext, rootNavigator: true).pop();
+                },
                 child: const Text('Cancelar'),
               ),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(dialogContext).pop(controller.text.trim()),
+                onPressed: () {
+                  if (!dialogContext.mounted) return;
+                  Navigator.of(
+                    dialogContext,
+                    rootNavigator: true,
+                  ).pop(controller.text.trim());
+                },
                 child: const Text('Clonar'),
               ),
             ],
@@ -619,7 +630,7 @@ class _TrainerWorkoutOrganizerViewState
               return AlertDialog(
                 title: const Text('Editar treino da lista'),
                 content: SizedBox(
-                  width: 360,
+                  width: double.infinity,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1208,7 +1219,8 @@ class _TrainerWorkoutOrganizerViewState
         _selectedDay = day;
       }
       final availableTimes = _timeOptionsForSelectedDay;
-      if (time.isNotEmpty && (availableTimes.isEmpty || availableTimes.contains(time))) {
+      if (time.isNotEmpty &&
+          (availableTimes.isEmpty || availableTimes.contains(time))) {
         _selectedTime = time;
       } else if (availableTimes.isNotEmpty) {
         _selectedTime = availableTimes.first;
@@ -1324,7 +1336,7 @@ class _TrainerWorkoutOrganizerViewState
             return AlertDialog(
               title: const Text('Aplicar favorito'),
               content: SizedBox(
-                width: 360,
+                width: double.infinity,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1425,8 +1437,8 @@ class _TrainerWorkoutOrganizerViewState
     }
 
     final currentExercises = existingPlan == null
-      ? <Map<String, String>>[]
-      : _extractExercises(existingPlan['exercises']);
+        ? <Map<String, String>>[]
+        : _extractExercises(existingPlan['exercises']);
     final replacementExercises = favoriteExercises;
 
     try {
@@ -1470,7 +1482,8 @@ class _TrainerWorkoutOrganizerViewState
       _applyExercises(replacementExercises);
 
       final targetLabel = _slotDisplayLabel(targetDay, targetTime);
-      final changed = _favoriteSignature(currentExercises) !=
+      final changed =
+          _favoriteSignature(currentExercises) !=
           _favoriteSignature(replacementExercises);
       if (existingPlan != null && !changed) {
         _showSnack(
@@ -1525,6 +1538,7 @@ class _TrainerWorkoutOrganizerViewState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final customCount = _customCatalog.length;
 
     return Scaffold(
@@ -1540,22 +1554,23 @@ class _TrainerWorkoutOrganizerViewState
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
       ),
@@ -1647,24 +1662,28 @@ class _TrainerWorkoutOrganizerViewState
                                       children: _planSlots(plan)
                                           .map(
                                             (slot) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFECFDF3),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color: const Color(0xFF86EFAC),
-                                    ),
-                                  ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 5,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFECFDF3),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFF86EFAC,
+                                                  ),
+                                                ),
+                                              ),
                                               child: Text(
                                                 (slot['time'] ?? '')
                                                         .toString()
                                                         .trim()
                                                         .isEmpty
                                                     ? (slot['dayName'] ?? '')
-                                                        .toString()
+                                                          .toString()
                                                     : '${slot["dayName"]} ${slot["time"]}',
                                                 style: const TextStyle(
                                                   fontSize: 11.5,
@@ -1747,7 +1766,8 @@ class _TrainerWorkoutOrganizerViewState
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _timeOptionsForSelectedDay.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 6),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 6),
                               itemBuilder: (_, index) {
                                 final time = _timeOptionsForSelectedDay[index];
                                 final selected = _selectedTime == time;
@@ -1871,24 +1891,54 @@ class _TrainerWorkoutOrganizerViewState
                                     );
                                   }
 
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _customNameCtrl,
-                                          decoration: const InputDecoration(
-                                            hintText: 'Nome do treino',
-                                            border: OutlineInputBorder(),
-                                            isDense: true,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                        width: 180,
+                                  return LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final category = SizedBox(
+                                        width: constraints.maxWidth < 280
+                                            ? double.infinity
+                                            : 180,
                                         child: categoryDropdown,
-                                      ),
-                                    ],
+                                      );
+                                      return constraints.maxWidth < 280
+                                          ? Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                TextField(
+                                                  controller: _customNameCtrl,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        hintText:
+                                                            'Nome do treino',
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                        isDense: true,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                category,
+                                              ],
+                                            )
+                                          : Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller: _customNameCtrl,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          hintText:
+                                                              'Nome do treino',
+                                                          border:
+                                                              OutlineInputBorder(),
+                                                          isDense: true,
+                                                        ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                category,
+                                              ],
+                                            );
+                                    },
                                   );
                                 },
                               ),
@@ -2142,17 +2192,33 @@ class _TrainerWorkoutOrganizerViewState
                                       )
                                     : const Icon(Icons.save_rounded, size: 16),
                                 label: Text(
-                                  _editingPlanId == null
-                                    ? _selectedTime.trim().isEmpty
-                                      ? 'Salvar treino de $_selectedDay'
-                                      : 'Salvar treino de $_selectedDay $_selectedTime'
-                                    : _selectedTime.trim().isEmpty
+                                  isMobile
+                                      ? '${_editingPlanId == null ? 'Salvar' : 'Atualizar'} treino\n$_selectedDay ${_selectedTime.trim()}'
+                                            .trim()
+                                      : _editingPlanId == null
+                                      ? _selectedTime.trim().isEmpty
+                                            ? 'Salvar treino de $_selectedDay'
+                                            : 'Salvar treino de $_selectedDay $_selectedTime'
+                                      : _selectedTime.trim().isEmpty
                                       ? 'Atualizar treino de $_selectedDay'
                                       : 'Atualizar treino de $_selectedDay $_selectedTime',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0B4DBA),
                                   foregroundColor: Colors.white,
+                                  minimumSize: isMobile
+                                      ? const Size(0, 52)
+                                      : null,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 8 : 16,
+                                    vertical: isMobile ? 8 : 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),
@@ -2246,11 +2312,15 @@ class _TrainerWorkoutOrganizerViewState
                             controller: _favoriteSearchCtrl,
                             decoration: InputDecoration(
                               hintText: 'Pesquisar favorito...',
-                              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                              ),
                               suffixIcon: _favoriteSearchText.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.close, size: 18),
-                                      onPressed: () => _favoriteSearchCtrl.clear(),
+                                      onPressed: () =>
+                                          _favoriteSearchCtrl.clear(),
                                     )
                                   : null,
                               border: OutlineInputBorder(
@@ -2260,154 +2330,220 @@ class _TrainerWorkoutOrganizerViewState
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Builder(builder: (context) {
-                            final filtered = _favorites.where((f) {
-                              if (_favoriteSearchText.isEmpty) return true;
-                              final name = (f['name'] ?? '').toString().toLowerCase();
-                              return name.contains(_favoriteSearchText);
-                            }).toList();
-                            if (filtered.isEmpty) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  'Nenhum favorito encontrado.',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: Colors.black54,
+                          Builder(
+                            builder: (context) {
+                              final filtered = _favorites.where((f) {
+                                if (_favoriteSearchText.isEmpty) return true;
+                                final name = (f['name'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                return name.contains(_favoriteSearchText);
+                              }).toList();
+                              if (filtered.isEmpty) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'Nenhum favorito encontrado.',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: Colors.black54,
+                                    ),
                                   ),
-                                ),
-                              );
-                            }
-                            return Column(
-                            children: filtered.map((favorite) {
-                              final id = int.tryParse(
-                                (favorite['id'] ?? '').toString(),
-                              );
-                              final name = (favorite['name'] ?? 'Favorito')
-                                  .toString();
-                              final exercises = _extractExercises(
-                                favorite['exercises'],
-                              );
-                              final cloning =
-                                  id != null &&
-                                  _cloningFavoriteIds.contains(id);
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFFBEB),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFFDE68A),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                                );
+                              }
+                              return Column(
+                                children: filtered.map((favorite) {
+                                  final id = int.tryParse(
+                                    (favorite['id'] ?? '').toString(),
+                                  );
+                                  final name = (favorite['name'] ?? 'Favorito')
+                                      .toString();
+                                  final exercises = _extractExercises(
+                                    favorite['exercises'],
+                                  );
+                                  final cloning =
+                                      id != null &&
+                                      _cloningFavoriteIds.contains(id);
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFBEB),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFFDE68A),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                name,
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    name,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${exercises.length} exercício(s)',
+                                                    style: const TextStyle(
+                                                      fontSize: 11.5,
+                                                      color: Colors.black54,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              Text(
-                                                '${exercises.length} exercício(s)',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  color: Colors.black54,
+                                            ),
+                                            if (isMobile)
+                                              PopupMenuButton<String>(
+                                                icon: const Icon(
+                                                  Icons.more_vert,
                                                 ),
+                                                tooltip: 'Ações do favorito',
+                                                onSelected: (action) {
+                                                  switch (action) {
+                                                    case 'apply':
+                                                      _applyFavorite(favorite);
+                                                      break;
+                                                    case 'edit':
+                                                      _startEditFavorite(
+                                                        favorite,
+                                                      );
+                                                      break;
+                                                    case 'clone':
+                                                      if (id != null &&
+                                                          !cloning) {
+                                                        _cloneFavorite(
+                                                          favorite,
+                                                        );
+                                                      }
+                                                      break;
+                                                    case 'delete':
+                                                      if (id != null) {
+                                                        _deleteFavorite(id);
+                                                      }
+                                                      break;
+                                                  }
+                                                },
+                                                itemBuilder: (_) => [
+                                                  const PopupMenuItem(
+                                                    value: 'apply',
+                                                    child: Text('Aplicar'),
+                                                  ),
+                                                  const PopupMenuItem(
+                                                    value: 'edit',
+                                                    child: Text('Editar'),
+                                                  ),
+                                                  const PopupMenuItem(
+                                                    value: 'clone',
+                                                    child: Text('Clonar'),
+                                                  ),
+                                                  const PopupMenuItem(
+                                                    value: 'delete',
+                                                    child: Text('Excluir'),
+                                                  ),
+                                                ],
+                                              )
+                                            else
+                                              TextButton(
+                                                onPressed: () =>
+                                                    _applyFavorite(favorite),
+                                                child: const Text('Aplicar'),
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              _applyFavorite(favorite),
-                                          child: const Text('Aplicar'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              _startEditFavorite(favorite),
-                                          child: const Text('Editar'),
-                                        ),
-                                        TextButton(
-                                          onPressed: id == null || cloning
-                                              ? null
-                                              : () => _cloneFavorite(favorite),
-                                          child: cloning
-                                              ? const SizedBox(
-                                                  width: 14,
-                                                  height: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
+                                            if (!isMobile)
+                                              TextButton(
+                                                onPressed: () =>
+                                                    _startEditFavorite(
+                                                      favorite,
+                                                    ),
+                                                child: const Text('Editar'),
+                                              ),
+                                            if (!isMobile)
+                                              TextButton(
+                                                onPressed: id == null || cloning
+                                                    ? null
+                                                    : () => _cloneFavorite(
+                                                        favorite,
                                                       ),
+                                                child: cloning
+                                                    ? const SizedBox(
+                                                        width: 14,
+                                                        height: 14,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      )
+                                                    : const Text('Clonar'),
+                                              ),
+                                            if (!isMobile)
+                                              IconButton(
+                                                onPressed: id == null
+                                                    ? null
+                                                    : () => _deleteFavorite(id),
+                                                icon: const Icon(
+                                                  Icons.delete_outline_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFFB91C1C),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        if (exercises.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: exercises
+                                                .map(
+                                                  (ex) => Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 5,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFFF8FAFC,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: const Color(
+                                                          0xFFE2E8F0,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      '${ex["name"]} (${ex["category"]})',
+                                                      style: const TextStyle(
+                                                        fontSize: 11.5,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 )
-                                              : const Text('Clonar'),
-                                        ),
-                                        IconButton(
-                                          onPressed: id == null
-                                              ? null
-                                              : () => _deleteFavorite(id),
-                                          icon: const Icon(
-                                            Icons.delete_outline_rounded,
-                                            size: 18,
-                                            color: Color(0xFFB91C1C),
+                                                .toList(),
                                           ),
-                                        ),
+                                        ],
                                       ],
                                     ),
-                                    if (exercises.isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: exercises
-                                            .map(
-                                              (ex) => Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 5,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFFF8FAFC,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: const Color(
-                                                      0xFFE2E8F0,
-                                                    ),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  '${ex["name"]} (${ex["category"]})',
-                                                  style: const TextStyle(
-                                                    fontSize: 11.5,
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
-                          );
-                          }),
+                            },
+                          ),
                         ],
                       ],
                     ),
@@ -2440,7 +2576,9 @@ class _TrainerWorkoutOrganizerViewState
                                 (plan['id'] ?? '').toString(),
                               );
                               final day = (plan['dayName'] ?? '').toString();
-                              final time = (plan['time'] ?? '').toString().trim();
+                              final time = (plan['time'] ?? '')
+                                  .toString()
+                                  .trim();
                               final exercises = _extractExercises(
                                 plan['exercises'],
                               );
@@ -2502,7 +2640,8 @@ class _TrainerWorkoutOrganizerViewState
                                             ),
                                             decoration: BoxDecoration(
                                               color: const Color(0xFFECFDF3),
-                                              borderRadius: BorderRadius.circular(999),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
                                             ),
                                             child: Text(
                                               time,
@@ -2523,7 +2662,8 @@ class _TrainerWorkoutOrganizerViewState
                                             ),
                                             decoration: BoxDecoration(
                                               color: const Color(0xFFE2E8F0),
-                                              borderRadius: BorderRadius.circular(999),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
                                             ),
                                             child: const Text(
                                               'Treino antigo',

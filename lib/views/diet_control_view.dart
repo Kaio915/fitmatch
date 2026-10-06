@@ -593,7 +593,7 @@ class _DietControlViewState extends State<DietControlView> {
         if (carryoverSignatures.contains(entrySignature)) return;
 
         carryoverSignatures.add(entrySignature);
-          carryoverEntryCounts[signature] = carryoverCount + 1;
+        carryoverEntryCounts[signature] = carryoverCount + 1;
         carryoverByMealType
             .putIfAbsent(normalizedMealType, () => <Map<String, dynamic>>[])
             .add({...entry, 'mealType': normalizedMealType});
@@ -797,9 +797,7 @@ class _DietControlViewState extends State<DietControlView> {
 
     final kcal100 = _toDouble(selectedFood['caloriesPer100g']);
     if (kcal100 <= 0) {
-      _showSnack(
-        'Não foi possível obter as calorias desse alimento.',
-      );
+      _showSnack('Não foi possível obter as calorias desse alimento.');
       return;
     }
 
@@ -1031,7 +1029,7 @@ class _DietControlViewState extends State<DietControlView> {
               ],
             ),
             content: SizedBox(
-              width: 460,
+              width: double.infinity,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1244,7 +1242,7 @@ class _DietControlViewState extends State<DietControlView> {
               ),
               title: const Text('Adicionar favorito no dia'),
               content: SizedBox(
-                width: 420,
+                width: double.infinity,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1604,7 +1602,7 @@ class _DietControlViewState extends State<DietControlView> {
           existing == null ? 'Cadastrar Novo Alimento' : 'Editar Alimento',
         ),
         content: SizedBox(
-          width: 640,
+          width: double.infinity,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1774,9 +1772,9 @@ class _DietControlViewState extends State<DietControlView> {
 
     final searchCtrl = TextEditingController();
     var filtered = _foods
-      .where((food) => food['custom'] != false)
-      .map((food) => Map<String, dynamic>.from(food))
-      .toList();
+        .where((food) => food['custom'] != false)
+        .map((food) => Map<String, dynamic>.from(food))
+        .toList();
 
     await showDialog<void>(
       context: context,
@@ -1803,7 +1801,7 @@ class _DietControlViewState extends State<DietControlView> {
             ),
             title: const Text('Gerenciar Alimentos Personalizados'),
             content: SizedBox(
-              width: 700,
+              width: double.infinity,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1945,7 +1943,7 @@ class _DietControlViewState extends State<DietControlView> {
           ),
           title: const Text('Calcular TMB'),
           content: SizedBox(
-            width: 430,
+            width: double.infinity,
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2100,7 +2098,7 @@ class _DietControlViewState extends State<DietControlView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text('Meta de Calorias Diárias'),
         content: SizedBox(
-          width: 420,
+          width: double.infinity,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2227,9 +2225,7 @@ class _DietControlViewState extends State<DietControlView> {
         .toList();
 
     try {
-      final remote = await AuthService.searchAlimentos(
-        query: query,
-      );
+      final remote = await AuthService.searchAlimentos(query: query);
 
       if (!mounted ||
           requestSeq != _searchSeq ||
@@ -2605,35 +2601,36 @@ class _DietControlViewState extends State<DietControlView> {
               );
 
               final actions = Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: isNarrow ? 6 : 8,
+                runSpacing: isNarrow ? 6 : 8,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _onGlobalRefresh,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xFF0B4DBA),
-                      side: const BorderSide(color: Color(0xFF0B4DBA)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
+                  if (!isNarrow)
+                    OutlinedButton.icon(
+                      onPressed: _onGlobalRefresh,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF0B4DBA),
+                        side: const BorderSide(color: Color(0xFF0B4DBA)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isNarrow ? 10 : 14,
+                          vertical: isNarrow ? 9 : 12,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Atualizar'),
                     ),
-                    icon: const Icon(Icons.refresh_rounded, size: 17),
-                    label: const Text('Atualizar'),
-                  ),
                   OutlinedButton.icon(
                     onPressed: _isPastDay ? null : _showFoodDialog,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0B4DBA),
                       side: const BorderSide(color: Color(0xFFBFD3F5)),
                       backgroundColor: const Color(0xFFF8FBFF),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 10 : 14,
+                        vertical: isNarrow ? 9 : 12,
                       ),
                     ),
                     icon: const Icon(
@@ -2648,9 +2645,9 @@ class _DietControlViewState extends State<DietControlView> {
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFD5DEEE)),
                       backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 10 : 14,
+                        vertical: isNarrow ? 9 : 12,
                       ),
                     ),
                     icon: const Icon(Icons.settings_rounded, size: 17),
@@ -2664,9 +2661,9 @@ class _DietControlViewState extends State<DietControlView> {
                       foregroundColor: const Color(0xFF0B4DBA),
                       side: const BorderSide(color: Color(0xFFBFD3F5)),
                       backgroundColor: const Color(0xFFF8FBFF),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 10 : 14,
+                        vertical: isNarrow ? 9 : 12,
                       ),
                     ),
                     icon: Icon(
@@ -2694,9 +2691,9 @@ class _DietControlViewState extends State<DietControlView> {
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFD5DEEE)),
                       backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 10 : 14,
+                        vertical: isNarrow ? 9 : 12,
                       ),
                     ),
                     icon: const Icon(Icons.logout_rounded, size: 17),
@@ -2705,10 +2702,86 @@ class _DietControlViewState extends State<DietControlView> {
                 ],
               );
 
+              final mobileMenu = PopupMenuButton<String>(
+                tooltip: 'Mais opções',
+                icon: const Icon(Icons.menu_rounded),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'manual':
+                      if (!_isPastDay) _showFoodDialog();
+                      break;
+                    case 'foods':
+                      if (!_isPastDay) _showManageFoodsDialog();
+                      break;
+                    case 'tips':
+                      _showMetricCoachTips
+                          ? _hideCoachTips()
+                          : _showCoachTips();
+                      break;
+                    case 'logout':
+                      AuthService.clearSession().then((_) {
+                        if (mounted) {
+                          Navigator.of(
+                            context,
+                          ).pushNamedAndRemoveUntil('/', (route) => false);
+                        }
+                      });
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'manual',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.add_circle_outline_rounded),
+                      title: Text('Cadastrar Manualmente'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'foods',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.settings_rounded),
+                      title: Text('Gerenciar Alimentos'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'tips',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        _showMetricCoachTips
+                            ? Icons.visibility_off_rounded
+                            : Icons.wb_cloudy_rounded,
+                      ),
+                      title: Text(
+                        _showMetricCoachTips ? 'Ocultar dicas' : 'Ver dicas',
+                      ),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.logout_rounded),
+                      title: Text('Sair'),
+                    ),
+                  ),
+                ],
+              );
+
               if (isNarrow) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 12), actions],
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: title),
+                        mobileMenu,
+                      ],
+                    ),
+                  ],
                 );
               }
 
@@ -2757,6 +2830,7 @@ class _DietControlViewState extends State<DietControlView> {
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     return OutlinedButton.icon(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
@@ -2767,13 +2841,20 @@ class _DietControlViewState extends State<DietControlView> {
         side: BorderSide(
           color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFFBFD3F5),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        minimumSize: Size.fromHeight(isNarrow ? 44 : 0),
+        padding: EdgeInsets.symmetric(
+          horizontal: isNarrow ? 8 : 14,
+          vertical: isNarrow ? 9 : 12,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: Icon(icon, size: 17),
       label: Text(
         label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          fontSize: isNarrow ? 12.5 : 14,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -2833,13 +2914,16 @@ class _DietControlViewState extends State<DietControlView> {
               Expanded(
                 child: Column(
                   children: [
-                    Text(
-                      isToday ? 'Hoje' : _formatDate(_selectedDate),
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF0F172A),
-                        height: 1,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        isToday ? 'Hoje' : _formatDate(_selectedDate),
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                          height: 1,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -3550,7 +3634,7 @@ class _DietControlViewState extends State<DietControlView> {
                 ),
               const SizedBox(height: 14),
               SizedBox(
-                width: 240,
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: (_savingEntry || _isPastDay) ? null : _addEntry,
                   style: ElevatedButton.styleFrom(
@@ -3700,19 +3784,19 @@ class _DietControlViewState extends State<DietControlView> {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  mealType,
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+              final title = Text(
+                mealType,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isNarrow ? 19 : 30,
+                  fontWeight: FontWeight.w900,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Column(
+              );
+              final total = Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text(
@@ -3731,8 +3815,8 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                   ),
                 ],
-              ),
-              IconButton(
+              );
+              final delete = IconButton(
                 tooltip: 'Excluir refeição do dia',
                 icon: const Icon(
                   Icons.delete_outline_rounded,
@@ -3742,16 +3826,44 @@ class _DietControlViewState extends State<DietControlView> {
                     ? null
                     : () =>
                           _deleteMealOfDay(mealType, entries, carryoverEntries),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+              );
+              final favorite = OutlinedButton.icon(
                 onPressed: includedEntries.isEmpty
                     ? null
                     : () => _saveMealAsFavorite(mealType, includedEntries),
                 icon: const Icon(Icons.star_border_rounded),
                 label: const Text('Salvar Refeição'),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: title),
+                        const SizedBox(width: 8),
+                        total,
+                        delete,
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Align(alignment: Alignment.centerRight, child: favorite),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  total,
+                  delete,
+                  const SizedBox(width: 12),
+                  favorite,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
           ...entries.map((entry) {
@@ -4095,7 +4207,8 @@ class _MetricCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 200,
+        constraints: const BoxConstraints(maxWidth: 200),
+        width: MediaQuery.sizeOf(context).width < 248 ? double.infinity : 200,
         padding: cardPadding,
         decoration: BoxDecoration(
           color: Colors.white,

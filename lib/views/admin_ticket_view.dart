@@ -57,7 +57,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
   Future<void> _initChat() async {
     final session = await AuthService.loadSession();
-    final adminId = session?['id'] != null ? (session!['id'] as num).toInt() : null;
+    final adminId = session?['id'] != null
+        ? (session!['id'] as num).toInt()
+        : null;
     final userId = widget.user['id'];
 
     if (adminId != null && userId != null) {
@@ -80,12 +82,14 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
         final createdAt = (widget.user['createdAt'] ?? '').toString();
         final loaded = msgs.map((m) {
-          final fromAdmin = (m['senderId'] is num) &&
+          final fromAdmin =
+              (m['senderId'] is num) &&
               (m['senderId'] as num).toInt() == adminId;
           final sentAt = (m['sentAt'] ?? '').toString();
           // No histórico (somente leitura), mensagens anteriores ao createdAt
           // desta tentativa pertencem a tentativas de cadastro anteriores.
-          final fromPreviousAttempt = widget.readOnly &&
+          final fromPreviousAttempt =
+              widget.readOnly &&
               createdAt.isNotEmpty &&
               sentAt.isNotEmpty &&
               sentAt.compareTo(createdAt) < 0;
@@ -340,7 +344,9 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   }
 
   String _formatReasonWithDate(String reason, String date) {
-    final formattedDate = date.trim().isEmpty ? null : formatIsoDateToPtBr(date);
+    final formattedDate = date.trim().isEmpty
+        ? null
+        : formatIsoDateToPtBr(date);
     return formattedDate == null ? '• $reason' : '• $reason ($formattedDate)';
   }
 
@@ -469,8 +475,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       return;
     }
 
-    final reason = _messages
-        .reversed
+    final reason = _messages.reversed
         .firstWhere(
           (m) => m.fromAdmin,
           orElse: () => _TicketMessage(text: '', fromAdmin: true),
@@ -518,10 +523,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     if (userId == null) return;
 
     try {
-      await AdminService.banUser(
-        (userId as num).toInt(),
-        reason: reason,
-      );
+      await AdminService.banUser((userId as num).toInt(), reason: reason);
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -547,7 +549,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFDCE6F5)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 18),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .08),
+                  blurRadius: 18,
+                ),
               ],
             ),
             child: SafeArea(
@@ -671,7 +676,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFDCE6F5)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 18),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .08),
+                  blurRadius: 18,
+                ),
               ],
             ),
             child: SafeArea(
@@ -777,30 +785,33 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final email = (widget.user['email'] ?? '').toString();
     final type = (widget.user['type'] ?? '').toString().toLowerCase();
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        toolbarHeight: isMobile ? 92 : kToolbarHeight,
         leading: const BackButton(color: Colors.black),
         actions: [
-          IconButton(
-            onPressed: _handleRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B4DBA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: _handleRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B4DBA),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
         title: Wrap(
@@ -838,7 +849,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             ),
             if (widget.readOnly)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF59E0B).withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(999),
@@ -849,7 +863,11 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_outline, size: 14, color: Color(0xFFB45309)),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 14,
+                      color: Color(0xFFB45309),
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Somente leitura',
@@ -865,7 +883,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               ),
             if (widget.blockMessaging && !widget.readOnly)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF59E0B).withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(999),
@@ -876,15 +897,23 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFFB45309)),
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 14,
+                      color: Color(0xFFB45309),
+                    ),
                     SizedBox(width: 4),
-                    Text(
-                      'Mensagens desativadas',
-                      style: TextStyle(
-                        color: Color(0xFFB45309),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        height: 1.1,
+                    Flexible(
+                      child: Text(
+                        'Mensagens desativadas',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFFB45309),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          height: 1.1,
+                        ),
                       ),
                     ),
                   ],
@@ -894,31 +923,64 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            _headerCard(name: name, email: email),
-            Expanded(
-              child: _messages.isEmpty
-                  ? Center(
-                      child: Text(
-                        widget.readOnly
-                            ? 'Nenhuma mensagem nesta conversa.'
-                            : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (_, i) => _bubble(_messages[i]),
+        child: LayoutBuilder(
+          builder: (context, _) {
+            final isMobile = MediaQuery.of(context).size.width < 600;
+            final emptyMessage = Center(
+              child: Text(
+                widget.readOnly
+                    ? 'Nenhuma mensagem nesta conversa.'
+                    : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey),
+              ),
+            );
+
+            if (isMobile) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  children: [
+                    _headerCard(name: name, email: email),
+                    SizedBox(
+                      height: _messages.isEmpty ? 150 : 240,
+                      child: _messages.isEmpty
+                          ? emptyMessage
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _messages.length,
+                              itemBuilder: (_, i) => _bubble(_messages[i]),
+                            ),
                     ),
-            ),
-            _templateBar(),
-            _composer(),
-            if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
-          ],
+                    _templateBar(),
+                    _composer(),
+                    if (!widget.readOnly && !widget.blockMessaging)
+                      _actionsBar(),
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                _headerCard(name: name, email: email),
+                Expanded(
+                  child: _messages.isEmpty
+                      ? emptyMessage
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (_, i) => _bubble(_messages[i]),
+                        ),
+                ),
+                _templateBar(),
+                _composer(),
+                if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -937,9 +999,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
     final status = (widget.user['status'] ?? '-').toString();
     final createdAt = (widget.user['createdAt'] ?? '').toString();
-    final createdDate = createdAt.isEmpty
-        ? ''
-        : formatIsoDateToPtBr(createdAt);
+    final createdDate = createdAt.isEmpty ? '' : formatIsoDateToPtBr(createdAt);
     final cidade = (widget.user['cidade'] ?? '').toString();
     final cref = (widget.user['cref'] ?? '').toString();
     final especialidade = (widget.user['especialidade'] ?? '').toString();
@@ -1002,259 +1062,267 @@ class _AdminTicketViewState extends State<AdminTicketView> {
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.35,
+          maxHeight: MediaQuery.of(context).size.height *
+              (MediaQuery.of(context).size.width < 600 ? 0.52 : 0.35),
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Row(
-            children: [
-              avatar,
-              const SizedBox(width: 14),
-              Expanded(
+              Row(
+                children: [
+                  avatar,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            color: Color(0xFF475569),
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Status: $statusLabel',
+                            style: TextStyle(
+                              color: statusFg,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _infoChip('CPF: $cpf', icon: Icons.badge_outlined),
+                            _infoChip(
+                              'Conta: $typeLabel',
+                              icon: Icons.manage_accounts_outlined,
+                            ),
+                            if (createdDate.isNotEmpty)
+                              _infoChip(
+                                'Criado em: $createdDate',
+                                icon: Icons.event_note_outlined,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FBFF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        color: Color(0xFF0F172A),
+                    const Text(
+                      'Dados complementares',
+                      style: TextStyle(
+                        color: Color(0xFF334155),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Status: $statusLabel',
-                        style: TextStyle(
-                          color: statusFg,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _infoChip('CPF: $cpf', icon: Icons.badge_outlined),
-                        _infoChip(
-                          'Conta: $typeLabel',
-                          icon: Icons.manage_accounts_outlined,
-                        ),
-                        if (createdDate.isNotEmpty)
+                        if (cidade.isNotEmpty)
                           _infoChip(
-                            'Criado em: $createdDate',
-                            icon: Icons.event_note_outlined,
+                            'Cidade: $cidade',
+                            icon: Icons.location_on_outlined,
+                          ),
+                        if (cref.isNotEmpty)
+                          _infoChip(
+                            'CREF: $cref',
+                            icon: Icons.workspace_premium_outlined,
+                          ),
+                        if (especialidade.isNotEmpty)
+                          _infoChip(
+                            'Especialidade: $especialidade',
+                            icon: Icons.fitness_center_outlined,
+                          ),
+                        if (experiencia.isNotEmpty)
+                          _infoChip(
+                            'Experiência: $experiencia',
+                            icon: Icons.school_outlined,
+                          ),
+                        if (valorHora.isNotEmpty)
+                          _infoChip(
+                            'Valor/h: $valorHora',
+                            icon: Icons.attach_money_outlined,
+                          ),
+                        if (objetivos.isNotEmpty)
+                          _infoChip(
+                            'Objetivo: $objetivos',
+                            icon: Icons.flag_outlined,
+                          ),
+                        if (nivel.isNotEmpty)
+                          _infoChip(
+                            'Nível: $nivel',
+                            icon: Icons.trending_up_outlined,
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FBFF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Dados complementares',
-                  style: TextStyle(
-                    color: Color(0xFF334155),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
+              if (bio.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (cidade.isNotEmpty)
-                      _infoChip(
-                        'Cidade: $cidade',
-                        icon: Icons.location_on_outlined,
-                      ),
-                    if (cref.isNotEmpty)
-                      _infoChip(
-                        'CREF: $cref',
-                        icon: Icons.workspace_premium_outlined,
-                      ),
-                    if (especialidade.isNotEmpty)
-                      _infoChip(
-                        'Especialidade: $especialidade',
-                        icon: Icons.fitness_center_outlined,
-                      ),
-                    if (experiencia.isNotEmpty)
-                      _infoChip(
-                        'Experiência: $experiencia',
-                        icon: Icons.school_outlined,
-                      ),
-                    if (valorHora.isNotEmpty)
-                      _infoChip(
-                        'Valor/h: $valorHora',
-                        icon: Icons.attach_money_outlined,
-                      ),
-                    if (objetivos.isNotEmpty)
-                      _infoChip(
-                        'Objetivo: $objetivos',
-                        icon: Icons.flag_outlined,
-                      ),
-                    if (nivel.isNotEmpty)
-                      _infoChip(
-                        'Nível: $nivel',
-                        icon: Icons.trending_up_outlined,
-                      ),
-                  ],
+                  child: Text(
+                    'Bio: $bio',
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      fontSize: 12.5,
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-          if (bio.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Text(
-                'Bio: $bio',
-                style: const TextStyle(
-                  color: Color(0xFF334155),
-                  fontSize: 12.5,
+              if (_previousRejection != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 16,
+                            color: Color(0xFF92400E),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Cadastro anterior (mesmo email)',
+                            style: TextStyle(
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ..._buildRejectionReasons(),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
-          if (_previousRejection != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFDE68A)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+              ],
+              if (_previousExclusion != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.history, size: 16, color: Color(0xFF92400E)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Cadastro anterior (mesmo email)',
-                        style: TextStyle(
-                          color: Color(0xFF92400E),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                        ),
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.person_off_outlined,
+                            size: 16,
+                            color: Color(0xFFB91C1C),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Conta excluída anteriormente',
+                            style: TextStyle(
+                              color: Color(0xFFB91C1C),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
                       ),
+                      ..._buildExclusionReasons(),
                     ],
                   ),
-                  ..._buildRejectionReasons(),
-                ],
-              ),
-            ),
-          ],
-          if (_previousExclusion != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFECACA)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+                ),
+              ],
+              if (_previousBan != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F3FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDDD6FE)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.person_off_outlined,
-                          size: 16, color: Color(0xFFB91C1C)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Conta excluída anteriormente',
-                        style: TextStyle(
-                          color: Color(0xFFB91C1C),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                        ),
+                      const Row(
+                        children: [
+                          Icon(Icons.gavel, size: 16, color: Color(0xFF6D28D9)),
+                          SizedBox(width: 6),
+                          Text(
+                            'Usuário banido anteriormente',
+                            style: TextStyle(
+                              color: Color(0xFF6D28D9),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
                       ),
+                      ..._buildBanReasons(),
                     ],
                   ),
-                  ..._buildExclusionReasons(),
-                ],
-              ),
-            ),
-          ],
-          if (_previousBan != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F3FF),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFDDD6FE)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.gavel, size: 16, color: Color(0xFF6D28D9)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Usuário banido anteriormente',
-                        style: TextStyle(
-                          color: Color(0xFF6D28D9),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ..._buildBanReasons(),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1277,12 +1345,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             Icon(icon, size: 14, color: const Color(0xFF335AA3)),
             const SizedBox(width: 5),
           ],
-          Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF334155),
-              fontWeight: FontWeight.w600,
-              fontSize: 11.5,
+          Flexible(
+            child: Text(
+              text,
+              softWrap: true,
+              style: const TextStyle(
+                color: Color(0xFF334155),
+                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+              ),
             ),
           ),
         ],
@@ -1373,83 +1444,150 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   }
 
   Widget _composer() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final isWide = MediaQuery.of(context).size.width > 800;
+
+    final messageField = TextField(
+      controller: _msgController,
+      enabled: !widget.readOnly && !widget.blockMessaging,
+      minLines: 1,
+      maxLines: 4,
+      decoration: InputDecoration(
+        hintText: widget.readOnly
+            ? 'Somente leitura'
+            : widget.blockMessaging
+            ? 'Mensagens desativadas'
+            : 'Escreva uma mensagem para o usuário...',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+
+    final sendButton = SizedBox(
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: (widget.readOnly || widget.blockMessaging)
+            ? null
+            : _sendMessage,
+        icon: const Icon(Icons.send),
+        label: const Text('Enviar'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0B4DBA),
+          foregroundColor: Colors.white,
+        ),
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       color: const Color(0xFFF4F6FA),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _msgController,
-              enabled: !widget.readOnly && !widget.blockMessaging,
-              minLines: 1,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: widget.readOnly
-                    ? 'Somente leitura'
-                    : widget.blockMessaging
-                        ? 'Mensagens desativadas'
-                        : 'Escreva uma mensagem para o usuário...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+      child: isWide
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: messageField),
+                const SizedBox(width: 12),
+                sendButton,
+              ],
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) => Flex(
+                direction: isMobile ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: isMobile
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: isMobile
+                        ? double.infinity
+                        : (constraints.maxWidth - 90).clamp(160.0, 600.0),
+                    child: messageField,
+                  ),
+                  SizedBox(
+                    width: isMobile ? 0 : 12,
+                    height: isMobile ? 8 : 0,
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : null,
+                    child: sendButton,
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: (widget.readOnly || widget.blockMessaging) ? null : _sendMessage,
-              icon: const Icon(Icons.send),
-              label: const Text('Enviar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B4DBA),
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _actionsBar() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
       color: Colors.white,
-      child: Row(
-        children: [
-          _actionButton(
-            label: 'Aprovar',
-            icon: Icons.check,
-            color: const Color(0xFF0B4DBA),
-            onPressed: _approve,
-          ),
-          _actionButton(
-            label: 'Rejeitar',
-            icon: Icons.close,
-            color: Colors.red,
-            onPressed: _showRejectReasonSheet,
-          ),
-          _actionButton(
-            label: 'Rejeitar temporariamente',
-            icon: Icons.block,
-            color: const Color(0xFFF59E0B),
-            onPressed: _hasSentMessage ? _temporarilyReject : null,
-            disabledColor: const Color(0xFFFDE7C8),
-            disabledForegroundColor: const Color(0xFF9A6B2B),
-          ),
-          _actionButton(
-            label: 'Banir usuário',
-            icon: Icons.gavel,
-            color: const Color(0xFF7F1D1D),
-            onPressed: _ban,
-          ),
-        ],
-      ),
+      child: isMobile
+          ? Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _actionButton(
+                  label: 'Aprovar',
+                  icon: Icons.check,
+                  color: const Color(0xFF0B4DBA),
+                  onPressed: _approve,
+                ),
+                _actionButton(
+                  label: 'Rejeitar',
+                  icon: Icons.close,
+                  color: Colors.red,
+                  onPressed: _showRejectReasonSheet,
+                ),
+                _actionButton(
+                  label: 'Rejeitar temporariamente',
+                  icon: Icons.block,
+                  color: const Color(0xFFF59E0B),
+                  onPressed: _hasSentMessage ? _temporarilyReject : null,
+                  disabledColor: const Color(0xFFFDE7C8),
+                  disabledForegroundColor: const Color(0xFF9A6B2B),
+                ),
+                _actionButton(
+                  label: 'Banir usuário',
+                  icon: Icons.gavel,
+                  color: const Color(0xFF7F1D1D),
+                  onPressed: _ban,
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                _actionButton(
+                  label: 'Aprovar',
+                  icon: Icons.check,
+                  color: const Color(0xFF0B4DBA),
+                  onPressed: _approve,
+                ),
+                _actionButton(
+                  label: 'Rejeitar',
+                  icon: Icons.close,
+                  color: Colors.red,
+                  onPressed: _showRejectReasonSheet,
+                ),
+                _actionButton(
+                  label: 'Rejeitar temporariamente',
+                  icon: Icons.block,
+                  color: const Color(0xFFF59E0B),
+                  onPressed: _hasSentMessage ? _temporarilyReject : null,
+                  disabledColor: const Color(0xFFFDE7C8),
+                  disabledForegroundColor: const Color(0xFF9A6B2B),
+                ),
+                _actionButton(
+                  label: 'Banir usuário',
+                  icon: Icons.gavel,
+                  color: const Color(0xFF7F1D1D),
+                  onPressed: _ban,
+                ),
+              ],
+            ),
     );
   }
 
@@ -1469,45 +1607,49 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         ? Colors.white
         : (disabledForegroundColor ?? Colors.white);
 
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Material(
-          color: bg,
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final button = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              height: 58,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, size: 19, color: fg),
-                    const SizedBox(height: 3),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: fg,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
+          child: SizedBox(
+            height: 58,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 19, color: fg),
+                  const SizedBox(height: 3),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
     );
+    return isMobile
+        ? SizedBox(
+            width: (MediaQuery.of(context).size.width - 42) / 2,
+            child: button,
+          )
+        : Expanded(child: button);
   }
 
   Widget _bubble(_TicketMessage m) {
@@ -1539,7 +1681,10 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               ? Border.all(color: const Color(0xFFE5E7EB))
               : null,
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 6),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .05),
+              blurRadius: 6,
+            ),
           ],
         ),
         child: Column(

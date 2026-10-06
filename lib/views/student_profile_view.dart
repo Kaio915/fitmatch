@@ -141,7 +141,9 @@ class _StudentProfileViewState extends State<StudentProfileView> {
       if (!mounted) return;
       setState(() => _savingRating = false);
       _showSnack(
-          e.toString().replaceFirst('Exception: ', ''), const Color(0xFFEF4444));
+        e.toString().replaceFirst('Exception: ', ''),
+        const Color(0xFFEF4444),
+      );
     }
   }
 
@@ -159,8 +161,10 @@ class _StudentProfileViewState extends State<StudentProfileView> {
 
   double get _avgRating {
     if (_ratings.isEmpty) return 0;
-    final sum =
-        _ratings.fold<int>(0, (acc, r) => acc + ((r['stars'] as num?)?.toInt() ?? 0));
+    final sum = _ratings.fold<int>(
+      0,
+      (acc, r) => acc + ((r['stars'] as num?)?.toInt() ?? 0),
+    );
     return sum / _ratings.length;
   }
 
@@ -176,45 +180,49 @@ class _StudentProfileViewState extends State<StudentProfileView> {
               child: _loading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF0B4DBA), strokeWidth: 2.5),
+                        color: Color(0xFF0B4DBA),
+                        strokeWidth: 2.5,
+                      ),
                     )
                   : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.error_outline_rounded,
-                                    size: 48, color: Color(0xFFEF4444)),
-                                const SizedBox(height: 12),
-                                Text(_error!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                        color: Colors.black54)),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _load,
-                                  child: const Text('Tentar novamente'),
-                                ),
-                              ],
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              size: 48,
+                              color: Color(0xFFEF4444),
                             ),
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 0, 20, 48),
-                          child: Column(
-                            children: [
-                              _buildProfileCard(),
-                              const SizedBox(height: 20),
-                              if (widget.trainerId != null)
-                                _buildRatingCard(),
-                              const SizedBox(height: 20),
-                              if (_ratings.isNotEmpty) _buildReviewsCard(),
-                            ],
-                          ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _load,
+                              child: const Text('Tentar novamente'),
+                            ),
+                          ],
                         ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+                      child: Column(
+                        children: [
+                          _buildProfileCard(),
+                          const SizedBox(height: 20),
+                          if (widget.trainerId != null) _buildRatingCard(),
+                          const SizedBox(height: 20),
+                          if (_ratings.isNotEmpty) _buildReviewsCard(),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -243,8 +251,11 @@ class _StudentProfileViewState extends State<StudentProfileView> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 4),
           const Icon(Icons.person_rounded, color: Colors.white, size: 22),
@@ -258,22 +269,23 @@ class _StudentProfileViewState extends State<StudentProfileView> {
             ),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -335,8 +347,9 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0B4DBA)
-                                  .withValues(alpha: 0.2),
+                              color: const Color(
+                                0xFF0B4DBA,
+                              ).withValues(alpha: 0.2),
                               blurRadius: 14,
                               offset: const Offset(0, 6),
                             ),
@@ -377,12 +390,15 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                             const SizedBox(height: 2),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEEF4FF),
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                    color: const Color(0xFFBFD3F5)),
+                                  color: const Color(0xFFBFD3F5),
+                                ),
                               ),
                               child: const Text(
                                 'Aluno',
@@ -464,8 +480,11 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
-                child: const Icon(Icons.star_rounded,
-                    size: 20, color: Color(0xFFF59E0B)),
+                child: const Icon(
+                  Icons.star_rounded,
+                  size: 20,
+                  color: Color(0xFFF59E0B),
+                ),
               ),
               const SizedBox(width: 12),
               const Text(
@@ -482,7 +501,9 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Color(0xFFF59E0B)),
+                    strokeWidth: 2,
+                    color: Color(0xFFF59E0B),
+                  ),
                 ),
               ],
             ],
@@ -537,8 +558,10 @@ class _StudentProfileViewState extends State<StudentProfileView> {
               hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
               filled: true,
               fillColor: const Color(0xFFF7F9FD),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE7EBF3)),
@@ -549,8 +572,10 @@ class _StudentProfileViewState extends State<StudentProfileView> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFF0B4DBA), width: 1.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0B4DBA),
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -567,7 +592,8 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                 disabledBackgroundColor: const Color(0xFFE7EBF3),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
               child: _savingRating
@@ -575,10 +601,14 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Salvar Avaliação',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  : const Text(
+                      'Salvar Avaliação',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
             ),
           ),
         ],
@@ -613,8 +643,11 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFBFD3F5)),
                 ),
-                child: const Icon(Icons.reviews_rounded,
-                    size: 18, color: Color(0xFF0B4DBA)),
+                child: const Icon(
+                  Icons.reviews_rounded,
+                  size: 18,
+                  color: Color(0xFF0B4DBA),
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -678,8 +711,8 @@ class _StarRatingDisplay extends StatelessWidget {
             filled
                 ? Icons.star_rounded
                 : half
-                    ? Icons.star_half_rounded
-                    : Icons.star_outline_rounded,
+                ? Icons.star_half_rounded
+                : Icons.star_outline_rounded,
             size: 20,
             color: const Color(0xFFF59E0B),
           );
@@ -708,7 +741,11 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -812,7 +849,9 @@ class _ReviewItem extends StatelessWidget {
                 child: Text(
                   trainerName,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               Row(
@@ -832,7 +871,10 @@ class _ReviewItem extends StatelessWidget {
             Text(
               comment!,
               style: const TextStyle(
-                  fontSize: 12.5, color: Colors.black54, height: 1.5),
+                fontSize: 12.5,
+                color: Colors.black54,
+                height: 1.5,
+              ),
             ),
           ],
         ],

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,13 +31,17 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
   late final TextEditingController _valorHoraCtrl;
   late final TextEditingController _bioCtrl;
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   final _especialidadeOutroCtrl = TextEditingController();
 
   List<Map<String, dynamic>> cidades = [];
   Timer? _cidadeDebounce;
 
   XFile? _photo;
+  Uint8List? _photoBytes;
   bool _loading = false;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   String? _especialidadeSelecionada;
 
@@ -120,6 +126,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
     _valorHoraCtrl.dispose();
     _bioCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     _cidadeDebounce?.cancel();
     super.dispose();
   }
@@ -129,7 +136,18 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
       source: ImageSource.gallery,
       imageQuality: 85,
     );
-    if (picked != null) setState(() => _photo = picked);
+
+    if (picked == null) return;
+
+    Uint8List? bytes;
+    if (kIsWeb) {
+      bytes = await picked.readAsBytes();
+    }
+
+    setState(() {
+      _photo = picked;
+      _photoBytes = bytes;
+    });
   }
 
   void _showSnack(String msg) {
@@ -195,6 +213,7 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
@@ -204,22 +223,34 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.symmetric(
+          horizontal: isNarrow ? 16 : 24,
+          vertical: 24,
+        ),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: Card(
-              elevation: 0,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: isNarrow
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                        ),
+                      ]
+                    : null,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isNarrow ? 16 : 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: double.infinity,
@@ -244,9 +275,83 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _input('Nome *', _nameCtrl),
+                      _input('Nome Completo *', _nameCtrl),
                       _input('Email *', _emailCtrl, isEmail: true),
+                      _input(
+                        'Senha',
+                        _passwordCtrl,
+                        required: false,
+                        obscure: !_showPassword,
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setState(() => _showPassword = !_showPassword),
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                        ),
+                        customValidator: (v) {
+                          final value = (v ?? '');
+                          if (value.isEmpty) return null;
+                          if (value.length < 6) return 'Mínimo 6 caracteres';
+                          return null;
+                        },
+                      ),
+                      _input(
+                        'Confirmar Senha',
+                        _confirmPasswordCtrl,
+                        required: false,
+                        obscure: !_showConfirmPassword,
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _showConfirmPassword = !_showConfirmPassword,
+                          ),
+                          icon: Icon(
+                            _showConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                        ),
+                        customValidator: (v) {
+                          final value = (v ?? '');
+                          if (_passwordCtrl.text.isEmpty && value.isEmpty) {
+                            return null;
+                          }
+                          if (value != _passwordCtrl.text) {
+                            return 'As senhas não coincidem';
+                          }
+                          return null;
+                        },
+                      ),
                       _input('CPF *', _cpfCtrl),
+                      OutlinedButton.icon(
+                        onPressed: _pickPhoto,
+                        icon: const Icon(Icons.photo_camera),
+                        label: Text(
+                          _photo == null
+                              ? 'Foto/Upload'
+                              : 'Foto selecionada',
+                        ),
+                      ),
+                      if (_photo != null) ...[
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: kIsWeb
+                              ? Image.memory(
+                                  _photoBytes!,
+                                  height: 130,
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.file(
+                                  File(_photo!.path),
+                                  height: 130,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
                       _input('CREF *', _crefCtrl),
                       _cidadeAutocomplete(),
                       _especialidadeDropdown(),
@@ -257,23 +362,6 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
                         inputFormatters: [_CurrencyInputFormatter()],
                       ),
                       _input('Biografia *', _bioCtrl, maxLines: 4),
-                      const SizedBox(height: 16),
-                      _input(
-                        'Nova senha (opcional)',
-                        _passwordCtrl,
-                        required: false,
-                        obscure: true,
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: _pickPhoto,
-                        icon: const Icon(Icons.photo_camera),
-                        label: Text(
-                          _photo == null
-                              ? 'Trocar foto (opcional)'
-                              : 'Foto selecionada',
-                        ),
-                      ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -384,12 +472,19 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         children: [
           DropdownButtonFormField<String>(
             initialValue: _especialidadeSelecionada,
+            isExpanded: MediaQuery.of(context).size.width < 600,
+            menuMaxHeight: MediaQuery.of(context).size.height * 0.42,
             decoration: const InputDecoration(
               labelText: 'Especialidade',
               border: OutlineInputBorder(),
             ),
             items: _especialidades
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, overflow: TextOverflow.ellipsis),
+                  ),
+                )
                 .toList(),
             onChanged: (value) {
               setState(() => _especialidadeSelecionada = value);
@@ -435,6 +530,8 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
     bool isEmail = false,
     int maxLines = 1,
     List<TextInputFormatter>? inputFormatters,
+    Widget? suffixIcon,
+    String? Function(String?)? customValidator,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -443,16 +540,18 @@ class _EditTrainerCadastroViewState extends State<EditTrainerCadastroView> {
         obscureText: obscure,
         maxLines: maxLines,
         inputFormatters: inputFormatters,
-        validator: (v) {
-          final value = (v ?? '').trim();
-          if (!required) return null;
-          if (value.isEmpty) return 'Campo obrigatório';
-          if (isEmail && !value.contains('@')) return 'Email inválido';
-          return null;
-        },
+        validator: customValidator ??
+            (v) {
+              final value = (v ?? '').trim();
+              if (!required) return null;
+              if (value.isEmpty) return 'Campo obrigatório';
+              if (isEmail && !value.contains('@')) return 'Email inválido';
+              return null;
+            },
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
+          suffixIcon: suffixIcon,
         ),
       ),
     );

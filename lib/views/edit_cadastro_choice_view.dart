@@ -78,7 +78,10 @@ class EditCadastroChoiceView extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          width: 200,
+          constraints: const BoxConstraints(maxWidth: 200),
+          width: MediaQuery.sizeOf(context).width < 248
+              ? double.infinity
+              : 200,
           height: 160,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(

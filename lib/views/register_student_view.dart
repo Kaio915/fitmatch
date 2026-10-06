@@ -245,268 +245,292 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 1020,
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 16,
-              )
-            ],
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          '← Voltar',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: _handleRefresh,
-                        tooltip: 'Atualizar',
-                        icon: Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0B4DBA),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Icon(
-                            Icons.refresh_rounded,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const FitMatchLogo(height: 78, assetPath: 'assets/images/fitmatch_logo3.png'),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Criar Conta',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 0),
+            child: Center(
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 1020),
+                padding: EdgeInsets.all(isNarrow ? 16 : 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Escolha o tipo de conta e preencha seus dados',
-                    style: TextStyle(color: Color.fromARGB(255, 56, 54, 54)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Toggle
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 6,
-                                ),
-                              ],
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text(
+                                '← Voltar',
+                                style: TextStyle(color: Colors.black),
+                              ),
                             ),
-                            child: const Center(
-                              child: Text(
-                                'Aluno',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                            const Spacer(),
+                            if (MediaQuery.of(context).size.width >= 600)
+                              IconButton(
+                                onPressed: _handleRefresh,
+                                tooltip: 'Atualizar',
+                                icon: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0B4DBA),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const FitMatchLogo(
+                          height: 78,
+                          assetPath: 'assets/images/fitmatch_logo3.png',
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Criar Conta',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Escolha o tipo de conta e preencha seus dados',
+                          style: TextStyle(
+                            color: Color.fromARGB(255, 56, 54, 54),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Toggle
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Aluno',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        settings: const RouteSettings(
+                                          name: AppRoutes.registerTrainer,
+                                        ),
+                                        builder: (_) =>
+                                            const RegisterTrainerView(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    height: 44,
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'Personal Trainer',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        _input(
+                          'Nome Completo *',
+                          'Seu nome',
+                          controller: _nameCtrl,
+                          focusNode: _nameFocus,
+                          nextFocus: _emailFocus,
+                        ),
+                        _input(
+                          'Email *',
+                          'seu@email.com',
+                          controller: _emailCtrl,
+                          isEmail: true,
+                          focusNode: _emailFocus,
+                          nextFocus: _passFocus,
+                        ),
+                        _input(
+                          'Senha *',
+                          'Mínimo 6 caracteres',
+                          controller: _passCtrl,
+                          obscure: !_showPassword,
+                          isPassword: true,
+                          focusNode: _passFocus,
+                          nextFocus: _confirmPassFocus,
+                          suffixIcon: IconButton(
+                            onPressed: () =>
+                                setState(() => _showPassword = !_showPassword),
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
                           ),
                         ),
-                        Expanded(
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  settings: const RouteSettings(
-                                    name: AppRoutes.registerTrainer,
-                                  ),
-                                  builder: (_) => const RegisterTrainerView(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              height: 44,
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'Personal Trainer',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54,
-                                ),
-                              ),
+                        _input(
+                          'Confirmar Senha *',
+                          'Repita a senha',
+                          controller: _confirmPassCtrl,
+                          obscure: !_showConfirmPassword,
+                          focusNode: _confirmPassFocus,
+                          nextFocus: _cidadeFocus,
+                          customValidator: (value) {
+                            final v = (value ?? '').trim();
+                            if (v.isEmpty) return 'Campo obrigatório';
+                            if (v != _passCtrl.text.trim()) {
+                              return 'As senhas não coincidem';
+                            }
+                            return null;
+                          },
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () =>
+                                  _showConfirmPassword = !_showConfirmPassword,
                             ),
+                            icon: Icon(
+                              _showConfirmPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                          ),
+                        ),
+
+                        _cidadeAutocomplete(
+                          focusNode: _cidadeFocus,
+                          nextFocus: _cpfFocus,
+                        ),
+
+                        // CPF
+                        _cpfField(
+                          focusNode: _cpfFocus,
+                          onNext: () {
+                            if (_objetivoSelecionado == 'Outro') {
+                              _objetivoOutroFocus.requestFocus();
+                            }
+                          },
+                        ),
+
+                        // Foto
+                        _photoField(),
+
+                        // ✅ Objetivos (dropdown + "Outro")
+                        _objetivosDropdown(outroFocus: _objetivoOutroFocus),
+
+                        _dropdownNivel(),
+
+                        const SizedBox(height: 24),
+
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0B4DBA),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: loading ? null : _submit,
+                          child: loading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Criar Conta de Aluno',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    LoginView(userType: UserType.aluno),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Já tem uma conta? Entrar',
+                            style: TextStyle(color: Colors.black),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  _input(
-                    'Nome Completo *',
-                    'Seu nome',
-                    controller: _nameCtrl,
-                    focusNode: _nameFocus,
-                    nextFocus: _emailFocus,
-                  ),
-                  _input(
-                    'Email *',
-                    'seu@email.com',
-                    controller: _emailCtrl,
-                    isEmail: true,
-                    focusNode: _emailFocus,
-                    nextFocus: _passFocus,
-                  ),
-                  _input(
-                    'Senha *',
-                    'Mínimo 6 caracteres',
-                    controller: _passCtrl,
-                    obscure: !_showPassword,
-                    isPassword: true,
-                    focusNode: _passFocus,
-                    nextFocus: _confirmPassFocus,
-                    suffixIcon: IconButton(
-                      onPressed: () =>
-                          setState(() => _showPassword = !_showPassword),
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                    ),
-                  ),
-                  _input(
-                    'Confirmar Senha *',
-                    'Repita a senha',
-                    controller: _confirmPassCtrl,
-                    obscure: !_showConfirmPassword,
-                    focusNode: _confirmPassFocus,
-                    nextFocus: _cidadeFocus,
-                    customValidator: (value) {
-                      final v = (value ?? '').trim();
-                      if (v.isEmpty) return 'Campo obrigatório';
-                      if (v != _passCtrl.text.trim()) {
-                        return 'As senhas não coincidem';
-                      }
-                      return null;
-                    },
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(
-                        () => _showConfirmPassword = !_showConfirmPassword,
-                      ),
-                      icon: Icon(
-                        _showConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                    ),
-                  ),
-
-                  _cidadeAutocomplete(
-                    focusNode: _cidadeFocus,
-                    nextFocus: _cpfFocus,
-                  ),
-
-                  // CPF
-                  _cpfField(
-                    focusNode: _cpfFocus,
-                    onNext: () {
-                      if (_objetivoSelecionado == 'Outro') {
-                        _objetivoOutroFocus.requestFocus();
-                      }
-                    },
-                  ),
-
-                  // Foto
-                  _photoField(),
-
-                  // ✅ Objetivos (dropdown + "Outro")
-                  _objetivosDropdown(outroFocus: _objetivoOutroFocus),
-
-                  _dropdownNivel(),
-
-                  const SizedBox(height: 24),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B4DBA),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: loading ? null : _submit,
-                    child: loading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Criar Conta de Aluno',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LoginView(userType: UserType.aluno),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Já tem uma conta? Entrar',
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -514,32 +538,35 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   Widget _cpfField({FocusNode? focusNode, VoidCallback? onNext}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text(
-          'CPF *',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CPF *',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _cpfCtrl,
-          focusNode: focusNode,
-          inputFormatters: [_cpfMask],
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => onNext?.call(),
-          validator: (value) {
-            final v = (value ?? '').trim();
-            if (v.isEmpty) return 'Campo obrigatório';
-            if (!_isValidCPF(v)) return 'CPF inválido';
-            return null;
-          },
-          decoration: _decoration('000.000.000-00'),
-        ),
-      ]),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _cpfCtrl,
+            focusNode: focusNode,
+            inputFormatters: [_cpfMask],
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => onNext?.call(),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return 'Campo obrigatório';
+              if (!_isValidCPF(v)) return 'CPF inválido';
+              return null;
+            },
+            decoration: _decoration('000.000.000-00'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -550,57 +577,56 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _pickPhoto,
-              icon: Icon(kIsWeb ? Icons.upload_file : Icons.camera_alt),
-              label: Text(kIsWeb ? 'Selecionar' : 'Tirar foto'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B4DBA),
-                foregroundColor: Colors.white,
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _pickPhoto,
+                icon: Icon(kIsWeb ? Icons.upload_file : Icons.camera_alt),
+                label: Text(kIsWeb ? 'Selecionar' : 'Tirar foto'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0B4DBA),
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _photo == null ? 'Nenhuma foto escolhida' : _photo!.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.black54),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _photo == null ? 'Nenhuma foto escolhida' : _photo!.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
+            ],
+          ),
+          const SizedBox(height: 10),
 
-        // Preview (Web: memory / Mobile: file)
-        if (_photo != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: kIsWeb
-                ? Image.memory(
-                    _photoBytes!,
-                    height: 130,
-                    fit: BoxFit.cover,
-                  )
-                : Image.file(
-                    File(_photo!.path),
-                    height: 130,
-                    fit: BoxFit.cover,
-                  ),
-          ),
-      ]),
+          // Preview (Web: memory / Mobile: file)
+          if (_photo != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: kIsWeb
+                  ? Image.memory(_photoBytes!, height: 130, fit: BoxFit.cover)
+                  : Image.file(
+                      File(_photo!.path),
+                      height: 130,
+                      fit: BoxFit.cover,
+                    ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -621,9 +647,16 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
           ),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
+            isExpanded: true,
+            menuMaxHeight: MediaQuery.of(context).size.height * 0.42,
             initialValue: _objetivoSelecionado,
             items: _objetivos
-                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                .map(
+                  (o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                )
                 .toList(),
             onChanged: (value) {
               setState(() => _objetivoSelecionado = value);
@@ -690,19 +723,22 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                 return;
               }
 
-              _cidadeDebounce =
-                  Timer(const Duration(milliseconds: 300), () async {
-                final typedAtRequest = _cidadeCtrl.text.trim();
-                final resultado =
-                    await AuthService.buscarCidadesIbge(typedAtRequest);
+              _cidadeDebounce = Timer(
+                const Duration(milliseconds: 300),
+                () async {
+                  final typedAtRequest = _cidadeCtrl.text.trim();
+                  final resultado = await AuthService.buscarCidadesIbge(
+                    typedAtRequest,
+                  );
 
-                if (!mounted) return;
+                  if (!mounted) return;
 
-                // Evita exibir resultados antigos quando o usuário digita rápido.
-                if (typedAtRequest == _cidadeCtrl.text.trim()) {
-                  setState(() => cidades = resultado);
-                }
-              });
+                  // Evita exibir resultados antigos quando o usuário digita rápido.
+                  if (typedAtRequest == _cidadeCtrl.text.trim()) {
+                    setState(() => cidades = resultado);
+                  }
+                },
+              );
             },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Campo obrigatório';
@@ -758,7 +794,10 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
             initialValue: nivelSelecionado,
             items: const [
               DropdownMenuItem(value: 'Iniciante', child: Text('Iniciante')),
-              DropdownMenuItem(value: 'Intermediário', child: Text('Intermediário')),
+              DropdownMenuItem(
+                value: 'Intermediário',
+                child: Text('Intermediário'),
+              ),
               DropdownMenuItem(value: 'Avançado', child: Text('Avançado')),
             ],
             onChanged: (value) => setState(() => nivelSelecionado = value),
@@ -803,7 +842,9 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
             controller: controller,
             obscureText: obscure,
             focusNode: focusNode,
-            textInputAction: nextFocus == null ? TextInputAction.done : TextInputAction.next,
+            textInputAction: nextFocus == null
+                ? TextInputAction.done
+                : TextInputAction.next,
             onFieldSubmitted: (_) => nextFocus?.requestFocus(),
             validator: (value) {
               if (customValidator != null) return customValidator(value);

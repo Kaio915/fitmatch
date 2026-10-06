@@ -83,7 +83,8 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
       final lastReportAt = (u['lastReportAt'] ?? '').toString();
       final date = formatIsoDateToPtBr(lastReportAt).toLowerCase();
 
-      final matchesSearch = s.isEmpty ||
+      final matchesSearch =
+          s.isEmpty ||
           name.contains(s) ||
           email.contains(s) ||
           date.contains(s);
@@ -91,10 +92,10 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
       final matchesStatus = statusFilter == 'ALL'
           ? true
           : statusFilter == 'DELETED'
-              ? deleted
-              : statusFilter == 'BANNED'
-                  ? banned
-                  : status == statusFilter;
+          ? deleted
+          : statusFilter == 'BANNED'
+          ? banned
+          : status == statusFilter;
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -102,12 +103,12 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     list.sort((a, b) {
       if (sortBy == 'NOME') {
         return (a['name'] ?? '').toString().toLowerCase().compareTo(
-              (b['name'] ?? '').toString().toLowerCase(),
-            );
+          (b['name'] ?? '').toString().toLowerCase(),
+        );
       }
       return (b['lastReportAt'] ?? '').toString().compareTo(
-            (a['lastReportAt'] ?? '').toString(),
-          );
+        (a['lastReportAt'] ?? '').toString(),
+      );
     });
 
     setState(() => filtered = list);
@@ -138,7 +139,8 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
 
     final name = (user['name'] ?? 'Usuário').toString();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Liberar usuário'),
@@ -325,7 +327,8 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
 
     final name = (user['name'] ?? 'Usuário').toString();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Desbanir usuário'),
@@ -442,22 +445,23 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
         toolbarHeight: 76,
         titleSpacing: 20,
         actions: [
-          IconButton(
-            onPressed: _onGlobalRefresh,
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B4DBA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: _onGlobalRefresh,
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B4DBA),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
         title: const Text(
@@ -494,11 +498,15 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE7ECF3)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE7ECF3),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE7ECF3)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE7ECF3),
+                          ),
                         ),
                       ),
                     ),
@@ -511,8 +519,9 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: const Color(0xFFE7ECF3)),
+                              border: Border.all(
+                                color: const Color(0xFFE7ECF3),
+                              ),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
@@ -520,19 +529,25 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                                 isExpanded: true,
                                 items: const [
                                   DropdownMenuItem(
-                                      value: 'ALL', child: Text('Todos')),
+                                    value: 'ALL',
+                                    child: Text('Todos'),
+                                  ),
                                   DropdownMenuItem(
-                                      value: 'APPROVED',
-                                      child: Text('Aprovados')),
+                                    value: 'APPROVED',
+                                    child: Text('Aprovados'),
+                                  ),
                                   DropdownMenuItem(
-                                      value: 'REJECTED',
-                                      child: Text('Rejeitados')),
+                                    value: 'REJECTED',
+                                    child: Text('Rejeitados'),
+                                  ),
                                   DropdownMenuItem(
-                                      value: 'DELETED',
-                                      child: Text('Excluídos')),
+                                    value: 'DELETED',
+                                    child: Text('Excluídos'),
+                                  ),
                                   DropdownMenuItem(
-                                      value: 'BANNED',
-                                      child: Text('Banidos')),
+                                    value: 'BANNED',
+                                    child: Text('Banidos'),
+                                  ),
                                 ],
                                 onChanged: (v) {
                                   if (v == null) return;
@@ -556,9 +571,13 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                               value: sortBy,
                               items: const [
                                 DropdownMenuItem(
-                                    value: 'DATA', child: Text('Data')),
+                                  value: 'DATA',
+                                  child: Text('Data'),
+                                ),
                                 DropdownMenuItem(
-                                    value: 'NOME', child: Text('Nome')),
+                                  value: 'NOME',
+                                  child: Text('Nome'),
+                                ),
                               ],
                               onChanged: (v) {
                                 if (v == null) return;
@@ -602,6 +621,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
   }
 
   Widget _reportCard(Map<String, dynamic> u) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final id = u['id'] as int?;
     final status = (u['status'] ?? '').toString().toUpperCase();
     final banned = (u['banned'] == true);
@@ -614,16 +634,33 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     final statusLabel = banned
         ? 'Banido'
         : deleted
-            ? 'Excluído'
-            : _statusText(status);
+        ? 'Excluído'
+        : _statusText(status);
     final statusColor = banned
         ? const Color(0xFF7F1D1D)
         : deleted
-            ? Colors.grey
-            : _statusColor(status);
+        ? Colors.grey
+        : _statusColor(status);
+
+    Widget chatButton() => InkWell(
+      onTap: () => _openChat(u),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8EEFF),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.chat_outlined,
+          size: 20,
+          color: Color(0xFF0B4DBA),
+        ),
+      ),
+    );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
       decoration: BoxDecoration(
         color: isNew ? const Color(0xFFFFF7ED) : Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -649,21 +686,35 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
               children: [
                 Row(
                   children: [
-                    Flexible(
-                      child: Text(
-                        name.isEmpty ? '-' : name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20,
-                          color: Color(0xFF111827),
+                    if (isMobile)
+                      Expanded(
+                        child: Text(
+                          name.isEmpty ? '-' : name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: Text(
+                          name.isEmpty ? '-' : name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            color: Color(0xFF111827),
+                          ),
                         ),
                       ),
-                    ),
                     if (isNew) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF59E0B),
                           borderRadius: BorderRadius.circular(999),
@@ -678,6 +729,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                         ),
                       ),
                     ],
+                    if (isMobile) chatButton(),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -743,7 +795,9 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                           label: 'Banir',
                           icon: Icons.gavel,
                           color: const Color(0xFF7F1D1D),
-                          onTap: id == null ? () {} : () => _showBanReasonSheet(u),
+                          onTap: id == null
+                              ? () {}
+                              : () => _showBanReasonSheet(u),
                         ),
                     ],
                   ],
@@ -751,23 +805,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          InkWell(
-            onTap: () => _openChat(u),
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8EEFF),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.chat_outlined,
-                size: 20,
-                color: Color(0xFF0B4DBA),
-              ),
-            ),
-          ),
+          if (!isMobile) ...[const SizedBox(width: 12), chatButton()],
         ],
       ),
     );
@@ -780,10 +818,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     if (base64.isNotEmpty) {
       try {
         final Uint8List bytes = base64Decode(base64);
-        return CircleAvatar(
-          radius: 24,
-          backgroundImage: MemoryImage(bytes),
-        );
+        return CircleAvatar(radius: 24, backgroundImage: MemoryImage(bytes));
       } catch (_) {
         // base64 inválido → usa a inicial abaixo
       }
@@ -819,16 +854,18 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     final reason = (r['reason'] ?? '').toString().trim();
     final details = (r['details'] ?? '').toString().trim();
     final createdAt = _formatReportTimestamp((r['createdAt'] ?? '').toString());
-    final resolvedAt = _formatReportTimestamp((r['resolvedAt'] ?? '').toString());
+    final resolvedAt = _formatReportTimestamp(
+      (r['resolvedAt'] ?? '').toString(),
+    );
 
     final color = resolved
-      ? const Color(0xFF667085)
-      : isNew
+        ? const Color(0xFF667085)
+        : isNew
         ? const Color(0xFFB42318)
         : const Color(0xFF667085);
     final badgeColor = resolved || !isNew
-      ? const Color(0xFF94A3B8)
-      : const Color(0xFFF59E0B);
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFFF59E0B);
 
     return Container(
       width: double.infinity,
@@ -864,8 +901,7 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(999),
@@ -874,8 +910,8 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                   resolved
                       ? 'Liberada'
                       : isNew
-                          ? 'Novo'
-                          : 'Antigo',
+                      ? 'Novo'
+                      : 'Antigo',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -925,10 +961,3 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
     );
   }
 }
-
-
-
-
-
-
-

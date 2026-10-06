@@ -1395,7 +1395,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         child: Column(
           children: [
             _buildTopBar(peerPhotoUrl),
-            _buildRequestBanner(),
+            if (MediaQuery.of(context).size.width >= 600) _buildRequestBanner(),
             Expanded(child: _buildMessageList()),
             _buildInputBar(),
           ],

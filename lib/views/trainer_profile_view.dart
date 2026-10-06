@@ -1486,11 +1486,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         label: const Text('Deixar de Seguir'),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFEF4444),
-          side: const BorderSide(color: Color(0xFFEF4444)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          backgroundColor: const Color(0xFFFFF1F2),
+          side: BorderSide.none,
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           minimumSize: const Size(double.infinity, 0),
         ),
       );
@@ -2523,7 +2522,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                     ),
                   ),
                 )
-              else
+              else if (MediaQuery.of(context).size.width >= 600)
                 IconButton(
                   onPressed: _onGlobalRefresh,
                   tooltip: 'Atualizar',
@@ -2551,6 +2550,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   Widget _buildHeroCard() {
     final hasCref = widget.cref != null && widget.cref!.trim().isNotEmpty;
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final subtitle = hasCref
         ? 'Personal Trainer  •  CREF ${widget.cref!.trim()}'
         : 'Personal Trainer';
@@ -2649,111 +2649,138 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           // Conteúdo
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                // Avatar sobreposto
-                Transform.translate(
-                  offset: const Offset(0, -28),
-                  child: Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFD9E8FB), Color(0xFFEEF4FC)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0B4DBA).withValues(alpha: 0.2),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: ClipOval(
-                        child: widget.trainerId != null
-                            ? Image.network(
-                                AuthService.getUserPhotoUrl(widget.trainerId!),
-                                fit: BoxFit.cover,
-                                width: 88,
-                                height: 88,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.person_rounded,
-                                  size: 38,
-                                  color: Color(0xFF0B4DBA),
-                                ),
-                              )
-                            : const Icon(
-                                Icons.person_rounded,
-                                size: 38,
-                                color: Color(0xFF0B4DBA),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                widget.trainerName.trim().isEmpty
-                                    ? 'Personal Trainer'
-                                    : widget.trainerName,
-                                style: const TextStyle(
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black87,
-                                ),
-                              ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar sobreposto
+                    Transform.translate(
+                      offset: const Offset(0, -28),
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFD9E8FB), Color(0xFFEEF4FC)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF0B4DBA,
+                              ).withValues(alpha: 0.2),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
                             ),
-                            if (hasCref) ...[
-                              const SizedBox(width: 6),
-                              const Icon(
-                                Icons.verified_rounded,
-                                color: Color(0xFF0B4DBA),
-                                size: 18,
-                              ),
-                            ],
                           ],
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: Colors.black45,
-                            fontSize: 12.5,
+                        child: Center(
+                          child: ClipOval(
+                            child: widget.trainerId != null
+                                ? Image.network(
+                                    AuthService.getUserPhotoUrl(
+                                      widget.trainerId!,
+                                    ),
+                                    fit: BoxFit.cover,
+                                    width: 88,
+                                    height: 88,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.person_rounded,
+                                      size: 38,
+                                      color: Color(0xFF0B4DBA),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person_rounded,
+                                    size: 38,
+                                    color: Color(0xFF0B4DBA),
+                                  ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        if (widget.specialties.trim().isNotEmpty)
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              for (final s
-                                  in widget.specialties
-                                      .split(RegExp(r'[,;]'))
-                                      .map((e) => e.trim())
-                                      .where((e) => e.isNotEmpty))
-                                _SpecialtyChip(label: s),
-                            ],
-                          ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    widget.trainerName.trim().isEmpty
+                                        ? 'Personal Trainer'
+                                        : widget.trainerName,
+                                    style: const TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                if (hasCref) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.verified_rounded,
+                                    color: Color(0xFF0B4DBA),
+                                    size: 18,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                color: Colors.black45,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (!isMobile &&
+                                widget.specialties.trim().isNotEmpty)
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  for (final s
+                                      in widget.specialties
+                                          .split(RegExp(r'[,;]'))
+                                          .map((e) => e.trim())
+                                          .where((e) => e.isNotEmpty))
+                                    _SpecialtyChip(label: s),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (isMobile && widget.specialties.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final s
+                            in widget.specialties
+                                .split(RegExp(r'[,;]'))
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty))
+                          _SpecialtyChip(label: s),
                       ],
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -2786,7 +2813,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                   style: const TextStyle(
                     color: Colors.black54,
                     fontSize: 13.5,
-                    height: 1.65,
+                    height: 1.4,
                   ),
                 )
               : const Text(
@@ -2956,7 +2983,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 builder: (context, constraints) {
                   const spacing = 6.0;
                   final chipWidth =
-                      (constraints.maxWidth - spacing * (_days.length - 1)) /
+                      (constraints.maxWidth -
+                          spacing * (_days.length - 1) -
+                          8) /
                       _days.length;
 
                   return Wrap(
@@ -3052,7 +3081,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                                     Text(
                                       _dayLabels[i],
                                       style: TextStyle(
-                                        fontSize: 10.5,
+                                        fontSize: 9.5,
                                         fontWeight: FontWeight.w700,
                                         color: isSelected
                                             ? Colors.white
@@ -3062,8 +3091,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                                     if (dotColor != null) ...[
                                       const SizedBox(width: 3),
                                       Container(
-                                        width: 5.5,
-                                        height: 5.5,
+                                        width: 4.5,
+                                        height: 4.5,
                                         decoration: BoxDecoration(
                                           color: dotColor,
                                           shape: BoxShape.circle,
@@ -3173,9 +3202,13 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  childAspectRatio: 2.5,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width < 600
+                      ? 3
+                      : 6,
+                  childAspectRatio: MediaQuery.of(context).size.width < 600
+                      ? 2.2
+                      : 2.5,
                   crossAxisSpacing: 6,
                   mainAxisSpacing: 6,
                 ),
@@ -3547,10 +3580,15 @@ class _RatingDialogState extends State<_RatingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 40,
+        vertical: 24,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3572,13 +3610,13 @@ class _RatingDialogState extends State<_RatingDialog> {
                 return GestureDetector(
                   onTap: () => setState(() => _stars = star),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 1 : 4),
                     child: Icon(
                       _stars >= star
                           ? Icons.star_rounded
                           : Icons.star_border_rounded,
                       color: const Color(0xFFF59E0B),
-                      size: 38,
+                      size: isMobile ? 30 : 38,
                     ),
                   ),
                 );
@@ -3810,19 +3848,29 @@ class _SpecialtyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF4FD),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFBFD3F5)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF0B4DBA),
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 210),
+      child: Container(
+        width: isMobile ? double.infinity : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 10,
+          vertical: isMobile ? 9 : 5,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEF4FD),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFBFD3F5)),
+        ),
+        child: Text(
+          label,
+          maxLines: isMobile ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0B4DBA),
+          ),
         ),
       ),
     );

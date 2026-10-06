@@ -1,4 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
@@ -28,6 +33,13 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   late final TextEditingController _cpfCtrl;
   late final TextEditingController _cidadeCtrl;
   final _objetivoOutroCtrl = TextEditingController();
+  final _senhaCtrl = TextEditingController();
+  final _confirmarSenhaCtrl = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  XFile? _photo;
+  Uint8List? _photoBytes;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   String? _nivel;
   String? _objetivoSelecionado;
@@ -82,6 +94,8 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
     _cpfCtrl.dispose();
     _objetivoOutroCtrl.dispose();
     _cidadeCtrl.dispose();
+    _senhaCtrl.dispose();
+    _confirmarSenhaCtrl.dispose();
     super.dispose();
   }
 
@@ -90,6 +104,29 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  Future<void> _pickPhoto() async {
+    // Web: escolher arquivo/galeria. Mobile: somente câmera.
+    final source = kIsWeb ? ImageSource.gallery : ImageSource.camera;
+
+    final XFile? picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      preferredCameraDevice: CameraDevice.front,
+    );
+
+    if (picked == null) return;
+
+    Uint8List? bytes;
+    if (kIsWeb) {
+      bytes = await picked.readAsBytes();
+    }
+
+    setState(() {
+      _photo = picked;
+      _photoBytes = bytes;
+    });
   }
 
   Future<void> _submit() async {
@@ -107,8 +144,8 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
             : (_objetivoSelecionado ?? ''),
         nivel: _nivel ?? '',
         cidade: _cidadeCtrl.text,
-        password: null,
-        photo: null,
+        password: _senhaCtrl.text,
+        photo: _photo,
       );
 
       final wasApproved =
@@ -141,18 +178,23 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   @override
   Widget build(BuildContext context) {
     if (widget.showAsDialog) {
+      final isNarrow = MediaQuery.of(context).size.width < 600;
       return Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: isNarrow ? MediaQuery.of(context).size.width * 0.05 : 24,
+          vertical: 24,
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: _buildFormCard(),
+          constraints: BoxConstraints(
+            maxWidth: isNarrow ? MediaQuery.of(context).size.width * 0.9 : 560,
+          ),
+          child: _buildInternalFormCard(),
         ),
       );
     }
 
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
@@ -162,7 +204,10 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.symmetric(
+          horizontal: isNarrow ? 16 : 24,
+          vertical: 24,
+        ),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
@@ -174,21 +219,131 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   }
 
   Widget _buildFormCard() {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
+    final isNarrow = MediaQuery.of(context).size.width < 600;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: isNarrow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                ),
+              ]
+            : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isNarrow ? 16 : 24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF5C842)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Status do cadastro',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Seu cadastro está em análise. Você pode editar seus dados enquanto aguarda a análise.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              _textField(
+                'Nome Completo *',
+                'Seu nome completo',
+                controller: _nameCtrl,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Informe o nome completo'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _textField(
+                'Email *',
+                'seu@email.com',
+                controller: _emailCtrl,
+                validator: (v) {
+                  final value = (v ?? '').trim();
+                  if (value.isEmpty) return 'Informe o email';
+                  if (!value.contains('@') || !value.contains('.')) {
+                    return 'Email inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              _textField(
+                'Senha',
+                'Mínimo 6 caracteres',
+                controller: _senhaCtrl,
+                obscure: !_showPassword,
+                suffixIcon: IconButton(
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                  icon: Icon(
+                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                ),
+                validator: (v) {
+                  final value = (v ?? '').trim();
+                  if (value.isEmpty) return null; // opcional na edição
+                  if (value.length < 6) return 'Mínimo 6 caracteres';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              _textField(
+                'Confirmar Senha',
+                'Repita a senha',
+                controller: _confirmarSenhaCtrl,
+                obscure: !_showConfirmPassword,
+                suffixIcon: IconButton(
+                  onPressed: () => setState(
+                    () => _showConfirmPassword = !_showConfirmPassword,
+                  ),
+                  icon: Icon(
+                    _showConfirmPassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
+                ),
+                validator: (v) {
+                  final value = (v ?? '').trim();
+                  final senha = _senhaCtrl.text.trim();
+                  if (senha.isEmpty && value.isEmpty) return null;
+                  if (value.isEmpty) return 'Confirme a senha';
+                  if (value != senha) return 'As senhas não coincidem';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              _textField(
+                'CPF *',
+                'Somente números',
+                controller: _cpfCtrl,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Informe o CPF'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _photoField(),
+              const SizedBox(height: 16),
               _objetivoDropdown(),
               const SizedBox(height: 16),
               CityAutocompleteField(
@@ -211,15 +366,101 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
                     value: 'Intermediário',
                     child: Text('Intermediário'),
                   ),
-                  DropdownMenuItem(
-                    value: 'Avançado',
-                    child: Text('Avançado'),
-                  ),
+                  DropdownMenuItem(value: 'Avançado', child: Text('Avançado')),
                 ],
                 onChanged: (v) => setState(() => _nivel = v),
-                validator: (v) => (v == null || v.isEmpty)
-                    ? 'Selecione uma opção'
-                    : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Selecione uma opção' : null,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B4DBA),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Salvar alterações'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInternalFormCard() {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Voltar',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Editar Perfil',
+                    style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _objetivoDropdown(),
+              const SizedBox(height: 16),
+              CityAutocompleteField(
+                initialValue: _cidadeCtrl.text,
+                onChanged: (value) => _cidadeCtrl.text = value,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _nivel,
+                decoration: const InputDecoration(
+                  labelText: 'Nível de Condicionamento *',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Iniciante',
+                    child: Text('Iniciante'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Intermediário',
+                    child: Text('Intermediário'),
+                  ),
+                  DropdownMenuItem(value: 'Avançado', child: Text('Avançado')),
+                ],
+                onChanged: (v) => setState(() => _nivel = v),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Selecione uma opção' : null,
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -257,13 +498,20 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DropdownButtonFormField<String>(
+            isExpanded: MediaQuery.of(context).size.width < 600,
+            menuMaxHeight: MediaQuery.of(context).size.height * 0.42,
             initialValue: _objetivoSelecionado,
             decoration: const InputDecoration(
               labelText: 'Objetivos *',
               border: OutlineInputBorder(),
             ),
             items: _objetivos
-                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                .map(
+                  (o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o, overflow: TextOverflow.ellipsis),
+                  ),
+                )
                 .toList(),
             onChanged: (value) {
               setState(() => _objetivoSelecionado = value);
@@ -296,6 +544,55 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _textField(
+    String label,
+    String hint, {
+    required TextEditingController controller,
+    String? Function(String?)? validator,
+    bool obscure = false,
+    Widget? suffixIcon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        suffixIcon: suffixIcon,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  Widget _photoField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _pickPhoto,
+          icon: const Icon(Icons.camera_alt),
+          label: Text(_photo == null ? 'Foto/Upload' : 'Foto selecionada'),
+          style: OutlinedButton.styleFrom(
+            shape: const StadiumBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_photo != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: kIsWeb
+                ? Image.memory(_photoBytes!, height: 130, fit: BoxFit.cover)
+                : Image.file(
+                    File(_photo!.path),
+                    height: 130,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+      ],
     );
   }
 }
