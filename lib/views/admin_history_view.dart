@@ -1166,11 +1166,14 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
           ? const Center(child: CircularProgressIndicator())
           : error != null
           ? Center(child: Text(error!))
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-              child: Column(
-                children: [
-                  Container(
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                child: Column(
+                  children: [
+                    Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -1336,25 +1339,24 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Nenhum usuário encontrado.',
-                              style: TextStyle(
-                                color: Color(0xFF667085),
-                                fontSize: 15,
-                              ),
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            child: ListView.separated(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
+                  if (filtered.isEmpty)
+                    const Center(
+                      child: Text(
+                        'Nenhum usuário encontrado.',
+                        style: TextStyle(
+                          color: Color(0xFF667085),
+                          fontSize: 15,
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
                               final u = Map<String, dynamic>.from(
                                 filtered[index] as Map,
                               );
@@ -1803,11 +1805,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                               );
                             },
                           ),
-                        ),
-                  ),
                 ],
               ),
             ),
+          ),
     );
   }
 }

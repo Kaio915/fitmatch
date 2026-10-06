@@ -601,17 +601,21 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
                                 ),
                               ),
                             )
-                          : ListView.separated(
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
+                          : RefreshIndicator(
+                              onRefresh: _load,
+                              child: ListView.separated(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
                                 final u = Map<String, dynamic>.from(
                                   filtered[index] as Map,
                                 );
                                 return _reportCard(u);
                               },
                             ),
+                          ),
                     ),
                   ],
                 ),
