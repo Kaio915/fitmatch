@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -37,6 +38,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   String? _selectedAnalysisTemplate;
   int? _adminId;
   bool _hasSentMessage = false;
+  Timer? _chatRefreshTimer;
 
   // Rejeição anterior do mesmo email (motivo + última mensagem do admin).
   Map<String, dynamic>? _previousRejection;
@@ -60,95 +62,124 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final adminId = session?['id'] != null
         ? (session!['id'] as num).toInt()
         : null;
-    final userId = widget.user['id'];
-
-    if (adminId != null && userId != null) {
-      try {
-        final msgs = await AuthService.getChatMessages(
-          userId1: adminId,
-          userId2: (userId as num).toInt(),
-          // Chat ativo: mostra apenas a tentativa atual (cada novo cadastro
-          // redefine o createdAt). Histórico (somente leitura): mostra as
-          // mensagens até o evento terminal daquela tentativa (recordedAt).
-          since: widget.readOnly
-              ? null
-              : (widget.user['createdAt'] ?? '').toString(),
-          until: widget.readOnly
-              ? (widget.user['recordedAt'] ?? '').toString()
-              : null,
-          limit: widget.readOnly ? 2000 : null,
-        );
-        if (!mounted) return;
-
-        final createdAt = (widget.user['createdAt'] ?? '').toString();
-        // Timestamp da última mensagem do usuário (não-admin) da tentativa
-        // atual, usado como proxy de "leitura" para as mensagens do admin.
-        DateTime? lastUserReplyTime;
-        for (final m in msgs) {
-          final isAdminMsg =
-              (m['senderId'] is num) &&
-              (m['senderId'] as num).toInt() == adminId;
-          if (isAdminMsg) continue;
-          final rawSentAt = (m['sentAt'] ?? '').toString();
-          if (rawSentAt.isEmpty) continue;
-          final parsed = DateTime.tryParse(rawSentAt);
-          if (parsed == null) continue;
-          final isPreviousAttempt =
-              widget.readOnly &&
-              createdAt.isNotEmpty &&
-              rawSentAt.compareTo(createdAt) < 0;
-          if (isPreviousAttempt) continue;
-          if (lastUserReplyTime == null || parsed.isAfter(lastUserReplyTime)) {
-            lastUserReplyTime = parsed;
-          }
-        }
-
-        final loaded = msgs.map((m) {
-          final fromAdmin =
-              (m['senderId'] is num) &&
-              (m['senderId'] as num).toInt() == adminId;
-          final sentAt = (m['sentAt'] ?? '').toString();
-          final sentAtDateTime = DateTime.tryParse(sentAt) ?? DateTime.now();
-          // No histórico (somente leitura), mensagens anteriores ao createdAt
-          // desta tentativa pertencem a tentativas de cadastro anteriores.
-          final fromPreviousAttempt =
-              widget.readOnly &&
-              createdAt.isNotEmpty &&
-              sentAt.isNotEmpty &&
-              sentAt.compareTo(createdAt) < 0;
-          final readFromServer =
-              m['isRead'] == true || m['read'] == true || m['seen'] == true;
-          final isRead = readFromServer ||
-              (fromAdmin &&
-                  !fromPreviousAttempt &&
-                  lastUserReplyTime != null &&
-                  !sentAtDateTime.isAfter(lastUserReplyTime));
-          return _TicketMessage(
-            text: (m['text'] ?? '').toString(),
-            fromAdmin: fromAdmin,
-            fromPreviousAttempt: fromPreviousAttempt,
-            isRead: isRead,
-          );
-        }).toList();
-
-        setState(() {
-          _messages
-            ..clear()
-            ..addAll(loaded);
-          _hasSentMessage = loaded.any((m) => m.fromAdmin);
-        });
-        _scrollToBottom();
-      } catch (_) {
-        // Sem histórico ainda ou falha silenciosa ao carregar o chat.
-      }
-    }
 
     if (!mounted) return;
     setState(() => _adminId = adminId);
 
+    if (adminId != null) {
+      await _loadMessages();
+      await _markMessagesAsRead();
+      if (!widget.readOnly) {
+        _chatRefreshTimer?.cancel();
+        _chatRefreshTimer = Timer.periodic(
+          const Duration(seconds: 2),
+          (_) => _loadMessages(),
+        );
+      }
+    }
+
     _loadPreviousRejection();
     _loadPreviousExclusion();
     _loadPreviousBan();
+  }
+
+  Future<void> _loadMessages() async {
+    final adminId = _adminId;
+    final userId = widget.user['id'];
+    if (adminId == null || userId == null) return;
+
+    try {
+      final msgs = await AuthService.getChatMessages(
+        userId1: adminId,
+        userId2: (userId as num).toInt(),
+        // Chat ativo: mostra apenas a tentativa atual (cada novo cadastro
+        // redefine o createdAt). Histórico (somente leitura): mostra as
+        // mensagens até o evento terminal daquela tentativa (recordedAt).
+        since: widget.readOnly
+            ? null
+            : (widget.user['createdAt'] ?? '').toString(),
+        until: widget.readOnly
+            ? (widget.user['recordedAt'] ?? '').toString()
+            : null,
+        limit: widget.readOnly ? 2000 : null,
+      );
+      if (!mounted) return;
+
+      final createdAt = (widget.user['createdAt'] ?? '').toString();
+      // Timestamp da última mensagem do usuário (não-admin) da tentativa
+      // atual, usado como proxy de "leitura" para as mensagens do admin.
+      DateTime? lastUserReplyTime;
+      for (final m in msgs) {
+        final isAdminMsg =
+            (m['senderId'] is num) &&
+            (m['senderId'] as num).toInt() == adminId;
+        if (isAdminMsg) continue;
+        final rawSentAt = (m['sentAt'] ?? '').toString();
+        if (rawSentAt.isEmpty) continue;
+        final parsed = DateTime.tryParse(rawSentAt);
+        if (parsed == null) continue;
+        final isPreviousAttempt =
+            widget.readOnly &&
+            createdAt.isNotEmpty &&
+            rawSentAt.compareTo(createdAt) < 0;
+        if (isPreviousAttempt) continue;
+        if (lastUserReplyTime == null || parsed.isAfter(lastUserReplyTime)) {
+          lastUserReplyTime = parsed;
+        }
+      }
+
+      final loaded = msgs.map((m) {
+        final fromAdmin =
+            (m['senderId'] is num) &&
+            (m['senderId'] as num).toInt() == adminId;
+        final sentAt = (m['sentAt'] ?? '').toString();
+        final sentAtDateTime = DateTime.tryParse(sentAt) ?? DateTime.now();
+        // No histórico (somente leitura), mensagens anteriores ao createdAt
+        // desta tentativa pertencem a tentativas de cadastro anteriores.
+        final fromPreviousAttempt =
+            widget.readOnly &&
+            createdAt.isNotEmpty &&
+            sentAt.isNotEmpty &&
+            sentAt.compareTo(createdAt) < 0;
+        final readFromServer =
+            m['isRead'] == true || m['read'] == true || m['seen'] == true;
+        final isRead = readFromServer ||
+            (fromAdmin &&
+                !fromPreviousAttempt &&
+                lastUserReplyTime != null &&
+                !sentAtDateTime.isAfter(lastUserReplyTime));
+        return _TicketMessage(
+          text: (m['text'] ?? '').toString(),
+          fromAdmin: fromAdmin,
+          fromPreviousAttempt: fromPreviousAttempt,
+          isRead: isRead,
+        );
+      }).toList();
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(loaded);
+        _hasSentMessage = loaded.any((m) => m.fromAdmin);
+      });
+      _scrollToBottom();
+    } catch (_) {
+      // Sem histórico ainda ou falha silenciosa ao carregar o chat.
+    }
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    final adminId = _adminId;
+    final userId = widget.user['id'];
+    if (adminId == null || userId == null) return;
+    try {
+      await AuthService.markMessagesAsRead(
+        readerId: adminId,
+        senderId: (userId as num).toInt(),
+      );
+    } catch (_) {
+      // Falha silenciosa: a leitura será marcada nas próximas tentativas.
+    }
   }
 
   Future<void> _loadPreviousRejection() async {
@@ -402,6 +433,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
 
   @override
   void dispose() {
+    _chatRefreshTimer?.cancel();
     AppRefreshNotifier.signal.removeListener(_handleRefresh);
     _msgController.removeListener(_onTextChanged);
     _msgController.dispose();

@@ -160,10 +160,13 @@ class _AdminViewState extends State<AdminView> {
             Expanded(
               child: loading
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-                      children: [
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                        children: [
                         _heroBanner(),
                         const SizedBox(height: 16),
 
@@ -208,6 +211,7 @@ class _AdminViewState extends State<AdminView> {
                             : _pendingGrid(alunos),
                       ],
                     ),
+                  ),
             ),
           ],
         ),

@@ -107,6 +107,18 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     _loadMessages();
   }
 
+  Future<void> _markMessagesAsRead() async {
+    if (widget.senderId == null || widget.receiverId == null) return;
+    try {
+      await AuthService.markMessagesAsRead(
+        readerId: widget.senderId!,
+        senderId: widget.receiverId!,
+      );
+    } catch (_) {
+      // Falha silenciosa: a leitura será marcada nas próximas tentativas.
+    }
+  }
+
   bool get _effectiveReadOnly => widget.readOnly || _isSessionReadOnly;
 
   String get _effectiveReadOnlyMessage =>
@@ -691,6 +703,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _loadBlockedStateForProfileButton();
     _loadMessages();
+    _markMessagesAsRead();
     if (!_effectiveReadOnly) {
       // Polling a cada 2 segundos para mensagens em tempo real
       _refreshTimer = Timer.periodic(
@@ -1705,22 +1718,23 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                 ),
               ),
             ),
-          IconButton(
-            onPressed: () => _loadMessages(scrollToBottom: false),
-            tooltip: 'Atualizar',
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B4DBA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Colors.white,
+          if (MediaQuery.of(context).size.width >= 600)
+            IconButton(
+              onPressed: () => _loadMessages(scrollToBottom: false),
+              tooltip: 'Atualizar',
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B4DBA),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
         ],
       ),

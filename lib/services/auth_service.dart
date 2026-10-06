@@ -1708,4 +1708,22 @@ class AuthService {
     final List<dynamic> data = jsonDecode(res.body);
     return data.cast<Map<String, dynamic>>();
   }
+
+  // ✅ MARCAR MENSAGENS COMO LIDAS
+  static Future<void> markMessagesAsRead({
+    required int readerId,
+    required int senderId,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/chat/read'),
+      headers: await _headers(json: true),
+      body: jsonEncode({
+        'readerId': readerId,
+        'senderId': senderId,
+      }),
+    );
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
 }

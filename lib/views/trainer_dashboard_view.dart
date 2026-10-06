@@ -594,11 +594,15 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final bioCtrl = TextEditingController(text: _editBio);
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 16 : 40,
-          vertical: 24,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
+        child: AlertDialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 16 : 40,
+            vertical: 24,
+          ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Row(
           children: [
@@ -616,12 +620,8 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           ],
         ),
         content: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
-            child: SizedBox(
-              width: isMobile ? 280 : null,
+          child: SizedBox(
+            width: isMobile ? 280 : null,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
