@@ -97,6 +97,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   DateTime? _lastTypingSent;
   bool _isSessionReadOnly = false;
   String? _sessionReadOnlyMessage;
+  bool _isAppForeground = true;
   AppLifecycleListener? _lifecycleListener;
 
   void _onGlobalRefresh() {
@@ -728,12 +729,19 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     }
     // Recarrega ao voltar ao app/aba
     _lifecycleListener = AppLifecycleListener(
-      onShow: () => _loadMessages(scrollToBottom: false),
+      onShow: () {
+        _isAppForeground = true;
+        _loadMessages(scrollToBottom: false);
+      },
       onResume: () {
+        _isAppForeground = true;
         _sendHeartbeatOnce();
         _loadMessages(scrollToBottom: false);
       },
-      onHide: () => AuthService.setOffline(),
+      onHide: () {
+        _isAppForeground = false;
+        AuthService.setOffline();
+      },
     );
   }
 
@@ -826,6 +834,21 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         userId2: widget.receiverId!,
         requestId: widget.requestId,
       );
+
+      // Marca como lidas, em tempo real, as mensagens recebidas do outro
+      // usuário enquanto a tela do chat permanece aberta (visto azul).
+      // Sem isso, a mensagem só era marcada como lida no initState, ou seja,
+      // apenas ao reabrir o chat.
+      final hasUnreadFromPeer = msgs.any((msg) {
+        final isMe =
+            msg['senderId'].toString() == widget.senderId.toString();
+        final read =
+            msg['isRead'] == true || msg['read'] == true || msg['seen'] == true;
+        return !isMe && !read;
+      });
+      if (hasUnreadFromPeer && _isAppForeground) {
+        unawaited(_markMessagesAsRead());
+      }
 
       // Timestamp da última mensagem do outro participante, usado como proxy de
       // "leitura" quando o servidor não informa isRead explicitamente.
