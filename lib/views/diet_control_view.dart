@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
+import '../widgets/logout_confirmation_dialog.dart';
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -2679,14 +2680,7 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () async {
-                      await AuthService.clearSession();
-                      if (mounted) {
-                        Navigator.of(
-                          context,
-                        ).pushNamedAndRemoveUntil('/', (route) => false);
-                      }
-                    },
+                    onPressed: () => showLogoutConfirmationDialog(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFD5DEEE)),
@@ -2719,13 +2713,7 @@ class _DietControlViewState extends State<DietControlView> {
                           : _showCoachTips();
                       break;
                     case 'logout':
-                      AuthService.clearSession().then((_) {
-                        if (mounted) {
-                          Navigator.of(
-                            context,
-                          ).pushNamedAndRemoveUntil('/', (route) => false);
-                        }
-                      });
+                      showLogoutConfirmationDialog(context);
                       break;
                   }
                 },

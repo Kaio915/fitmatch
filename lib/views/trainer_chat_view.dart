@@ -15,11 +15,13 @@ class _ChatMessage {
   final String text;
   final bool isMe;
   final DateTime time;
+  final bool isRead;
 
   const _ChatMessage({
     required this.text,
     required this.isMe,
     required this.time,
+    this.isRead = false,
   });
 }
 
@@ -812,16 +814,38 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         requestId: widget.requestId,
       );
 
+      // Timestamp da última mensagem do outro participante, usado como proxy de
+      // "leitura" quando o servidor não informa isRead explicitamente.
+      DateTime? lastPeerTime;
+      for (final msg in msgs) {
+        final isMe =
+            msg['senderId'].toString() == widget.senderId.toString();
+        if (isMe) continue;
+        final sentAt = msg['sentAt'] != null
+            ? DateTime.tryParse(msg['sentAt'].toString()) ?? DateTime.now()
+            : DateTime.now();
+        if (lastPeerTime == null || sentAt.isAfter(lastPeerTime)) {
+          lastPeerTime = sentAt;
+        }
+      }
+
       final parsedMessages = <_ChatMessage>[];
       for (final msg in msgs) {
         final sentAt = msg['sentAt'] != null
             ? DateTime.tryParse(msg['sentAt'].toString()) ?? DateTime.now()
             : DateTime.now();
+        final isMe =
+            msg['senderId'].toString() == widget.senderId.toString();
+        final readFromServer =
+            msg['isRead'] == true || msg['read'] == true || msg['seen'] == true;
+        final isRead = readFromServer ||
+            (isMe && lastPeerTime != null && !sentAt.isAfter(lastPeerTime));
         parsedMessages.add(
           _ChatMessage(
             text: (msg['text'] ?? '').toString(),
-            isMe: msg['senderId'].toString() == widget.senderId.toString(),
+            isMe: isMe,
             time: sentAt,
+            isRead: isRead,
           ),
         );
       }
@@ -2234,7 +2258,9 @@ class _MessageBubble extends StatelessWidget {
                         Icon(
                           Icons.done_all_rounded,
                           size: 14,
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: message.isRead
+                              ? Colors.lightBlue
+                              : Colors.grey,
                         ),
                       ],
                     ],

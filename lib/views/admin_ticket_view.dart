@@ -81,11 +81,34 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         if (!mounted) return;
 
         final createdAt = (widget.user['createdAt'] ?? '').toString();
+        // Timestamp da última mensagem do usuário (não-admin) da tentativa
+        // atual, usado como proxy de "leitura" para as mensagens do admin.
+        DateTime? lastUserReplyTime;
+        for (final m in msgs) {
+          final isAdminMsg =
+              (m['senderId'] is num) &&
+              (m['senderId'] as num).toInt() == adminId;
+          if (isAdminMsg) continue;
+          final rawSentAt = (m['sentAt'] ?? '').toString();
+          if (rawSentAt.isEmpty) continue;
+          final parsed = DateTime.tryParse(rawSentAt);
+          if (parsed == null) continue;
+          final isPreviousAttempt =
+              widget.readOnly &&
+              createdAt.isNotEmpty &&
+              rawSentAt.compareTo(createdAt) < 0;
+          if (isPreviousAttempt) continue;
+          if (lastUserReplyTime == null || parsed.isAfter(lastUserReplyTime)) {
+            lastUserReplyTime = parsed;
+          }
+        }
+
         final loaded = msgs.map((m) {
           final fromAdmin =
               (m['senderId'] is num) &&
               (m['senderId'] as num).toInt() == adminId;
           final sentAt = (m['sentAt'] ?? '').toString();
+          final sentAtDateTime = DateTime.tryParse(sentAt) ?? DateTime.now();
           // No histórico (somente leitura), mensagens anteriores ao createdAt
           // desta tentativa pertencem a tentativas de cadastro anteriores.
           final fromPreviousAttempt =
@@ -93,10 +116,18 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               createdAt.isNotEmpty &&
               sentAt.isNotEmpty &&
               sentAt.compareTo(createdAt) < 0;
+          final readFromServer =
+              m['isRead'] == true || m['read'] == true || m['seen'] == true;
+          final isRead = readFromServer ||
+              (fromAdmin &&
+                  !fromPreviousAttempt &&
+                  lastUserReplyTime != null &&
+                  !sentAtDateTime.isAfter(lastUserReplyTime));
           return _TicketMessage(
             text: (m['text'] ?? '').toString(),
             fromAdmin: fromAdmin,
             fromPreviousAttempt: fromPreviousAttempt,
+            isRead: isRead,
           );
         }).toList();
 
@@ -1702,6 +1733,17 @@ class _AdminTicketViewState extends State<AdminTicketView> {
               const SizedBox(height: 4),
             ],
             Text(m.text, style: TextStyle(color: fg)),
+            if (m.fromAdmin && !m.fromPreviousAttempt) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Icon(
+                  Icons.done_all_rounded,
+                  size: 14,
+                  color: m.isRead ? Colors.lightBlue : Colors.grey,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1713,9 +1755,11 @@ class _TicketMessage {
   final String text;
   final bool fromAdmin;
   final bool fromPreviousAttempt;
+  final bool isRead;
   _TicketMessage({
     required this.text,
     required this.fromAdmin,
     this.fromPreviousAttempt = false,
+    this.isRead = false,
   });
 }

@@ -11,6 +11,7 @@ import 'edit_student_cadastro_view.dart';
 import '../routes/app_routes.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
+import '../widgets/logout_confirmation_dialog.dart';
 
 // ─── Student Dashboard ────────────────────────────────────────────────────────
 
@@ -85,6 +86,19 @@ class _StudentDashboardState extends State<StudentDashboard>
       _loadReceivedRatings();
     }
     _loadTrainers();
+  }
+
+  Future<void> _handleRefresh() async {
+    final futures = <Future<void>>[
+      _loadTrainers(),
+    ];
+    if (widget.studentId != null) {
+      futures
+        ..add(_loadMyRequests())
+        ..add(_loadConnections())
+        ..add(_loadReceivedRatings());
+    }
+    await Future.wait(futures);
   }
 
   @override
@@ -836,37 +850,41 @@ class _StudentDashboardState extends State<StudentDashboard>
           children: [
             _topBar(),
             Expanded(
-              child: Scrollbar(
-                controller: _pageScrollController,
-                thumbVisibility: true,
-                child: SingleChildScrollView(
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: Scrollbar(
                   controller: _pageScrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      _buildProfileCard(
-                        widget.studentId != null
-                            ? AuthService.getUserPhotoUrl(widget.studentId!)
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildTabs(),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: tabHeight,
-                        child: TabBarView(
-                          controller: _tabController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            _tabMeuPersonal(),
-                            _tabBuscar(),
-                            _tabSeguindo(),
-                            _tabSolicitacoes(),
-                          ],
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _pageScrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildProfileCard(
+                          widget.studentId != null
+                              ? AuthService.getUserPhotoUrl(widget.studentId!)
+                              : null,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        _buildTabs(),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: tabHeight,
+                          child: TabBarView(
+                            controller: _tabController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              _tabMeuPersonal(),
+                              _tabBuscar(),
+                              _tabSeguindo(),
+                              _tabSolicitacoes(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -919,14 +937,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
-          onTap: () async {
-            await AuthService.clearSession();
-            if (mounted) {
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/', (route) => false);
-            }
-          },
+          onTap: () => showLogoutConfirmationDialog(context),
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: isVeryNarrow ? 9 : 14,

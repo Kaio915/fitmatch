@@ -11,6 +11,7 @@ import 'diet_control_view.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
 import '../widgets/city_autocomplete_field.dart';
+import '../widgets/logout_confirmation_dialog.dart';
 
 // ─── Estado dos horários ──────────────────────────────────────────────────────
 // O personal GERENCIA os próprios horários.
@@ -614,112 +615,124 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
             ),
           ],
         ),
-        content: SizedBox(
-          width: isMobile ? 280 : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CityAutocompleteField(
-                initialValue: cidadeCtrl.text,
-                onChanged: (value) => cidadeCtrl.text = value,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue:
-                    _profileSpecialties.contains(especialidadeCtrl.text)
-                    ? especialidadeCtrl.text
-                    : null,
-                isExpanded: isMobile,
-                onChanged: (value) {
-                  if (value != null) especialidadeCtrl.text = value;
-                },
-                items: _profileSpecialties
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          value,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+        content: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: SizedBox(
+              width: isMobile ? 280 : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CityAutocompleteField(
+                    initialValue: cidadeCtrl.text,
+                    onChanged: (value) => cidadeCtrl.text = value,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue:
+                        _profileSpecialties.contains(especialidadeCtrl.text)
+                        ? especialidadeCtrl.text
+                        : null,
+                    isExpanded: isMobile,
+                    onChanged: (value) {
+                      if (value != null) especialidadeCtrl.text = value;
+                    },
+                    items: _profileSpecialties
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(
+                              value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    decoration: const InputDecoration(
+                      labelText: 'Especialidade',
+                      prefixIcon: Icon(Icons.fitness_center_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: valorHoraCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor por hora (R\$)',
+                      prefixIcon: Icon(Icons.attach_money_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: bioCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Biografia',
+                      prefixIcon: Icon(Icons.description_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancelar'),
                       ),
-                    )
-                    .toList(),
-                decoration: const InputDecoration(
-                  labelText: 'Especialidade',
-                  prefixIcon: Icon(Icons.fitness_center_rounded),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: valorHoraCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Valor por hora (R\$)',
-                  prefixIcon: Icon(Icons.attach_money_rounded),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: bioCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Biografia',
-                  prefixIcon: Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 4,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              if (widget.trainerId == null) return;
-              try {
-                await AuthService.updateTrainerProfile(
-                  widget.trainerId!,
-                  cidade: cidadeCtrl.text.trim(),
-                  valorHora: valorHoraCtrl.text.trim(),
-                  especialidade: especialidadeCtrl.text.trim(),
-                  bio: bioCtrl.text.trim(),
-                );
-                setState(() {
-                  _editCidade = cidadeCtrl.text.trim();
-                  _editValorHora = valorHoraCtrl.text.trim();
-                  _editEspecialidade = especialidadeCtrl.text.trim();
-                  _editBio = bioCtrl.text.trim();
-                });
-                _showSnack(
-                  'Perfil atualizado!',
-                  icon: Icons.check_circle_rounded,
-                  color: const Color(0xFF059669),
-                );
-              } catch (e) {
-                _showSnack(
-                  e.toString().replaceFirst('Exception: ', ''),
-                  icon: Icons.error_outline_rounded,
-                  color: const Color(0xFFEF4444),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0B4DBA),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          if (widget.trainerId == null) return;
+                          try {
+                            await AuthService.updateTrainerProfile(
+                              widget.trainerId!,
+                              cidade: cidadeCtrl.text.trim(),
+                              valorHora: valorHoraCtrl.text.trim(),
+                              especialidade: especialidadeCtrl.text.trim(),
+                              bio: bioCtrl.text.trim(),
+                            );
+                            setState(() {
+                              _editCidade = cidadeCtrl.text.trim();
+                              _editValorHora = valorHoraCtrl.text.trim();
+                              _editEspecialidade = especialidadeCtrl.text.trim();
+                              _editBio = bioCtrl.text.trim();
+                            });
+                            _showSnack(
+                              'Perfil atualizado!',
+                              icon: Icons.check_circle_rounded,
+                              color: const Color(0xFF059669),
+                            );
+                          } catch (e) {
+                            _showSnack(
+                              e.toString().replaceFirst('Exception: ', ''),
+                              icon: Icons.error_outline_rounded,
+                              color: const Color(0xFFEF4444),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0B4DBA),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Salvar'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            child: const Text('Salvar'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2796,21 +2809,25 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           children: [
             _buildTopBar(),
             Expanded(
-              child: SingleChildScrollView(
-                controller: _pageScrollController,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
-                child: Column(
-                  children: [
-                    _buildProfileCard(),
-                    const SizedBox(height: 20),
-                    _buildMyStudentsCard(),
-                    const SizedBox(height: 20),
-                    _buildReviewsCard(),
-                    const SizedBox(height: 20),
-                    _buildScheduleCard(),
-                    const SizedBox(height: 20),
-                    _buildRequestsCard(),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: _loadAll,
+                child: SingleChildScrollView(
+                  controller: _pageScrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+                  child: Column(
+                    children: [
+                      _buildProfileCard(),
+                      const SizedBox(height: 20),
+                      _buildMyStudentsCard(),
+                      const SizedBox(height: 20),
+                      _buildReviewsCard(),
+                      const SizedBox(height: 20),
+                      _buildScheduleCard(),
+                      const SizedBox(height: 20),
+                      _buildRequestsCard(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2850,14 +2867,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () async {
-                  await AuthService.clearSession();
-                  if (mounted) {
-                    Navigator.of(
-                      context,
-                    ).pushNamedAndRemoveUntil('/', (route) => false);
-                  }
-                },
+                onPressed: () => showLogoutConfirmationDialog(context),
                 icon: Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
@@ -4149,54 +4159,113 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFFDE68A)),
                     ),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              (rating['studentName'] ?? 'Aluno').toString(),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
+                        _ratingStudentAvatar(rating),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    (rating['studentName'] ?? 'Aluno').toString(),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 14,
+                                    color: Color(0xFFF59E0B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    (rating['stars'] ?? 0).toString(),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFB45309),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const Spacer(),
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: Color(0xFFF59E0B),
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              (rating['stars'] ?? 0).toString(),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFB45309),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if ((rating['comment'] ?? '')
-                            .toString()
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            (rating['comment'] ?? '').toString(),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
+                              if ((rating['comment'] ?? '')
+                                  .toString()
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  (rating['comment'] ?? '').toString(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
               ],
             ),
+    );
+  }
+
+  // Exibe a foto do aluno que avaliou, com fallback para iniciais/ícone.
+  Widget _ratingStudentAvatar(Map<String, dynamic> rating) {
+    final studentId = rating['studentId'] is num
+        ? (rating['studentId'] as num).toInt()
+        : int.tryParse((rating['studentId'] ?? '').toString());
+    final studentName = (rating['studentName'] ?? '').toString().trim();
+
+    Widget fallback() {
+      if (studentName.isNotEmpty) {
+        final initials = studentName
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .take(2)
+            .map((part) => part[0].toUpperCase())
+            .join();
+        if (initials.isNotEmpty) {
+          return Text(
+            initials,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0B4DBA),
+            ),
+          );
+        }
+      }
+      return const Icon(
+        Icons.person_rounded,
+        color: Color(0xFF0B4DBA),
+        size: 18,
+      );
+    }
+
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: const Color(0xFFEEF4FD),
+      child: ClipOval(
+        child: studentId != null
+            ? Image.network(
+                AuthService.getUserPhotoUrl(studentId),
+                fit: BoxFit.cover,
+                width: 32,
+                height: 32,
+                errorBuilder: (_, __, ___) => fallback(),
+              )
+            : fallback(),
+      ),
     );
   }
 

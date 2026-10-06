@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../core/date_utils.dart';
 import '../services/admin_service.dart';
-import '../services/auth_service.dart';
 import 'admin_history_view.dart';
 import 'admin_reported_users_view.dart';
 import 'admin_ticket_view.dart';
+import '../widgets/logout_confirmation_dialog.dart';
 
 class AdminView extends StatefulWidget {
   const AdminView({super.key});
@@ -989,14 +989,7 @@ class _AdminViewState extends State<AdminView> {
     );
 
     final logoutButton = OutlinedButton.icon(
-      onPressed: () async {
-        await AuthService.clearSession();
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/', (route) => false);
-        }
-      },
+      onPressed: () => showLogoutConfirmationDialog(context),
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF0B4DBA),
         side: const BorderSide(color: Color(0xFF98A2B3)),
