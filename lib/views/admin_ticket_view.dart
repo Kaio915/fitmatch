@@ -1009,11 +1009,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                       height: _messages.isEmpty ? 150 : 240,
                       child: _messages.isEmpty
                           ? emptyMessage
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _messages.length,
-                              itemBuilder: (_, i) => _bubble(_messages[i]),
+                          : RefreshIndicator(
+                              onRefresh: _loadMessages,
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _messages.length,
+                                itemBuilder: (_, i) => _bubble(_messages[i]),
+                              ),
                             ),
                     ),
                     _templateBar(),
@@ -1031,11 +1035,15 @@ class _AdminTicketViewState extends State<AdminTicketView> {
                 Expanded(
                   child: _messages.isEmpty
                       ? emptyMessage
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _messages.length,
-                          itemBuilder: (_, i) => _bubble(_messages[i]),
+                      : RefreshIndicator(
+                          onRefresh: _loadMessages,
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (_, i) => _bubble(_messages[i]),
+                          ),
                         ),
                 ),
                 _templateBar(),

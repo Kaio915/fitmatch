@@ -1910,34 +1910,46 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         ),
       );
     }
-    if (_messages.isEmpty && !_peerIsTyping) {
-      return const Center(
-        child: Text(
-          'Nenhuma mensagem ainda.\nSeja o primeiro a dizer olá!',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.black38, fontSize: 14),
-        ),
-      );
-    }
+
     final peerPhotoUrl = widget.receiverId != null
         ? AuthService.getUserPhotoUrl(widget.receiverId!)
         : null;
     final myPhotoUrl = widget.senderId != null
         ? AuthService.getUserPhotoUrl(widget.senderId!)
         : null;
-    final totalItems = _messages.length + (_peerIsTyping ? 1 : 0);
-    return ListView.builder(
-      controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
-      itemCount: totalItems,
-      itemBuilder: (_, i) {
-        if (i == _messages.length) return const _TypingIndicator();
-        return _MessageBubble(
-          message: _messages[i],
-          myPhotoUrl: myPhotoUrl,
-          peerPhotoUrl: peerPhotoUrl,
-        );
-      },
+    final isEmpty = _messages.isEmpty && !_peerIsTyping;
+    final totalItems = isEmpty ? 1 : _messages.length + (_peerIsTyping ? 1 : 0);
+
+    // Pull-to-refresh força a re-busca da conversa inteira (mensagens novas e
+    // antigas). A lista não usa `reverse: true`, então o gatilho fica no topo.
+    return RefreshIndicator(
+      onRefresh: () => _loadMessages(scrollToBottom: false),
+      child: ListView.builder(
+        controller: _scrollCtrl,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+        itemCount: totalItems,
+        itemBuilder: (_, i) {
+          if (isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: Center(
+                child: Text(
+                  'Nenhuma mensagem ainda.\nSeja o primeiro a dizer olá!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black38, fontSize: 14),
+                ),
+              ),
+            );
+          }
+          if (i == _messages.length) return const _TypingIndicator();
+          return _MessageBubble(
+            message: _messages[i],
+            myPhotoUrl: myPhotoUrl,
+            peerPhotoUrl: peerPhotoUrl,
+          );
+        },
+      ),
     );
   }
 

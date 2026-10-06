@@ -2459,18 +2459,22 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           children: [
             _buildTopBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Column(
-                  children: [
-                    _buildHeroCard(),
-                    const SizedBox(height: 16),
-                    _buildAboutCard(),
-                    const SizedBox(height: 16),
-                    _buildScheduleCard(),
-                    const SizedBox(height: 16),
-                    _buildReviewsCard(),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: _loadSlotStates,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Column(
+                    children: [
+                      _buildHeroCard(),
+                      const SizedBox(height: 16),
+                      _buildAboutCard(),
+                      const SizedBox(height: 16),
+                      _buildScheduleCard(),
+                      const SizedBox(height: 16),
+                      _buildReviewsCard(),
+                    ],
+                  ),
                 ),
               ),
             ),

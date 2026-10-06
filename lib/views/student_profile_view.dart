@@ -211,16 +211,20 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                         ),
                       ),
                     )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
-                      child: Column(
-                        children: [
-                          _buildProfileCard(),
-                          const SizedBox(height: 20),
-                          if (widget.trainerId != null) _buildRatingCard(),
-                          const SizedBox(height: 20),
-                          if (_ratings.isNotEmpty) _buildReviewsCard(),
-                        ],
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+                        child: Column(
+                          children: [
+                            _buildProfileCard(),
+                            const SizedBox(height: 20),
+                            if (widget.trainerId != null) _buildRatingCard(),
+                            const SizedBox(height: 20),
+                            if (_ratings.isNotEmpty) _buildReviewsCard(),
+                          ],
+                        ),
                       ),
                     ),
             ),

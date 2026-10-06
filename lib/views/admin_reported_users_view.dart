@@ -477,147 +477,151 @@ class _AdminReportedUsersViewState extends State<AdminReportedUsersView> {
       body: SafeArea(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      onChanged: (v) {
-                        search = v;
-                        _applyFilter();
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Buscar por nome, email ou data',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE7ECF3),
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        onChanged: (v) {
+                          search = v;
+                          _applyFilter();
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nome, email ou data',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE7ECF3),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE7ECF3),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE7ECF3),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFE7ECF3),
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: statusFilter,
+                                  isExpanded: true,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'ALL',
+                                      child: Text('Todos'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'APPROVED',
+                                      child: Text('Aprovados'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'REJECTED',
+                                      child: Text('Rejeitados'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'DELETED',
+                                      child: Text('Excluídos'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'BANNED',
+                                      child: Text('Banidos'),
+                                    ),
+                                  ],
+                                  onChanged: (v) {
+                                    if (v == null) return;
+                                    statusFilter = v;
+                                    _applyFilter();
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFE7ECF3),
-                              ),
+                              border: Border.all(color: const Color(0xFFE7ECF3)),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: statusFilter,
-                                isExpanded: true,
+                                value: sortBy,
                                 items: const [
                                   DropdownMenuItem(
-                                    value: 'ALL',
-                                    child: Text('Todos'),
+                                    value: 'DATA',
+                                    child: Text('Data'),
                                   ),
                                   DropdownMenuItem(
-                                    value: 'APPROVED',
-                                    child: Text('Aprovados'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'REJECTED',
-                                    child: Text('Rejeitados'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'DELETED',
-                                    child: Text('Excluídos'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'BANNED',
-                                    child: Text('Banidos'),
+                                    value: 'NOME',
+                                    child: Text('Nome'),
                                   ),
                                 ],
                                 onChanged: (v) {
                                   if (v == null) return;
-                                  statusFilter = v;
+                                  sortBy = v;
                                   _applyFilter();
                                 },
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE7ECF3)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: sortBy,
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'DATA',
-                                  child: Text('Data'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'NOME',
-                                  child: Text('Nome'),
-                                ),
-                              ],
-                              onChanged: (v) {
-                                if (v == null) return;
-                                sortBy = v;
-                                _applyFilter();
-                              },
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      if (filtered.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Text(
+                            error ?? 'Nenhum usuário reportado.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Color(0xFF667085),
+                              fontSize: 15,
                             ),
                           ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final u = Map<String, dynamic>.from(
+                              filtered[index] as Map,
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _reportCard(u),
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? Center(
-                              child: Text(
-                                error ?? 'Nenhum usuário reportado.',
-                                style: const TextStyle(
-                                  color: Color(0xFF667085),
-                                  fontSize: 15,
-                                ),
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: _load,
-                              child: ListView.separated(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                itemCount: filtered.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                final u = Map<String, dynamic>.from(
-                                  filtered[index] as Map,
-                                );
-                                return _reportCard(u);
-                              },
-                            ),
-                          ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
       ),
