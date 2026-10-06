@@ -28,6 +28,11 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.4
 
+  # Firebase (Notificações Push - FCM)
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+  flutter_local_notifications: ^18.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

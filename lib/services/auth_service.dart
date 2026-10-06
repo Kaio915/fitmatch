@@ -1726,4 +1726,40 @@ class AuthService {
       throw Exception(_extractErrorMessage(res));
     }
   }
+
+  // ✅ SALVAR TOKEN FCM (notificações push)
+  static Future<void> saveFcmToken(String fcmToken) async {
+    final res = await http.put(
+      Uri.parse('$_baseUrl/users/me/fcm-token'),
+      headers: await _headers(json: true),
+      body: jsonEncode({'fcmToken': fcmToken}),
+    );
+    if (res.statusCode != 200 && res.statusCode != 201 && res.statusCode != 204) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ LIMPAR TOKEN FCM (logout)
+  static Future<void> clearFcmToken() async {
+    try {
+      await http.delete(
+        Uri.parse('$_baseUrl/users/me/fcm-token'),
+        headers: await _headers(),
+      );
+    } catch (_) {
+      // Falha silenciosa: não deve travar o logout.
+    }
+  }
+
+  // ✅ TOTAL DE MENSAGENS NÃO LIDAS (badge do chat)
+  static Future<int> getUnreadCount() async {
+    final res = await http.get(
+      Uri.parse('$_baseUrl/chat/unread-count'),
+      headers: await _headers(),
+    );
+    if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final count = data['unreadCount'];
+    return count == null ? 0 : (count as num).toInt();
+  }
 }
