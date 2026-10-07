@@ -986,87 +986,45 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, _) {
-            final isMobile = MediaQuery.of(context).size.width < 600;
-            final emptyMessage = Center(
-              child: Text(
-                widget.readOnly
-                    ? 'Nenhuma mensagem nesta conversa.'
-                    : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-            );
-
-            if (isMobile) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: _loadMessages,
-                      child: _messages.isEmpty
-                          ? ListView(
-                              controller: _scrollController,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(bottom: 12),
-                              children: [
-                                _headerCard(name: name, email: email),
-                                SizedBox(
-                                  height: 150,
-                                  child: emptyMessage,
-                                ),
-                              ],
-                            )
-                          : ListView.builder(
-                              controller: _scrollController,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(bottom: 12),
-                              itemCount: _messages.length + 1,
-                              itemBuilder: (_, i) {
-                                if (i == 0) {
-                                  return _headerCard(name: name, email: email);
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: _bubble(_messages[i - 1]),
-                                );
-                              },
-                            ),
-                    ),
-                  ),
-                  _templateBar(),
-                  _composer(),
-                  if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
-                ],
-              );
-            }
-
-            return Column(
+        child: RefreshIndicator(
+          onRefresh: _loadMessages,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _headerCard(name: name, email: email),
-                Expanded(
-                  child: _messages.isEmpty
-                      ? emptyMessage
-                      : RefreshIndicator(
-                          onRefresh: _loadMessages,
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
-                            itemBuilder: (_, i) => _bubble(_messages[i]),
-                          ),
+                if (_messages.isEmpty)
+                  SizedBox(
+                    height: 160,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          widget.readOnly
+                              ? 'Nenhuma mensagem nesta conversa.'
+                              : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
                         ),
-                ),
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    itemCount: _messages.length,
+                    itemBuilder: (_, i) => _bubble(_messages[i]),
+                  ),
                 _templateBar(),
                 _composer(),
                 if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -1146,16 +1104,11 @@ class _AdminTicketViewState extends State<AdminTicketView> {
           ),
         ],
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height *
-              (MediaQuery.of(context).size.width < 600 ? 0.52 : 0.35),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               Row(
                 children: [
                   avatar,
@@ -1412,7 +1365,6 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             ],
           ),
         ),
-      ),
     );
   }
 
