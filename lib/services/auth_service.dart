@@ -1751,15 +1751,22 @@ class AuthService {
     }
   }
 
-  // ✅ TOTAL DE MENSAGENS NÃO LIDAS (badge do chat)
-  static Future<int> getUnreadCount() async {
+  // ✅ MENSAGENS NÃO LIDAS POR USUÁRIO (badge do chat por conversa)
+  // O backend retorna um mapa {senderId -> quantidade de mensagens não lidas}.
+  static Future<Map<String, int>> getUnreadCounts() async {
     final res = await http.get(
       Uri.parse('$_baseUrl/chat/unread-count'),
       headers: await _headers(),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final count = data['unreadCount'];
-    return count == null ? 0 : (count as num).toInt();
+    final counts = <String, int>{};
+    data.forEach((key, value) {
+      final count = value is num
+          ? value.toInt()
+          : (int.tryParse(value.toString()) ?? 0);
+      counts[key] = count;
+    });
+    return counts;
   }
 }

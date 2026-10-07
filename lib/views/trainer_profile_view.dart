@@ -2396,7 +2396,9 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       });
 
       if (!mounted) return true;
-      ChatBadgeNotifier.instance.clear();
+      if (widget.trainerId != null) {
+        ChatBadgeNotifier.instance.clearFor(widget.trainerId.toString());
+      }
       Navigator.push(
         context,
         MaterialPageRoute(

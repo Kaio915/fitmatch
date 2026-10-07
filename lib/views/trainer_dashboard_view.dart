@@ -2573,10 +2573,18 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ChatBadge(child: OutlinedButton.icon(
-                      onPressed: () {
-                        ChatBadgeNotifier.instance.clear();
-                        Navigator.pop(ctx);
+                    child: ChatBadge(
+                      targetUserId: matchReq['studentId'] != null
+                          ? matchReq['studentId'].toString()
+                          : '',
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          if (matchReq != null && matchReq['studentId'] != null) {
+                            ChatBadgeNotifier.instance.clearFor(
+                              matchReq['studentId'].toString(),
+                            );
+                          }
+                          Navigator.pop(ctx);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -4974,6 +4982,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   for (final req in visibleRequests)
                     _RequestRow(
                       studentName: (req['studentName'] ?? 'Aluno').toString(),
+                      studentId: int.tryParse((req['studentId'] ?? '').toString()),
                       studentCidade: (req['studentCidade'] ?? '').toString(),
                       requestId: req['id'] is int
                           ? req['id'] as int
@@ -5217,6 +5226,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
 class _RequestRow extends StatelessWidget {
   final String studentName;
+  final int? studentId;
   final String? studentCidade;
   final int requestId;
   final String dayName;
@@ -5238,6 +5248,7 @@ class _RequestRow extends StatelessWidget {
 
   const _RequestRow({
     required this.studentName,
+    required this.studentId,
     this.studentCidade,
     required this.requestId,
     required this.dayName,
@@ -5992,9 +6003,12 @@ class _RequestRow extends StatelessWidget {
                 ),
                 if (showChat)
                   ChatBadge(
+                    targetUserId: studentId?.toString() ?? '',
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        ChatBadgeNotifier.instance.clear();
+                        if (studentId != null) {
+                          ChatBadgeNotifier.instance.clearFor(studentId.toString());
+                        }
                         onChat();
                       },
                       icon: const Icon(
@@ -6361,9 +6375,12 @@ class _StudentRow extends StatelessWidget {
               if (onChat != null) ...[
                 const SizedBox(width: 8),
                 ChatBadge(
+                  targetUserId: studentId?.toString() ?? '',
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      ChatBadgeNotifier.instance.clear();
+                      if (studentId != null) {
+                        ChatBadgeNotifier.instance.clearFor(studentId.toString());
+                      }
                       onChat?.call();
                     },
                     icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),

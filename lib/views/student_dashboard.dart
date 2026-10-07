@@ -3128,9 +3128,14 @@ class _RequestItem extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ChatBadge(
+                targetUserId: data['trainerId'] != null
+                    ? data['trainerId'].toString()
+                    : '',
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ChatBadgeNotifier.instance.clear();
+                    if (data['trainerId'] != null) {
+                      ChatBadgeNotifier.instance.clearFor(data['trainerId'].toString());
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -4078,9 +4083,12 @@ class _ApprovedTrainerItem extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ChatBadge(
+              targetUserId: trainerId?.toString() ?? '',
               child: OutlinedButton.icon(
                 onPressed: () {
-                  ChatBadgeNotifier.instance.clear();
+                  if (trainerId != null) {
+                    ChatBadgeNotifier.instance.clearFor(trainerId.toString());
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(

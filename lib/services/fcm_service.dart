@@ -62,6 +62,26 @@ class FcmService {
     debugPrint('FCM: authorizationStatus=${settings.authorizationStatus}');
   }
 
+  /// Registra (ou atualiza) o token FCM logo após o login do usuário.
+  ///
+  /// É importante chamar isso DEPOIS do login porque o endpoint
+  /// `PUT /users/me/fcm-token` exige autenticação. Na inicialização do app o
+  /// usuário ainda não está logado, então o envio pode falhar silenciosamente.
+  static Future<void> registerTokenAfterLogin() async {
+    try {
+      await requestPermission();
+      final token = await getToken();
+      debugPrint('FCM: token FCM após login = $token');
+      if (token == null || token.isEmpty) {
+        debugPrint('FCM: token FCM NULO/VAZIO após o login — push não será registrado.');
+        return;
+      }
+      await _sendTokenToBackend(token);
+    } catch (e) {
+      debugPrint('FCM: erro ao registrar token após login: $e');
+    }
+  }
+
   /// Obtém o token FCM do dispositivo.
   static Future<String?> getToken() async {
     try {
@@ -95,7 +115,8 @@ class FcmService {
     final data = message.data;
     if (data['type'] != 'chat_message') return;
 
-    ChatBadgeNotifier.instance.incrementFromPush();
+    final senderId = (data['senderId'] ?? '').toString();
+    ChatBadgeNotifier.instance.incrementFromPush(senderId);
     _showLocalNotification(data);
   }
 
