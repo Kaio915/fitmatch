@@ -3899,14 +3899,19 @@ class _ApprovedTrainerItem extends StatelessWidget {
                                 color: slotFg,
                               ),
                               const SizedBox(width: 5),
-                              Text(
-                                slot.label,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: slot.isCycleEnd
-                                      ? FontWeight.w700
-                                      : FontWeight.w600,
-                                  color: slotFg,
+                              Flexible(
+                                child: Text(
+                                  slot.label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: slot.isCycleEnd
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: slotFg,
+                                  ),
                                 ),
                               ),
                             ],
@@ -3996,66 +4001,64 @@ class _ApprovedTrainerItem extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
+                            Wrap(
+                              spacing: 8.0,
+                              runSpacing: 8.0,
+                              alignment: WrapAlignment.center,
                               children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () => onExpiredPlanAction(
-                                      plan,
-                                      changePlan: false,
+                                OutlinedButton(
+                                  onPressed: () => onExpiredPlanAction(
+                                    plan,
+                                    changePlan: false,
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFB45309),
+                                    side: const BorderSide(
+                                      color: Color(0xFFF59E0B),
                                     ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFFB45309),
-                                      side: const BorderSide(
-                                        color: Color(0xFFF59E0B),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 9,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Encerrar plano',
-                                      style: TextStyle(fontSize: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 9,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () => onRenewSamePlan(plan),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0B4DBA),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 9,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Manter plano',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
+                                  child: const Text(
+                                    'Encerrar plano',
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () => onExpiredPlanAction(
-                                      plan,
-                                      changePlan: true,
+                                ElevatedButton(
+                                  onPressed: () => onRenewSamePlan(plan),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0B4DBA),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 9,
                                     ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF059669),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 9,
-                                      ),
+                                  ),
+                                  child: const Text(
+                                    'Manter plano',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => onExpiredPlanAction(
+                                    plan,
+                                    changePlan: true,
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF059669),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 9,
                                     ),
-                                    child: const Text(
-                                      'Mudar plano',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Mudar plano',
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                 ),
                               ],
