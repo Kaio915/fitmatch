@@ -54,3 +54,6 @@ target/
 .env_*
 !.env.example
 application.properties
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist

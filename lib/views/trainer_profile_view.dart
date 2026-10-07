@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../core/app_refresh_notifier.dart';
+import '../core/chat_badge_notifier.dart';
 import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'trainer_chat_view.dart';
@@ -2395,6 +2396,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       });
 
       if (!mounted) return true;
+      ChatBadgeNotifier.instance.clear();
       Navigator.push(
         context,
         MaterialPageRoute(
