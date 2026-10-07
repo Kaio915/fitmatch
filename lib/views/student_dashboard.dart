@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_refresh_notifier.dart';
-import '../core/chat_badge_notifier.dart';
 import '../services/auth_service.dart';
 import 'trainer_chat_view.dart';
 import 'trainer_profile_view.dart';
@@ -10,7 +9,6 @@ import 'student_workout_view.dart';
 import 'diet_control_view.dart';
 import 'edit_student_cadastro_view.dart';
 import '../routes/app_routes.dart';
-import '../widgets/chat_badge.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
 import '../widgets/logout_confirmation_dialog.dart';
@@ -106,7 +104,6 @@ class _StudentDashboardState extends State<StudentDashboard>
   @override
   void initState() {
     super.initState();
-    ChatBadgeNotifier.instance.refreshFromServer();
     _profileCity = widget.cidade ?? '';
     _profileObjective = widget.objetivos ?? '';
     _profileLevel = widget.nivel ?? '';
@@ -3127,60 +3124,52 @@ class _RequestItem extends StatelessWidget {
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: ChatBadge(
-                targetUserId: data['trainerId'] != null
-                    ? data['trainerId'].toString()
-                    : '',
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    if (data['trainerId'] != null) {
-                      ChatBadgeNotifier.instance.clearFor(data['trainerId'].toString());
-                    }
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TrainerChatView(
-                          requestId: data['id'] != null
-                              ? int.tryParse(data['id'].toString())
-                              : null,
-                          trainerName: trainerName,
-                          dayName: dayName,
-                          time: time,
-                          isTrainerSide: false,
-                          senderId: data['studentId'] != null
-                              ? int.tryParse(data['studentId'].toString())
-                              : null,
-                          receiverId: data['trainerId'] != null
-                              ? int.tryParse(data['trainerId'].toString())
-                              : null,
-                          planType: data['planType']?.toString(),
-                          daysJson: data['daysJson']?.toString(),
-                          readOnly: status == 'REJECTED',
-                          readOnlyMessage: status == 'REJECTED'
-                              ? 'Este chat está disponível apenas para leitura porque sua solicitação foi encerrada. Para voltar a mandar mensagem, envie uma nova solicitação para este personal.'
-                              : null,
-                          readOnlyStartAtIso:
-                              data['chatStartAtIso']?.toString() ??
-                              data['createdAt']?.toString(),
-                          readOnlyLockAtIso: data['chatLockAtIso']?.toString(),
-                          requestUpdatedAtIso: data['updatedAt']?.toString(),
-                        ),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TrainerChatView(
+                        requestId: data['id'] != null
+                            ? int.tryParse(data['id'].toString())
+                            : null,
+                        trainerName: trainerName,
+                        dayName: dayName,
+                        time: time,
+                        isTrainerSide: false,
+                        senderId: data['studentId'] != null
+                            ? int.tryParse(data['studentId'].toString())
+                            : null,
+                        receiverId: data['trainerId'] != null
+                            ? int.tryParse(data['trainerId'].toString())
+                            : null,
+                        planType: data['planType']?.toString(),
+                        daysJson: data['daysJson']?.toString(),
+                        readOnly: status == 'REJECTED',
+                        readOnlyMessage: status == 'REJECTED'
+                            ? 'Este chat está disponível apenas para leitura porque sua solicitação foi encerrada. Para voltar a mandar mensagem, envie uma nova solicitação para este personal.'
+                            : null,
+                        readOnlyStartAtIso:
+                            data['chatStartAtIso']?.toString() ??
+                            data['createdAt']?.toString(),
+                        readOnlyLockAtIso: data['chatLockAtIso']?.toString(),
+                        requestUpdatedAtIso: data['updatedAt']?.toString(),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                  label: const Text('Abrir Chat com Personal'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0B4DBA),
-                    side: const BorderSide(color: Color(0xFF0B4DBA)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    textStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                label: const Text('Abrir Chat com Personal'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0B4DBA),
+                  side: const BorderSide(color: Color(0xFF0B4DBA)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -4082,42 +4071,36 @@ class _ApprovedTrainerItem extends StatelessWidget {
           ),
           SizedBox(
             width: double.infinity,
-            child: ChatBadge(
-              targetUserId: trainerId?.toString() ?? '',
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  if (trainerId != null) {
-                    ChatBadgeNotifier.instance.clearFor(trainerId.toString());
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TrainerChatView(
-                        trainerName: trainerName,
-                        dayName: (firstPlan['dayName'] ?? '').toString(),
-                        time: (firstPlan['time'] ?? '').toString(),
-                        isTrainerSide: false,
-                        senderId: studentId,
-                        receiverId: trainerId,
-                        planType: firstPlan['planType']?.toString(),
-                        daysJson: firstPlan['daysJson']?.toString(),
-                      ),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TrainerChatView(
+                      trainerName: trainerName,
+                      dayName: (firstPlan['dayName'] ?? '').toString(),
+                      time: (firstPlan['time'] ?? '').toString(),
+                      isTrainerSide: false,
+                      senderId: studentId,
+                      receiverId: trainerId,
+                      planType: firstPlan['planType']?.toString(),
+                      daysJson: firstPlan['daysJson']?.toString(),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                label: const Text('Chat'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF059669),
-                  side: const BorderSide(color: Color(0xFF059669)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  textStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+              label: const Text('Chat'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF059669),
+                side: const BorderSide(color: Color(0xFF059669)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

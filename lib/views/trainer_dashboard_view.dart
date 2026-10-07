@@ -3,13 +3,11 @@ import 'dart:async';
 import '../routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
-import '../core/chat_badge_notifier.dart';
 import '../services/auth_service.dart';
 import 'student_profile_view.dart';
 import 'trainer_workout_organizer_view.dart';
 import 'trainer_chat_view.dart';
 import 'diet_control_view.dart';
-import '../widgets/chat_badge.dart';
 import '../widgets/fitmatch_logo.dart';
 import '../widgets/report_user_dialog.dart';
 import '../widgets/city_autocomplete_field.dart';
@@ -144,7 +142,6 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   @override
   void initState() {
     super.initState();
-    ChatBadgeNotifier.instance.refreshFromServer();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _editCidade = widget.cidade ?? '';
     _editValorHora = widget.valorHora ?? '';
@@ -2573,18 +2570,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ChatBadge(
-                      targetUserId: matchReq['studentId'] != null
-                          ? matchReq['studentId'].toString()
-                          : '',
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          if (matchReq != null && matchReq['studentId'] != null) {
-                            ChatBadgeNotifier.instance.clearFor(
-                              matchReq['studentId'].toString(),
-                            );
-                          }
-                          Navigator.pop(ctx);
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -2630,7 +2618,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                    )),
+                    ),
                   ),
                 ),
               Row(
@@ -6002,31 +5990,25 @@ class _RequestRow extends StatelessWidget {
                   ),
                 ),
                 if (showChat)
-                  ChatBadge(
-                    targetUserId: studentId?.toString() ?? '',
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        if (studentId != null) {
-                          ChatBadgeNotifier.instance.clearFor(studentId.toString());
-                        }
-                        onChat();
-                      },
-                      icon: const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        size: 15,
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      onChat();
+                    },
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 15,
+                    ),
+                    label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0B4DBA),
+                      backgroundColor: const Color(0xFFF8FBFF),
+                      side: const BorderSide(color: Color(0xFFBFD3F5)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
                       ),
-                      label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0B4DBA),
-                        backgroundColor: const Color(0xFFF8FBFF),
-                        side: const BorderSide(color: Color(0xFFBFD3F5)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 11,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -6374,28 +6356,22 @@ class _StudentRow extends StatelessWidget {
               ],
               if (onChat != null) ...[
                 const SizedBox(width: 8),
-                ChatBadge(
-                  targetUserId: studentId?.toString() ?? '',
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (studentId != null) {
-                        ChatBadgeNotifier.instance.clearFor(studentId.toString());
-                      }
-                      onChat?.call();
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                    label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B4DBA),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 9,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    onChat?.call();
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                  label: const Text('Chat', style: TextStyle(fontSize: 12.5)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B4DBA),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),

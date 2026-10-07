@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../core/app_refresh_notifier.dart';
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
-import '../services/fcm_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'register_student_view.dart';
 import 'register_trainer_view.dart';
@@ -102,9 +99,6 @@ class _LoginViewState extends State<LoginView> {
         password: password,
         type: widget.userType.name,
       );
-
-      // Registra (ou atualiza) o token FCM do dispositivo logo após o login.
-      unawaited(FcmService.registerTokenAfterLogin());
 
       if (!mounted) return;
 
