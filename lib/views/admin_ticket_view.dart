@@ -849,6 +849,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
     final type = (widget.user['type'] ?? '').toString().toLowerCase();
     final typeLabel = type == 'personal' ? 'Personal' : 'Aluno';
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -986,47 +987,75 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         ),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadMessages,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _headerCard(name: name, email: email),
-                if (_messages.isEmpty)
-                  SizedBox(
-                    height: 160,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          widget.readOnly
-                              ? 'Nenhuma mensagem nesta conversa.'
-                              : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.grey),
-                        ),
+        child: isDesktop
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadMessages,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: _chatContent(name: name, email: email),
                       ),
                     ),
-                  )
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) => _bubble(_messages[i]),
                   ),
-                _templateBar(),
-                _composer(),
-                if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
-              ],
-            ),
-          ),
-        ),
+                  _templateBar(),
+                  _composer(),
+                  if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
+                ],
+              )
+            : RefreshIndicator(
+                onRefresh: _loadMessages,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _chatContent(name: name, email: email),
+                      _templateBar(),
+                      _composer(),
+                      if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
+                    ],
+                  ),
+                ),
+              ),
       ),
+    );
+  }
+
+  Widget _chatContent({required String name, required String email}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _headerCard(name: name, email: email),
+        if (_messages.isEmpty)
+          SizedBox(
+            height: 160,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  widget.readOnly
+                      ? 'Nenhuma mensagem nesta conversa.'
+                      : 'Nenhuma mensagem ainda.\nUse os modelos abaixo ou escreva uma mensagem.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            itemCount: _messages.length,
+            itemBuilder: (_, i) => _bubble(_messages[i]),
+          ),
+      ],
     );
   }
 
