@@ -1000,32 +1000,47 @@ class _AdminTicketViewState extends State<AdminTicketView> {
             );
 
             if (isMobile) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  children: [
-                    _headerCard(name: name, email: email),
-                    SizedBox(
-                      height: _messages.isEmpty ? 150 : 240,
+              return Column(
+                children: [
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadMessages,
                       child: _messages.isEmpty
-                          ? emptyMessage
-                          : RefreshIndicator(
-                              onRefresh: _loadMessages,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _messages.length,
-                                itemBuilder: (_, i) => _bubble(_messages[i]),
-                              ),
+                          ? ListView(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(bottom: 12),
+                              children: [
+                                _headerCard(name: name, email: email),
+                                SizedBox(
+                                  height: 150,
+                                  child: emptyMessage,
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(bottom: 12),
+                              itemCount: _messages.length + 1,
+                              itemBuilder: (_, i) {
+                                if (i == 0) {
+                                  return _headerCard(name: name, email: email);
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: _bubble(_messages[i - 1]),
+                                );
+                              },
                             ),
                     ),
-                    _templateBar(),
-                    _composer(),
-                    if (!widget.readOnly && !widget.blockMessaging)
-                      _actionsBar(),
-                  ],
-                ),
+                  ),
+                  _templateBar(),
+                  _composer(),
+                  if (!widget.readOnly && !widget.blockMessaging) _actionsBar(),
+                ],
               );
             }
 
