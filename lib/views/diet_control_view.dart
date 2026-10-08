@@ -10,51 +10,9 @@ import '../core/objective_options.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
-/// Dicionário de substituição simples para traduzir termos comuns de unidade
-/// que a FatSecret retorna em inglês no `serving_description`, mesmo quando a
-/// requisição usa `language=pt`. Aplicado antes de exibir a porção no dropdown.
-const Map<String, String> _servingEnToPt = {
-  'NS as to size': 'tamanho não especificado',
-  'extra large': 'extra grande',
-  'tablespoon': 'colher de sopa',
-  'tablespoons': 'colheres de sopa',
-  'teaspoon': 'colher de chá',
-  'teaspoons': 'colheres de chá',
-  'large': 'grande',
-  'medium': 'médio',
-  'small': 'pequeno',
-  'tbsp': 'colher de sopa',
-  'tsp': 'colher de chá',
-  'cup': 'xícara',
-  'cups': 'xícaras',
-  'slice': 'fatia',
-  'slices': 'fatias',
-  'piece': 'pedaço',
-  'pieces': 'pedaços',
-  'serving': 'porção',
-  'servings': 'porções',
-  'oz': 'onças (oz)',
-  'ounce': 'onça',
-  'ounces': 'onças',
-  'egg': 'ovo',
-  'eggs': 'ovos',
-};
-
-/// Traduz/re-substitui os termos de unidade em inglês por seus equivalentes em
-/// português. Termos mais longos são aplicados primeiro (ex.: "extra large").
-String _translateServingDescription(String description) {
-  if (description.trim().isEmpty) return description;
-  var result = description;
-  final entries = _servingEnToPt.entries.toList()
-    ..sort((a, b) => b.key.length.compareTo(a.key.length));
-  for (final entry in entries) {
-    result = result.replaceAll(
-      RegExp(r'\b' + RegExp.escape(entry.key) + r'\b', caseSensitive: false),
-      entry.value,
-    );
-  }
-  return result;
-}
+// A unidade de medida agora usa uma lista estática (hardcoded) de opções
+// limpas, definida em `_quantityUnits` no estado de `DietControlView`. O peso
+// real (Unidade Lógica) é resolvido em `_weightPerUnitInGrams`.
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -86,9 +44,13 @@ class _DietControlViewState extends State<DietControlView> {
     'Ceia',
   ];
 
-  static const List<String> _baseQuantityUnits = [
+  static const List<String> _quantityUnits = [
     'g',
     'ml',
+    'unidade(s)',
+    'porção',
+    'fatia(s)',
+    'colher de sopa',
   ];
 
   DateTime _selectedDate = DateTime.now();
@@ -127,7 +89,6 @@ class _DietControlViewState extends State<DietControlView> {
     text: '100',
   );
   String _quantityUnit = 'g';
-  List<Map<String, dynamic>> _selectedServings = [];
   Timer? _foodSearchDebounce;
 
   List<Map<String, dynamic>> _foodSuggestions = [];
@@ -923,8 +884,7 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
-    final editServings = _extractServings(entry);
-    final editUnitChoices = _buildUnitChoices(editServings);
+    final editUnitChoices = _quantityUnits;
     String selectedUnit = (entry['unit'] ?? 'g').toString();
     if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
 
@@ -2444,12 +2404,10 @@ class _DietControlViewState extends State<DietControlView> {
     final selectedId = _toInt(food['id']);
     final source = (food['source'] ?? '').toString().toLowerCase();
     final isLocal = selectedId > 0 && source == 'local';
-    final servings = _extractServings(food);
 
     setState(() {
       _selectedFoodId = isLocal ? selectedId : null;
       _selectedExternalFood = isLocal ? null : Map<String, dynamic>.from(food);
-      _selectedServings = servings;
       _foodSearchCtrl.text = (food['name'] ?? '').toString();
       _showFoodSuggestions = false;
       _foodSuggestions = [];
@@ -2662,34 +2620,62 @@ class _DietControlViewState extends State<DietControlView> {
     return _entrySignature(mealType, entry);
   }
 
-  /// Opções do dropdown de unidade: "g"/"ml" + as descrições das porções
-  /// reais retornadas pela FatSecret para o alimento selecionado.
-  List<String> get _quantityUnitChoices => _buildUnitChoices(_selectedServings);
+  /// Lista estática de unidades visuais exibidas no dropdown. A unidade que o
+  /// usuário enxerga (Unidade Visual) é separada do peso real em gramas usado
+  /// na matemática (Unidade Lógica) — ver [_weightPerUnitInGrams].
+  List<String> get _quantityUnitChoices => _quantityUnits;
 
-  List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
-    final units = <String>[..._baseQuantityUnits];
-    for (final s in servings) {
-      final raw = (s['description'] ?? '').toString().trim();
-      final label = _translateServingDescription(raw).trim();
-      if (label.isNotEmpty && !units.contains(label)) {
-        units.add(label);
-      }
+  /// Peso (em gramas) de 1 unidade da opção selecionada no dropdown estático.
+  ///
+  /// - "g" e "ml": 1 (peso/volume livre, 1 ml ≈ 1 g).
+  /// - "colher de sopa": 15 g (padrão nutricional).
+  /// - "unidade(s)", "porção" e "fatia(s)": peso da porção padrão informado
+  ///   pela API (FatSecret `metric_serving_amount`/`servingAmountGrams` ou a
+  ///   base da TACO). Se a API não informar, fallback seguro de 100 g.
+  double _weightPerUnitInGrams(Map<String, dynamic> food, String unit) {
+    final normalized = unit.trim().toLowerCase();
+    switch (normalized) {
+      case 'g':
+      case 'ml':
+        return 1;
+      case 'colher de sopa':
+        return 15;
+      case 'unidade(s)':
+      case 'porção':
+      case 'fatia(s)':
+        return _defaultServingWeightGrams(food);
+      default:
+        // Unidade legada (descrição dinâmica antiga, ex.: "1 unidade").
+        return _legacyServingWeightGrams(food, unit);
     }
-    return units;
   }
 
-  Map<String, dynamic>? _servingFromFoodByLabel(
-    Map<String, dynamic> food,
-    String label,
-  ) {
-    final normalized = _translateServingDescription(label).trim().toLowerCase();
+  /// Peso da porção padrão (em gramas) vindo da API.
+  double _defaultServingWeightGrams(Map<String, dynamic> food) {
+    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
+    if (servingAmount != null && servingAmount > 0) return servingAmount;
+
     for (final s in _extractServings(food)) {
-      final desc = _translateServingDescription(
-        (s['description'] ?? '').toString(),
-      ).trim().toLowerCase();
-      if (desc == normalized) return s;
+      final amount = _toDoubleOrNull(s['amountGrams']);
+      if (amount != null && amount > 0) return amount;
     }
-    return null;
+
+    return 100; // fallback seguro
+  }
+
+  /// Mantém o cálculo correto para entradas antigas salvas com a descrição
+  /// dinâmica da porção no campo `unit`.
+  double _legacyServingWeightGrams(Map<String, dynamic> food, String unit) {
+    final normalized = unit.trim().toLowerCase();
+    for (final s in _extractServings(food)) {
+      final desc = (s['description'] ?? '').toString().trim().toLowerCase();
+      if (desc == normalized) {
+        final amount = _toDoubleOrNull(s['amountGrams']);
+        if (amount != null && amount > 0) return amount;
+        break;
+      }
+    }
+    return 1; // comportamento legado: mantém o valor informado
   }
 
   List<Map<String, dynamic>> _extractServings(Map<String, dynamic> food) {
@@ -2706,75 +2692,20 @@ class _DietControlViewState extends State<DietControlView> {
     return result;
   }
 
-  String _servingMacroKey(String key) {
-    switch (key) {
-      case 'caloriesPer100g':
-        return 'calories';
-      case 'proteinPer100g':
-        return 'protein';
-      case 'carbsPer100g':
-        return 'carbs';
-      case 'fatPer100g':
-        return 'fat';
-      default:
-        return key;
-    }
-  }
-
-  /// Converte a quantidade informada (na unidade selecionada) para gramas.
-  double _gramsForQuantity(
-    Map<String, dynamic> food,
-    double quantity,
-    String unit,
-  ) {
-    final normalized = unit.trim().toLowerCase();
-    if (normalized == 'g' || normalized == 'ml') {
-      return quantity;
-    }
-
-    // Porção específica: usa o peso em gramas daquela porção (ex.: 1 unidade
-    // de ovo = 50 g), em vez de assumir 1 g.
-    final serving = _servingFromFoodByLabel(food, unit);
-    final servingGrams = serving != null
-        ? _toDoubleOrNull(serving['amountGrams'])
-        : _toDoubleOrNull(food['servingAmountGrams']);
-    if (servingGrams != null && servingGrams > 0) {
-      return quantity * servingGrams;
-    }
-
-    // Sem dados de porção, mantém o valor informado (fallback seguro).
-    return quantity;
-  }
-
   /// Recalcula um macro conforme o texto e o dropdown mudam.
   ///
-  /// - Cenário A ("g"/"ml"): (macros de 100g / 100) * quantidade digitada.
-  /// - Cenário B (porção específica): macros daquela porção * quantidade; se a
-  ///   porção não tiver macros prontos, converte pelo peso em gramas da unidade.
+  /// Fórmula estrita (base do banco = 100 g):
+  ///   Multiplicador Final = (Quantidade_Digitada * peso_da_unidade_em_gramas) / 100
+  ///   Macro_Exibido = Macro_Base_100g * Multiplicador Final
   double _macroForQty(String key) {
     final selected = _resolveFoodFromTypedText();
     if (selected == null) return 0;
     final qty = _tryParseNumber(_quantityCtrl.text) ?? 0;
 
-    final unit = _quantityUnit.trim().toLowerCase();
-    if (unit == 'g' || unit == 'ml') {
-      return (_toDouble(selected[key]) / 100) * qty;
-    }
+    final weightPerUnit = _weightPerUnitInGrams(selected, _quantityUnit);
+    final multiplier = (qty * weightPerUnit) / 100;
 
-    final serving = _servingFromFoodByLabel(selected, _quantityUnit);
-    if (serving != null) {
-      final servingMacro = _toDoubleOrNull(serving[_servingMacroKey(key)]);
-      if (servingMacro != null && servingMacro > 0) {
-        return servingMacro * qty;
-      }
-      final amountGrams = _toDoubleOrNull(serving['amountGrams']);
-      if (amountGrams != null && amountGrams > 0) {
-        return (_toDouble(selected[key]) / 100) * (qty * amountGrams);
-      }
-    }
-
-    final grams = _gramsForQuantity(selected, qty, _quantityUnit);
-    return (_toDouble(selected[key]) * grams) / 100;
+    return _toDouble(selected[key]) * multiplier;
   }
 
   double get _previewCalories => _macroForQty('caloriesPer100g');
