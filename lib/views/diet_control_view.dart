@@ -2608,11 +2608,38 @@ class _DietControlViewState extends State<DietControlView> {
     return _entrySignature(mealType, entry);
   }
 
+  /// Converte a quantidade informada (na unidade selecionada) para gramas.
+  ///
+  /// Regra de ouro:
+  /// - 'g' e 'ml' são tratados como massa/volume equivalente (1 ml ≈ 1 g).
+  /// - 'unidade(s)', 'porção', 'fatia(s)' e 'colher(es)' multiplicam a
+  ///   quantidade pelo peso daquela unidade (`servingAmountGrams`).
+  ///   Ex.: 1 unidade de ovo = 50 g, em vez de assumir 1 g.
+  double _gramsForQuantity(
+    Map<String, dynamic> food,
+    double quantity,
+    String unit,
+  ) {
+    final normalized = unit.trim().toLowerCase();
+    if (normalized == 'g' || normalized == 'ml') {
+      return quantity;
+    }
+
+    final servingGrams = _toDoubleOrNull(food['servingAmountGrams']);
+    if (servingGrams != null && servingGrams > 0) {
+      return quantity * servingGrams;
+    }
+
+    // Sem dados de porção, mantém o valor informado (fallback seguro).
+    return quantity;
+  }
+
   double _macroForQty(String key) {
     final selected = _resolveFoodFromTypedText();
     if (selected == null) return 0;
     final qty = _tryParseNumber(_quantityCtrl.text) ?? 0;
-    return (_toDouble(selected[key]) * qty) / 100;
+    final grams = _gramsForQuantity(selected, qty, _quantityUnit);
+    return (_toDouble(selected[key]) * grams) / 100;
   }
 
   double get _previewCalories => _macroForQty('caloriesPer100g');
