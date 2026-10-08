@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/user_type.dart';
+import '../core/objective_options.dart';
 import '../services/auth_service.dart';
 import '../widgets/city_autocomplete_field.dart';
 import 'register_success_view.dart';
@@ -32,7 +33,6 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _cpfCtrl;
   late final TextEditingController _cidadeCtrl;
-  final _objetivoOutroCtrl = TextEditingController();
   final _senhaCtrl = TextEditingController();
   final _confirmarSenhaCtrl = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -45,18 +45,7 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
   String? _objetivoSelecionado;
   bool _loading = false;
 
-  final List<String> _objetivos = const [
-    'Perder peso',
-    'Ganhar massa muscular',
-    'Definir / Hipertrofia',
-    'Aumentar força',
-    'Melhorar condicionamento',
-    'Melhorar saúde e disposição',
-    'Melhorar postura',
-    'Reabilitação / Fortalecimento',
-    'Preparação para prova (corrida, TAF, etc.)',
-    'Outro',
-  ];
+  final List<String> _objetivos = kObjectiveOptions;
 
   @override
   void initState() {
@@ -75,9 +64,6 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
       _objetivoSelecionado = null;
     } else if (_objetivos.contains(objetivoAtual)) {
       _objetivoSelecionado = objetivoAtual;
-    } else {
-      _objetivoSelecionado = 'Outro';
-      _objetivoOutroCtrl.text = objetivoAtual;
     }
     _cidadeCtrl = TextEditingController(
       text: (widget.user['cidade'] ?? '').toString(),
@@ -92,7 +78,6 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _cpfCtrl.dispose();
-    _objetivoOutroCtrl.dispose();
     _cidadeCtrl.dispose();
     _senhaCtrl.dispose();
     _confirmarSenhaCtrl.dispose();
@@ -139,9 +124,7 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
         name: _nameCtrl.text,
         email: _emailCtrl.text,
         cpf: _cpfCtrl.text,
-        objetivos: _objetivoSelecionado == 'Outro'
-            ? _objetivoOutroCtrl.text
-            : (_objetivoSelecionado ?? ''),
+        objetivos: _objetivoSelecionado ?? '',
         nivel: _nivel ?? '',
         cidade: _cidadeCtrl.text,
         password: _senhaCtrl.text,
@@ -515,33 +498,12 @@ class _EditStudentCadastroViewState extends State<EditStudentCadastroView> {
                 .toList(),
             onChanged: (value) {
               setState(() => _objetivoSelecionado = value);
-              if (value != 'Outro') _objetivoOutroCtrl.clear();
             },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Selecione uma opção';
-              if (value == 'Outro' && _objetivoOutroCtrl.text.trim().isEmpty) {
-                return 'Escreva seu objetivo';
-              }
               return null;
             },
           ),
-          if (_objetivoSelecionado == 'Outro') ...[
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _objetivoOutroCtrl,
-              validator: (value) {
-                if (_objetivoSelecionado == 'Outro' &&
-                    (value == null || value.trim().isEmpty)) {
-                  return 'Campo obrigatório';
-                }
-                return null;
-              },
-              decoration: const InputDecoration(
-                labelText: 'Descreva seu objetivo',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
         ],
       ),
     );

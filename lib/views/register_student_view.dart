@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../core/user_type.dart';
+import '../core/objective_options.dart';
 import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
 import 'login_view.dart';
@@ -40,9 +41,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
-  // ✅ Objetivo: dropdown + "Outro" com campo livre
+  // ✅ Objetivo: dropdown
   String? _objetivoSelecionado;
-  final _objetivoOutroCtrl = TextEditingController();
 
   // Focus nodes para navegação por Enter (teclado abre automaticamente)
   final _nameFocus = FocusNode();
@@ -51,7 +51,6 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   final _confirmPassFocus = FocusNode();
   final _cidadeFocus = FocusNode();
   final _cpfFocus = FocusNode();
-  final _objetivoOutroFocus = FocusNode();
 
   String? nivelSelecionado;
   bool loading = false;
@@ -67,19 +66,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   XFile? _photo;
   Uint8List? _photoBytes; // ✅ preview no Web
 
-  // ✅ Opções de objetivo
-  final List<String> _objetivos = const [
-    'Perder peso',
-    'Ganhar massa muscular',
-    'Definir / Hipertrofia',
-    'Aumentar força',
-    'Melhorar condicionamento',
-    'Melhorar saúde e disposição',
-    'Melhorar postura',
-    'Reabilitação / Fortalecimento',
-    'Preparação para prova (corrida, TAF, etc.)',
-    'Outro',
-  ];
+  // ✅ Opções de objetivo (partilhadas com o cálculo de TMB)
+  final List<String> _objetivos = kObjectiveOptions;
 
   @override
   void initState() {
@@ -99,7 +87,6 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
       _cpfMask.clear();
       _cidadeCtrl.clear();
       cidades = [];
-      _objetivoOutroCtrl.clear();
       _objetivoSelecionado = null;
       nivelSelecionado = null;
       _photo = null;
@@ -119,14 +106,12 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     _cpfCtrl.dispose();
     _cidadeDebounce?.cancel();
     _cidadeCtrl.dispose();
-    _objetivoOutroCtrl.dispose();
     _nameFocus.dispose();
     _emailFocus.dispose();
     _passFocus.dispose();
     _confirmPassFocus.dispose();
     _cidadeFocus.dispose();
     _cpfFocus.dispose();
-    _objetivoOutroFocus.dispose();
     super.dispose();
   }
 
@@ -186,9 +171,6 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
   }
 
   String _objetivoFinal() {
-    if ((_objetivoSelecionado ?? '').trim() == 'Outro') {
-      return _objetivoOutroCtrl.text.trim();
-    }
     return (_objetivoSelecionado ?? '').trim();
   }
 
@@ -465,18 +447,13 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                         // CPF
                         _cpfField(
                           focusNode: _cpfFocus,
-                          onNext: () {
-                            if (_objetivoSelecionado == 'Outro') {
-                              _objetivoOutroFocus.requestFocus();
-                            }
-                          },
                         ),
 
                         // Foto
                         _photoField(),
 
-                        // ✅ Objetivos (dropdown + "Outro")
-                        _objetivosDropdown(outroFocus: _objetivoOutroFocus),
+                        // ✅ Objetivos (dropdown)
+                        _objetivosDropdown(),
 
                         _dropdownNivel(),
 
@@ -630,8 +607,8 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
     );
   }
 
-  // ✅ Objetivo com dropdown + campo quando selecionar "Outro"
-  Widget _objetivosDropdown({FocusNode? outroFocus}) {
+  // ✅ Objetivo (dropdown)
+  Widget _objetivosDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -660,33 +637,13 @@ class _RegisterStudentViewState extends State<RegisterStudentView> {
                 .toList(),
             onChanged: (value) {
               setState(() => _objetivoSelecionado = value);
-              if (value != 'Outro') _objetivoOutroCtrl.clear();
             },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Selecione uma opção';
-              if (value == 'Outro' && _objetivoOutroCtrl.text.trim().isEmpty) {
-                return 'Escreva seu objetivo';
-              }
               return null;
             },
             decoration: _decoration('Selecione seu objetivo'),
           ),
-          if (_objetivoSelecionado == 'Outro') ...[
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _objetivoOutroCtrl,
-              focusNode: outroFocus,
-              textInputAction: TextInputAction.done,
-              validator: (value) {
-                if (_objetivoSelecionado == 'Outro' &&
-                    (value == null || value.trim().isEmpty)) {
-                  return 'Campo obrigatório';
-                }
-                return null;
-              },
-              decoration: _decoration('Descreva seu objetivo'),
-            ),
-          ],
         ],
       ),
     );

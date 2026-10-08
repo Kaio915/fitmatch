@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
@@ -19,55 +17,45 @@ class CityAutocompleteField extends StatefulWidget {
 }
 
 class _CityAutocompleteFieldState extends State<CityAutocompleteField> {
-  Timer? _debounce;
-  List<String> _options = const [];
   int _requestVersion = 0;
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  void _searchCities(String value) {
-    _debounce?.cancel();
-    final query = value.trim();
+  // Dispara a partir da 2ª letra digitada. Devolve um Future para que o
+  // Autocomplete nativo atualize a lista de sugestões assim que a busca termina
+  // (sem depender de mais uma tecla digitada).
+  Future<Iterable<String>> _searchCities(TextEditingValue value) async {
+    final query = value.text.trim();
     if (query.length < 2) {
-      if (mounted) setState(() => _options = const []);
-      return;
+      return const Iterable<String>.empty();
     }
 
     final requestVersion = ++_requestVersion;
-    _debounce = Timer(const Duration(milliseconds: 300), () async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted || requestVersion != _requestVersion) {
+      return const Iterable<String>.empty();
+    }
+
+    try {
       final result = await AuthService.buscarCidadesIbge(query);
-      if (!mounted || requestVersion != _requestVersion) return;
-      setState(() {
-        _options = result
-            .map((city) => '${city['nome']} - ${city['uf']}')
-            .toSet()
-            .toList();
-      });
-    });
+      return result
+          .map((city) => '${city['nome']} - ${city['uf']}')
+          .toSet()
+          .toList();
+    } catch (_) {
+      return const Iterable<String>.empty();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Autocomplete<String>(
       initialValue: TextEditingValue(text: widget.initialValue),
-      optionsBuilder: (value) {
-        final query = value.text.trim().toLowerCase();
-        if (query.length < 2) return const Iterable<String>.empty();
-        return _options.where((option) => option.toLowerCase().contains(query));
-      },
+      optionsBuilder: _searchCities,
       onSelected: widget.onChanged,
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextField(
           controller: controller,
           focusNode: focusNode,
-          onChanged: (value) {
-            _searchCities(value);
-            widget.onChanged?.call(value);
-          },
+          onChanged: widget.onChanged,
           decoration: const InputDecoration(
             labelText: 'Cidade',
             prefixIcon: Icon(Icons.location_on_rounded),

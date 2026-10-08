@@ -6,6 +6,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_refresh_notifier.dart';
+import '../core/objective_options.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
@@ -37,6 +38,15 @@ class _DietControlViewState extends State<DietControlView> {
     'Lanche da Tarde',
     'Jantar',
     'Ceia',
+  ];
+
+  static const List<String> _quantityUnits = [
+    'g',
+    'ml',
+    'unidade(s)',
+    'porção',
+    'fatia(s)',
+    'colher(es)',
   ];
 
   DateTime _selectedDate = DateTime.now();
@@ -74,6 +84,7 @@ class _DietControlViewState extends State<DietControlView> {
   final TextEditingController _quantityCtrl = TextEditingController(
     text: '100',
   );
+  String _quantityUnit = 'g';
   Timer? _foodSearchDebounce;
 
   List<Map<String, dynamic>> _foodSuggestions = [];
@@ -792,7 +803,7 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qty = _tryParseNumber(_quantityCtrl.text);
     if (qty == null || qty <= 0) {
-      _showSnack('Informe uma quantidade válida em gramas.');
+      _showSnack('Informe uma quantidade válida.');
       return;
     }
 
@@ -812,6 +823,7 @@ class _DietControlViewState extends State<DietControlView> {
         mealType: _selectedMeal,
         quantityGrams: qty,
         dateIso: _toDateIso(_selectedDate),
+        unit: _quantityUnit,
       );
       // Usuário adicionou item: remove supressão permanente do mealType
       _suppressedMealTypeSince.remove(_selectedMeal);
@@ -868,6 +880,8 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
+    String selectedUnit = (entry['unit'] ?? 'g').toString();
+    if (!_quantityUnits.contains(selectedUnit)) selectedUnit = 'g';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -882,16 +896,42 @@ class _DietControlViewState extends State<DietControlView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: qtyCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Quantidade (g)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: qtyCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Quantidade',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _quantityUnits.contains(selectedUnit)
+                          ? selectedUnit
+                          : 'g',
+                      underline: const SizedBox.shrink(),
+                      borderRadius: BorderRadius.circular(8),
+                      items: _quantityUnits
+                          .map(
+                            (u) => DropdownMenuItem(
+                              value: u,
+                              child: Text(u),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setDialogState(() => selectedUnit = v);
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 const Text(
@@ -957,6 +997,7 @@ class _DietControlViewState extends State<DietControlView> {
         entryId: entryId,
         quantityGrams: qty,
         scope: scope,
+        unit: selectedUnit,
       );
 
       final selectedDate = DateTime(
@@ -1916,6 +1957,38 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
+    // Etapa 1 — dados biológicos: calcula TMB + Gasto Energético Total (GET).
+    final step1 = await _showTmbStep1Dialog();
+    if (step1 == null || !mounted) return;
+
+    // Etapa 2 — objetivo: aplica défice/superávite sobre o GET.
+    final selectedGoal = await _showTmbStep2Dialog();
+    if (selectedGoal == null || !mounted) return;
+
+    final dailyTarget =
+        step1.totalEnergyExpenditure + kcalAdjustmentForObjective(selectedGoal);
+
+    try {
+      await AuthService.saveDietGoals(
+        userId: widget.userId,
+        basalKcal: step1.basalKcal,
+        targetKcal: dailyTarget,
+      );
+      if (!mounted) return;
+      await _loadAll(keepUi: true);
+      _showSnack(
+        'TMB calculado e salvo com sucesso.',
+        color: const Color(0xFF16A34A),
+      );
+    } catch (e) {
+      _showSnack(
+        e.toString().replaceFirst('Exception: ', ''),
+        color: const Color(0xFFDC2626),
+      );
+    }
+  }
+
+  Future<_TmbStep1Result?> _showTmbStep1Dialog() async {
     final weightCtrl = TextEditingController();
     final heightCtrl = TextEditingController();
     final ageCtrl = TextEditingController();
@@ -1935,7 +2008,7 @@ class _DietControlViewState extends State<DietControlView> {
       'Extremamente ativo': 1.9,
     };
 
-    await showDialog<void>(
+    return await showDialog<_TmbStep1Result>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
@@ -2033,7 +2106,7 @@ class _DietControlViewState extends State<DietControlView> {
                 backgroundColor: const Color(0xFF0B4DBA),
                 foregroundColor: Colors.white,
               ),
-              onPressed: () async {
+              onPressed: () {
                 final weight = _tryParseNumber(weightCtrl.text);
                 final heightInMeters = _tryParseNumber(heightCtrl.text);
                 final height = heightInMeters == null
@@ -2050,32 +2123,81 @@ class _DietControlViewState extends State<DietControlView> {
                   return;
                 }
 
+                // 1) Taxa Metabólica Basal — Fórmula de Mifflin-St Jeor.
                 final tmbBase = (10 * weight) + (6.25 * height) - (5 * age);
                 final tmb = selectedSex == 'M' ? tmbBase + 5 : tmbBase - 161;
-                final activityFactor = activityFactors[selectedActivity] ?? 1.2;
-                final suggestedTarget = tmb * activityFactor;
 
-                try {
-                  await AuthService.saveDietGoals(
-                    userId: widget.userId,
-                    basalKcal: tmb,
-                    targetKcal: _targetKcal > 0 ? _targetKcal : suggestedTarget,
-                  );
-                  if (!ctx.mounted || !mounted) return;
-                  Navigator.pop(ctx);
-                  await _loadAll(keepUi: true);
-                  _showSnack(
-                    'TMB calculado e salvo com sucesso.',
-                    color: const Color(0xFF16A34A),
-                  );
-                } catch (e) {
-                  _showSnack(
-                    e.toString().replaceFirst('Exception: ', ''),
-                    color: const Color(0xFFDC2626),
-                  );
-                }
+                // 2) Gasto Energético Total (GET) = TMB × fator de atividade.
+                final activityFactor = activityFactors[selectedActivity] ?? 1.2;
+                final totalEnergyExpenditure = tmb * activityFactor;
+
+                Navigator.pop(
+                  ctx,
+                  _TmbStep1Result(tmb, totalEnergyExpenditure),
+                );
               },
-              child: const Text('Calcular TMB'),
+              child: const Text('Avançar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showTmbStep2Dialog() async {
+    String? selectedGoal;
+
+    return await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text('Definir Objetivo'),
+          content: SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Para ajudar a calcular a sua meta diária, nos informe o seu objetivo:',
+                  style: TextStyle(color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedGoal,
+                  decoration: const InputDecoration(
+                    labelText: 'Objetivo',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: kObjectiveOptions
+                      .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => selectedGoal = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Voltar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B4DBA),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                if (selectedGoal == null || selectedGoal!.trim().isEmpty) {
+                  _showSnack('Selecione seu objetivo.');
+                  return;
+                }
+                Navigator.pop(ctx, selectedGoal);
+              },
+              child: const Text('Confirmar'),
             ),
           ],
         ),
@@ -2373,6 +2495,9 @@ class _DietControlViewState extends State<DietControlView> {
     final proteinPer100g = _toDouble(food['proteinPer100g']);
     final carbsPer100g = _toDouble(food['carbsPer100g']);
     final fatPer100g = _toDouble(food['fatPer100g']);
+    final servingDescription = (food['servingDescription'] ?? '').toString();
+    final servingAmountGrams = _toDoubleOrNull(food['servingAmountGrams']);
+    final servingUnit = (food['servingUnit'] ?? '').toString();
 
     if (caloriesPer100g <= 0) {
       throw Exception('Calorias inválidas para cadastrar esse alimento.');
@@ -2387,6 +2512,9 @@ class _DietControlViewState extends State<DietControlView> {
         carbsPer100g: carbsPer100g,
         fatPer100g: fatPer100g,
         custom: false,
+        servingDescription: servingDescription.isEmpty ? null : servingDescription,
+        servingAmountGrams: servingAmountGrams,
+        servingUnit: servingUnit.isEmpty ? null : servingUnit,
       );
       return _toInt(created['id']);
     } catch (e) {
@@ -3537,20 +3665,50 @@ class _DietControlViewState extends State<DietControlView> {
                     width: blockWidth,
                     child: _FormBlock(
                       icon: Icons.scale_rounded,
-                      title: 'Quantidade (g)',
+                      title: 'Quantidade',
                       accent: const Color(0xFF1D4ED8),
-                      child: TextField(
-                        controller: _quantityCtrl,
-                        readOnly: _isPastDay,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          hintText: '0',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: _isPastDay ? null : (_) => setState(() {}),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _quantityCtrl,
+                              readOnly: _isPastDay,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: '0',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              onChanged: _isPastDay
+                                  ? null
+                                  : (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          DropdownButton<String>(
+                            value: _quantityUnits.contains(_quantityUnit)
+                                ? _quantityUnit
+                                : 'g',
+                            underline: const SizedBox.shrink(),
+                            borderRadius: BorderRadius.circular(8),
+                            items: _quantityUnits
+                                .map(
+                                  (u) => DropdownMenuItem(
+                                    value: u,
+                                    child: Text(u),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _isPastDay
+                                ? null
+                                : (v) {
+                                    if (v == null) return;
+                                    setState(() => _quantityUnit = v);
+                                  },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -3857,6 +4015,7 @@ class _DietControlViewState extends State<DietControlView> {
           ...entries.map((entry) {
             final foodName = (entry['foodName'] ?? '-').toString();
             final grams = _toDouble(entry['quantityGrams']).toStringAsFixed(0);
+            final unitLabel = (entry['unit'] ?? 'g').toString();
             final kcal = _toDouble(entry['calories']).toStringAsFixed(0);
             final p = _toDouble(entry['protein']).toStringAsFixed(1);
             final c = _toDouble(entry['carbs']).toStringAsFixed(1);
@@ -3919,7 +4078,7 @@ class _DietControlViewState extends State<DietControlView> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '$grams g',
+                          '$grams $unitLabel',
                           style: TextStyle(
                             color: _isEntryIncluded(entry)
                                 ? Color(0xFF64748B)
@@ -3999,6 +4158,7 @@ class _DietControlViewState extends State<DietControlView> {
               final grams = _toDouble(
                 entry['quantityGrams'],
               ).toStringAsFixed(0);
+              final unitLabel = (entry['unit'] ?? 'g').toString();
               final kcal = _toDouble(entry['calories']).toStringAsFixed(0);
               final p = _toDouble(entry['protein']).toStringAsFixed(1);
               final c = _toDouble(entry['carbs']).toStringAsFixed(1);
@@ -4052,7 +4212,7 @@ class _DietControlViewState extends State<DietControlView> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$grams g',
+                            '$grams $unitLabel',
                             style: const TextStyle(
                               color: Color(0xFFA3B0C2),
                               fontWeight: FontWeight.w600,
@@ -4152,6 +4312,13 @@ class _DietControlViewState extends State<DietControlView> {
     return double.tryParse((value ?? '').toString()) ?? 0;
   }
 
+  double? _toDoubleOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    final parsed = double.tryParse(value.toString().trim());
+    return parsed;
+  }
+
   int _toInt(dynamic value) {
     if (value is num) return value.toInt();
     return int.tryParse((value ?? '').toString()) ?? 0;
@@ -4160,6 +4327,13 @@ class _DietControlViewState extends State<DietControlView> {
   double? _tryParseNumber(String text) {
     return double.tryParse(text.trim().replaceAll(',', '.'));
   }
+}
+
+class _TmbStep1Result {
+  const _TmbStep1Result(this.basalKcal, this.totalEnergyExpenditure);
+
+  final double basalKcal;
+  final double totalEnergyExpenditure;
 }
 
 class _MetricCard extends StatelessWidget {

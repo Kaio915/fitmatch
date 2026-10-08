@@ -10,6 +10,7 @@ import 'diet_control_view.dart';
 import 'edit_student_cadastro_view.dart';
 import '../routes/app_routes.dart';
 import '../widgets/fitmatch_logo.dart';
+import '../widgets/city_autocomplete_field.dart';
 import '../widgets/report_user_dialog.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
@@ -43,7 +44,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   final ScrollController _pageScrollController = ScrollController();
 
   final TextEditingController _searchCtrl = TextEditingController();
-  String _filterMode = 'Todos';
+  String _filterMode = 'Nome';
   List<Map<String, dynamic>> _allTrainers = [];
   List<Map<String, dynamic>> _filteredTrainers = [];
   bool _loadingTrainers = false;
@@ -75,7 +76,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     FocusScope.of(context).unfocus();
     _searchCtrl.clear();
     setState(() {
-      _filterMode = 'Todos';
+      _filterMode = 'Nome';
       _searchHasRun = false;
       _filteredTrainers = [];
     });
@@ -215,6 +216,21 @@ class _StudentDashboardState extends State<StudentDashboard>
         }
       }).toList();
     });
+  }
+
+  void _onSearchFieldChanged(String value) {
+    if (value.trim().isEmpty) {
+      setState(() {
+        _searchHasRun = false;
+        _filteredTrainers = [];
+      });
+      return;
+    }
+    if (!_trainersFetched && !_loadingTrainers) {
+      _loadTrainers();
+    } else {
+      _runSearch();
+    }
   }
 
   DateTime? _parseIsoDateTime(dynamic value) {
@@ -2083,86 +2099,74 @@ class _StudentDashboardState extends State<StudentDashboard>
               ],
             ),
             const SizedBox(height: 16),
-            // Campo de busca
-            TextField(
-              controller: _searchCtrl,
-              onChanged: (v) {
-                if (v.trim().isEmpty) {
-                  setState(() {
-                    _searchHasRun = false;
-                    _filteredTrainers = [];
-                  });
-                  return;
-                }
-                if (!_trainersFetched && !_loadingTrainers) {
-                  _loadTrainers();
-                } else {
-                  _runSearch();
-                }
-              },
-              onSubmitted: (_) {
-                if (!_trainersFetched && !_loadingTrainers) {
-                  _loadTrainers();
-                } else {
-                  _runSearch();
-                }
-              },
-              decoration: InputDecoration(
-                hintText: _filterMode == 'Cidade'
-                    ? 'Buscar por cidade...'
-                    : _filterMode == 'Especialidade'
-                    ? 'Buscar por especialidade...'
-                    : _filterMode == 'Nome'
-                    ? 'Buscar por nome...'
-                    : 'Buscar por nome, especialidade ou cidade...',
-                hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Color(0xFF0B4DBA),
-                  size: 20,
-                ),
-                suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: Colors.black38,
+            // Campo de busca (autocomplete nativo para cidade)
+            _filterMode == 'Cidade'
+                ? CityAutocompleteField(
+                    initialValue: _searchCtrl.text,
+                    onChanged: (value) {
+                      _searchCtrl.text = value;
+                      _onSearchFieldChanged(value);
+                    },
+                  )
+                : TextField(
+                    controller: _searchCtrl,
+                    onChanged: _onSearchFieldChanged,
+                    onSubmitted: (_) =>
+                        _onSearchFieldChanged(_searchCtrl.text),
+                    decoration: InputDecoration(
+                      hintText: _filterMode == 'Especialidade'
+                          ? 'Buscar por especialidade...'
+                          : _filterMode == 'Nome'
+                          ? 'Buscar por nome...'
+                          : 'Buscar por nome, especialidade ou cidade...',
+                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF0B4DBA),
+                        size: 20,
+                      ),
+                      suffixIcon: _searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: Colors.black38,
+                              ),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() {
+                                  _searchHasRun = false;
+                                  _filteredTrainers = [];
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: const Color(0xFFF5F8FF),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 13,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFDDE5F3),
+                          width: 1,
                         ),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() {
-                            _searchHasRun = false;
-                            _filteredTrainers = [];
-                          });
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFFF5F8FF),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 13,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFDDE5F3),
-                    width: 1,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF0B4DBA),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF0B4DBA),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
             const SizedBox(height: 10),
             // Filtros
             LayoutBuilder(
@@ -2174,7 +2178,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                       _runSearch();
                     }),
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'Todos', child: Text('Todos')),
                       PopupMenuItem(value: 'Nome', child: Text('Nome')),
                       PopupMenuItem(value: 'Cidade', child: Text('Cidade')),
                       PopupMenuItem(
@@ -2222,7 +2225,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                   child: Row(
                     children: [
                       for (final filter in const [
-                        'Todos',
                         'Nome',
                         'Cidade',
                         'Especialidade',

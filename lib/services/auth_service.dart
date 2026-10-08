@@ -1421,6 +1421,9 @@ class AuthService {
     required double fatPer100g,
     bool favorite = false,
     bool custom = true,
+    String? servingDescription,
+    double? servingAmountGrams,
+    String? servingUnit,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/foods'),
@@ -1433,6 +1436,9 @@ class AuthService {
         'fatPer100g': fatPer100g,
         'favorite': favorite,
         'custom': custom,
+        'servingDescription': servingDescription,
+        'servingAmountGrams': servingAmountGrams,
+        'servingUnit': servingUnit,
       }),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -1591,6 +1597,7 @@ class AuthService {
     required String mealType,
     required double quantityGrams,
     required String dateIso,
+    String unit = 'g',
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/entries'),
@@ -1600,6 +1607,7 @@ class AuthService {
         'mealType': mealType,
         'quantityGrams': quantityGrams,
         'date': dateIso,
+        'unit': unit,
       }),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
@@ -1643,10 +1651,12 @@ class AuthService {
     required int entryId,
     required double quantityGrams,
     required String scope, // 'TODAY' | 'FUTURE' | 'ALL'
+    String unit = 'g',
   }) async {
     final body = <String, dynamic>{
       'quantityGrams': quantityGrams,
       'scope': scope,
+      'unit': unit,
     };
     final res = await http.patch(
       Uri.parse('$_baseUrl/diet/$userId/entries/$entryId/quantity'),
