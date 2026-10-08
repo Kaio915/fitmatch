@@ -40,13 +40,9 @@ class _DietControlViewState extends State<DietControlView> {
     'Ceia',
   ];
 
-  static const List<String> _quantityUnits = [
+  static const List<String> _baseQuantityUnits = [
     'g',
     'ml',
-    'unidade(s)',
-    'porção',
-    'fatia(s)',
-    'colher(es)',
   ];
 
   DateTime _selectedDate = DateTime.now();
@@ -85,6 +81,7 @@ class _DietControlViewState extends State<DietControlView> {
     text: '100',
   );
   String _quantityUnit = 'g';
+  List<Map<String, dynamic>> _selectedServings = [];
   Timer? _foodSearchDebounce;
 
   List<Map<String, dynamic>> _foodSuggestions = [];
@@ -880,8 +877,10 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
+    final editServings = _extractServings(entry);
+    final editUnitChoices = _buildUnitChoices(editServings);
     String selectedUnit = (entry['unit'] ?? 'g').toString();
-    if (!_quantityUnits.contains(selectedUnit)) selectedUnit = 'g';
+    if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -913,12 +912,12 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                     const SizedBox(width: 8),
                     DropdownButton<String>(
-                      value: _quantityUnits.contains(selectedUnit)
+                      value: editUnitChoices.contains(selectedUnit)
                           ? selectedUnit
                           : 'g',
                       underline: const SizedBox.shrink(),
                       borderRadius: BorderRadius.circular(8),
-                      items: _quantityUnits
+                      items: editUnitChoices
                           .map(
                             (u) => DropdownMenuItem(
                               value: u,
@@ -2399,14 +2398,21 @@ class _DietControlViewState extends State<DietControlView> {
     final selectedId = _toInt(food['id']);
     final source = (food['source'] ?? '').toString().toLowerCase();
     final isLocal = selectedId > 0 && source == 'local';
+    final servings = _extractServings(food);
 
     setState(() {
       _selectedFoodId = isLocal ? selectedId : null;
       _selectedExternalFood = isLocal ? null : Map<String, dynamic>.from(food);
+      _selectedServings = servings;
       _foodSearchCtrl.text = (food['name'] ?? '').toString();
       _showFoodSuggestions = false;
       _foodSuggestions = [];
       _searchingFoods = false;
+      // Ao trocar de alimento, evita manter uma porção inválida do alimento
+      // anterior selecionada.
+      if (!_quantityUnitChoices.contains(_quantityUnit)) {
+        _quantityUnit = 'g';
+      }
     });
   }
 
@@ -2498,6 +2504,7 @@ class _DietControlViewState extends State<DietControlView> {
     final servingDescription = (food['servingDescription'] ?? '').toString();
     final servingAmountGrams = _toDoubleOrNull(food['servingAmountGrams']);
     final servingUnit = (food['servingUnit'] ?? '').toString();
+    final servings = _extractServings(food);
 
     if (caloriesPer100g <= 0) {
       throw Exception('Calorias inválidas para cadastrar esse alimento.');
@@ -2515,6 +2522,7 @@ class _DietControlViewState extends State<DietControlView> {
         servingDescription: servingDescription.isEmpty ? null : servingDescription,
         servingAmountGrams: servingAmountGrams,
         servingUnit: servingUnit.isEmpty ? null : servingUnit,
+        servings: servings.isEmpty ? null : servings,
       );
       return _toInt(created['id']);
     } catch (e) {
@@ -2608,13 +2616,63 @@ class _DietControlViewState extends State<DietControlView> {
     return _entrySignature(mealType, entry);
   }
 
+  /// Opções do dropdown de unidade: "g"/"ml" + as descrições das porções
+  /// reais retornadas pela FatSecret para o alimento selecionado.
+  List<String> get _quantityUnitChoices => _buildUnitChoices(_selectedServings);
+
+  List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
+    final units = <String>[..._baseQuantityUnits];
+    for (final s in servings) {
+      final label = (s['description'] ?? '').toString().trim();
+      if (label.isNotEmpty && !units.contains(label)) {
+        units.add(label);
+      }
+    }
+    return units;
+  }
+
+  Map<String, dynamic>? _servingFromFoodByLabel(
+    Map<String, dynamic> food,
+    String label,
+  ) {
+    final normalized = label.trim().toLowerCase();
+    for (final s in _extractServings(food)) {
+      final desc = (s['description'] ?? '').toString().trim().toLowerCase();
+      if (desc == normalized) return s;
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _extractServings(Map<String, dynamic> food) {
+    final raw = food['servings'];
+    if (raw is! List) return const [];
+    final result = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      if (item is Map<String, dynamic>) {
+        result.add(item);
+      } else if (item is Map) {
+        result.add(Map<String, dynamic>.from(item));
+      }
+    }
+    return result;
+  }
+
+  String _servingMacroKey(String key) {
+    switch (key) {
+      case 'caloriesPer100g':
+        return 'calories';
+      case 'proteinPer100g':
+        return 'protein';
+      case 'carbsPer100g':
+        return 'carbs';
+      case 'fatPer100g':
+        return 'fat';
+      default:
+        return key;
+    }
+  }
+
   /// Converte a quantidade informada (na unidade selecionada) para gramas.
-  ///
-  /// Regra de ouro:
-  /// - 'g' e 'ml' são tratados como massa/volume equivalente (1 ml ≈ 1 g).
-  /// - 'unidade(s)', 'porção', 'fatia(s)' e 'colher(es)' multiplicam a
-  ///   quantidade pelo peso daquela unidade (`servingAmountGrams`).
-  ///   Ex.: 1 unidade de ovo = 50 g, em vez de assumir 1 g.
   double _gramsForQuantity(
     Map<String, dynamic> food,
     double quantity,
@@ -2625,7 +2683,12 @@ class _DietControlViewState extends State<DietControlView> {
       return quantity;
     }
 
-    final servingGrams = _toDoubleOrNull(food['servingAmountGrams']);
+    // Porção específica: usa o peso em gramas daquela porção (ex.: 1 unidade
+    // de ovo = 50 g), em vez de assumir 1 g.
+    final serving = _servingFromFoodByLabel(food, unit);
+    final servingGrams = serving != null
+        ? _toDoubleOrNull(serving['amountGrams'])
+        : _toDoubleOrNull(food['servingAmountGrams']);
     if (servingGrams != null && servingGrams > 0) {
       return quantity * servingGrams;
     }
@@ -2634,10 +2697,33 @@ class _DietControlViewState extends State<DietControlView> {
     return quantity;
   }
 
+  /// Recalcula um macro conforme o texto e o dropdown mudam.
+  ///
+  /// - Cenário A ("g"/"ml"): (macros de 100g / 100) * quantidade digitada.
+  /// - Cenário B (porção específica): macros daquela porção * quantidade; se a
+  ///   porção não tiver macros prontos, converte pelo peso em gramas da unidade.
   double _macroForQty(String key) {
     final selected = _resolveFoodFromTypedText();
     if (selected == null) return 0;
     final qty = _tryParseNumber(_quantityCtrl.text) ?? 0;
+
+    final unit = _quantityUnit.trim().toLowerCase();
+    if (unit == 'g' || unit == 'ml') {
+      return (_toDouble(selected[key]) / 100) * qty;
+    }
+
+    final serving = _servingFromFoodByLabel(selected, _quantityUnit);
+    if (serving != null) {
+      final servingMacro = _toDoubleOrNull(serving[_servingMacroKey(key)]);
+      if (servingMacro != null && servingMacro > 0) {
+        return servingMacro * qty;
+      }
+      final amountGrams = _toDoubleOrNull(serving['amountGrams']);
+      if (amountGrams != null && amountGrams > 0) {
+        return (_toDouble(selected[key]) / 100) * (qty * amountGrams);
+      }
+    }
+
     final grams = _gramsForQuantity(selected, qty, _quantityUnit);
     return (_toDouble(selected[key]) * grams) / 100;
   }
@@ -3715,12 +3801,12 @@ class _DietControlViewState extends State<DietControlView> {
                           ),
                           const SizedBox(width: 8),
                           DropdownButton<String>(
-                            value: _quantityUnits.contains(_quantityUnit)
+                            value: _quantityUnitChoices.contains(_quantityUnit)
                                 ? _quantityUnit
                                 : 'g',
                             underline: const SizedBox.shrink(),
                             borderRadius: BorderRadius.circular(8),
-                            items: _quantityUnits
+                            items: _quantityUnitChoices
                                 .map(
                                   (u) => DropdownMenuItem(
                                     value: u,

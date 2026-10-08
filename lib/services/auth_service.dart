@@ -1424,6 +1424,7 @@ class AuthService {
     String? servingDescription,
     double? servingAmountGrams,
     String? servingUnit,
+    List<Map<String, dynamic>>? servings,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/diet/$userId/foods'),
@@ -1439,6 +1440,7 @@ class AuthService {
         'servingDescription': servingDescription,
         'servingAmountGrams': servingAmountGrams,
         'servingUnit': servingUnit,
+        'servings': servings,
       }),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
