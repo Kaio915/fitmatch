@@ -10,6 +10,52 @@ import '../core/objective_options.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
+/// Dicionário de substituição simples para traduzir termos comuns de unidade
+/// que a FatSecret retorna em inglês no `serving_description`, mesmo quando a
+/// requisição usa `language=pt`. Aplicado antes de exibir a porção no dropdown.
+const Map<String, String> _servingEnToPt = {
+  'NS as to size': 'tamanho não especificado',
+  'extra large': 'extra grande',
+  'tablespoon': 'colher de sopa',
+  'tablespoons': 'colheres de sopa',
+  'teaspoon': 'colher de chá',
+  'teaspoons': 'colheres de chá',
+  'large': 'grande',
+  'medium': 'médio',
+  'small': 'pequeno',
+  'tbsp': 'colher de sopa',
+  'tsp': 'colher de chá',
+  'cup': 'xícara',
+  'cups': 'xícaras',
+  'slice': 'fatia',
+  'slices': 'fatias',
+  'piece': 'pedaço',
+  'pieces': 'pedaços',
+  'serving': 'porção',
+  'servings': 'porções',
+  'oz': 'onças (oz)',
+  'ounce': 'onça',
+  'ounces': 'onças',
+  'egg': 'ovo',
+  'eggs': 'ovos',
+};
+
+/// Traduz/re-substitui os termos de unidade em inglês por seus equivalentes em
+/// português. Termos mais longos são aplicados primeiro (ex.: "extra large").
+String _translateServingDescription(String description) {
+  if (description.trim().isEmpty) return description;
+  var result = description;
+  final entries = _servingEnToPt.entries.toList()
+    ..sort((a, b) => b.key.length.compareTo(a.key.length));
+  for (final entry in entries) {
+    result = result.replaceAll(
+      RegExp(r'\b' + RegExp.escape(entry.key) + r'\b', caseSensitive: false),
+      entry.value,
+    );
+  }
+  return result;
+}
+
 class DietControlView extends StatefulWidget {
   final int userId;
   final String userName;
@@ -2623,7 +2669,8 @@ class _DietControlViewState extends State<DietControlView> {
   List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
     final units = <String>[..._baseQuantityUnits];
     for (final s in servings) {
-      final label = (s['description'] ?? '').toString().trim();
+      final raw = (s['description'] ?? '').toString().trim();
+      final label = _translateServingDescription(raw).trim();
       if (label.isNotEmpty && !units.contains(label)) {
         units.add(label);
       }
@@ -2635,9 +2682,11 @@ class _DietControlViewState extends State<DietControlView> {
     Map<String, dynamic> food,
     String label,
   ) {
-    final normalized = label.trim().toLowerCase();
+    final normalized = _translateServingDescription(label).trim().toLowerCase();
     for (final s in _extractServings(food)) {
-      final desc = (s['description'] ?? '').toString().trim().toLowerCase();
+      final desc = _translateServingDescription(
+        (s['description'] ?? '').toString(),
+      ).trim().toLowerCase();
       if (desc == normalized) return s;
     }
     return null;
