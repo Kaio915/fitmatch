@@ -12,7 +12,7 @@ import '../widgets/logout_confirmation_dialog.dart';
 
 // A unidade de medida agora usa uma lista estática (hardcoded) de opções
 // limpas, definida em `_quantityUnits` no estado de `DietControlView`. O peso
-// real (Unidade Lógica) é resolvido em `_weightPerUnitInGrams`.
+// real (Unidade Lógica) é resolvido em `_pesoTotalEmGramas`.
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -2622,45 +2622,52 @@ class _DietControlViewState extends State<DietControlView> {
 
   /// Lista estática de unidades visuais exibidas no dropdown. A unidade que o
   /// usuário enxerga (Unidade Visual) é separada do peso real em gramas usado
-  /// na matemática (Unidade Lógica) — ver [_weightPerUnitInGrams].
+  /// na matemática (Unidade Lógica) — ver [_pesoTotalEmGramas].
   List<String> get _quantityUnitChoices => _quantityUnits;
 
-  /// Peso (em gramas) de 1 unidade da opção selecionada no dropdown estático.
+  /// Converte a quantidade digitada para o peso total em gramas, aplicando a
+  /// Regra de 3 conforme a unidade selecionada no dropdown estático:
   ///
-  /// - "g" e "ml": 1 (peso/volume livre, 1 ml ≈ 1 g).
+  /// - "g" e "ml": peso/volume livre (1 ml ≈ 1 g).
   /// - "colher de sopa": 15 g (padrão nutricional).
-  /// - "unidade(s)", "porção" e "fatia(s)": peso da porção padrão informado
-  ///   pela API (FatSecret `metric_serving_amount`/`servingAmountGrams` ou a
-  ///   base da TACO). Se a API não informar, fallback seguro de 100 g.
-  double _weightPerUnitInGrams(Map<String, dynamic> food, String unit) {
-    final normalized = unit.trim().toLowerCase();
-    switch (normalized) {
+  /// - "unidade(s)", "porção" e "fatia(s)": quantidade × peso da porção padrão.
+  double _pesoTotalEmGramas(
+    Map<String, dynamic> food,
+    double quantidadeDigitada,
+  ) {
+    switch (_quantityUnit.trim().toLowerCase()) {
       case 'g':
       case 'ml':
-        return 1;
+        return quantidadeDigitada;
       case 'colher de sopa':
-        return 15;
+        return quantidadeDigitada * 15;
       case 'unidade(s)':
       case 'porção':
       case 'fatia(s)':
-        return _defaultServingWeightGrams(food);
+        return quantidadeDigitada * _pesoDaPorcaoPadrao(food);
       default:
         // Unidade legada (descrição dinâmica antiga, ex.: "1 unidade").
-        return _legacyServingWeightGrams(food, unit);
+        return quantidadeDigitada * _legacyServingWeightGrams(food, _quantityUnit);
     }
   }
 
-  /// Peso da porção padrão (em gramas) vindo da API.
-  double _defaultServingWeightGrams(Map<String, dynamic> food) {
-    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
-    if (servingAmount != null && servingAmount > 0) return servingAmount;
-
+  /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
+  /// pela API.
+  ///
+  /// Prioriza o array `servings` (peso real da unidade/porção, ex.: "1 ovo" =
+  /// 50 g), pois `servingAmountGrams` costuma ser a base "100 g" da descrição.
+  /// Se a API não informar o peso daquela unidade específica, aplica um fallback
+  /// de segurança de 50 g.
+  double _pesoDaPorcaoPadrao(Map<String, dynamic> food) {
     for (final s in _extractServings(food)) {
       final amount = _toDoubleOrNull(s['amountGrams']);
       if (amount != null && amount > 0) return amount;
     }
 
-    return 100; // fallback seguro
+    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
+    if (servingAmount != null && servingAmount > 0) return servingAmount;
+
+    return 50; // fallback de segurança
   }
 
   /// Mantém o cálculo correto para entradas antigas salvas com a descrição
@@ -2692,20 +2699,19 @@ class _DietControlViewState extends State<DietControlView> {
     return result;
   }
 
-  /// Recalcula um macro conforme o texto e o dropdown mudam.
+  /// Recalcula um macro conforme o texto e o dropdown mudam, aplicando a
+  /// Regra de 3 exata:
   ///
-  /// Fórmula estrita (base do banco = 100 g):
-  ///   Multiplicador Final = (Quantidade_Digitada * peso_da_unidade_em_gramas) / 100
-  ///   Macro_Exibido = Macro_Base_100g * Multiplicador Final
+  ///   pesoTotalEmGramas = quantidadeDigitada × pesoDaUnidade (conforme dropdown)
+  ///   macroFinal = (pesoTotalEmGramas / 100) × macroBasePor100g
   double _macroForQty(String key) {
     final selected = _resolveFoodFromTypedText();
     if (selected == null) return 0;
-    final qty = _tryParseNumber(_quantityCtrl.text) ?? 0;
 
-    final weightPerUnit = _weightPerUnitInGrams(selected, _quantityUnit);
-    final multiplier = (qty * weightPerUnit) / 100;
+    final quantidadeDigitada = _tryParseNumber(_quantityCtrl.text) ?? 0;
+    final pesoTotalEmGramas = _pesoTotalEmGramas(selected, quantidadeDigitada);
 
-    return _toDouble(selected[key]) * multiplier;
+    return (pesoTotalEmGramas / 100) * _toDouble(selected[key]);
   }
 
   double get _previewCalories => _macroForQty('caloriesPer100g');
