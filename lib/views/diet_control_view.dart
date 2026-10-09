@@ -7,12 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_refresh_notifier.dart';
 import '../core/objective_options.dart';
+import '../core/serving_units.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
-// A unidade de medida agora usa uma lista estática (hardcoded) de opções
-// limpas, definida em `_quantityUnits` no estado de `DietControlView`. O peso
-// real (Unidade Lógica) é resolvido em `_pesoTotalEmGramas`.
+// O dropdown de unidades é dinâmico: sempre parte das opções base "g" e "ml" e
+// acrescenta as porções reais do alimento selecionado (`servings`), traduzidas
+// e limpas via `lib/core/serving_units.dart`. As unidades genéricas
+// (`_quantityUnits`) permanecem como fallback. O peso real (Unidade Lógica) é
+// resolvido em `_pesoTotalEmGramas`.
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -912,8 +915,10 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
-    final editUnitChoices = _quantityUnits;
-    String selectedUnit = (entry['unit'] ?? 'g').toString();
+    final editUnitChoices = _buildUnitChoices(_extractServings(entry));
+    String selectedUnit = normalizeServingDescription(
+      (entry['unit'] ?? 'g').toString(),
+    );
     if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
 
     final confirmed = await showDialog<bool>(
@@ -2328,6 +2333,9 @@ class _DietControlViewState extends State<DietControlView> {
         _searchingFoods = false;
         _selectedFoodId = null;
         _selectedExternalFood = null;
+        // Ao trocar o alimento, reinicia a unidade para "g" e evita manter
+        // uma porção específica do alimento anterior selecionada.
+        _quantityUnit = 'g';
       });
       return;
     }
@@ -2353,6 +2361,9 @@ class _DietControlViewState extends State<DietControlView> {
       _searchingFoods = true;
       _selectedFoodId = null;
       _selectedExternalFood = null;
+      // Ao trocar o alimento, reinicia a unidade para "g" e evita manter
+      // uma porção específica do alimento anterior selecionada.
+      _quantityUnit = 'g';
     });
 
     _foodSearchDebounce = Timer(
@@ -2655,13 +2666,40 @@ class _DietControlViewState extends State<DietControlView> {
     return _entrySignature(mealType, entry);
   }
 
-  /// Lista estática de unidades visuais exibidas no dropdown. A unidade que o
-  /// usuário enxerga (Unidade Visual) é separada do peso real em gramas usado
-  /// na matemática (Unidade Lógica) — ver [_pesoTotalEmGramas].
-  List<String> get _quantityUnitChoices => _quantityUnits;
+  /// Unidades exibidas no dropdown de forma dinâmica, específicas para o
+  /// alimento selecionado.
+  ///
+  /// Sempre garante as opções base "g" e "ml" e acrescenta as porções reais
+  /// retornadas pela API/base (`servings`), traduzidas e limpas. As unidades
+  /// genéricas ("unidade(s)", "fatia(s)", "colher de sopa") permanecem como
+  /// fallback para alimentos sem porções específicas cadastradas.
+  List<String> get _quantityUnitChoices {
+    final food = _resolveFoodFromTypedText();
+    return _buildUnitChoices(food == null ? const [] : _extractServings(food));
+  }
+
+  /// Monta a lista de unidades do dropdown: sempre "g" e "ml" como base, mais
+  /// as porções específicas do alimento (traduzidas/limpas) e, por fim, as
+  /// unidades genéricas como fallback.
+  List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
+    final choices = <String>['g', 'ml'];
+    for (final serving in servings) {
+      final label = normalizeServingDescription(
+        (serving['description'] ?? '').toString(),
+      );
+      if (label.isNotEmpty && !choices.contains(label)) {
+        choices.add(label);
+      }
+    }
+    for (final unit in _quantityUnits) {
+      if (!choices.contains(unit)) choices.add(unit);
+    }
+    return choices;
+  }
 
   /// Converte a quantidade digitada para o peso total em gramas, aplicando a
-  /// Regra de 3 conforme a unidade selecionada no dropdown estático:
+  /// Regra de 3 conforme a unidade selecionada no dropdown (dinâmico por
+  /// alimento):
   ///
   /// - "g" e "ml": peso/volume livre (1 ml ≈ 1 g).
   /// - "colher de sopa": 15 g (padrão nutricional).
@@ -2748,9 +2786,9 @@ class _DietControlViewState extends State<DietControlView> {
   /// Mantém o cálculo correto para entradas antigas salvas com a descrição
   /// dinâmica da porção no campo `unit`.
   double _legacyServingWeightGrams(Map<String, dynamic> food, String unit) {
-    final normalized = unit.trim().toLowerCase();
+    final normalized = normalizeServingDescription(unit).toLowerCase();
     for (final s in _extractServings(food)) {
-      final desc = (s['description'] ?? '').toString().trim().toLowerCase();
+      final desc = (s['description'] ?? '').toString().toLowerCase();
       if (desc == normalized) {
         final amount = _toDoubleOrNull(s['amountGrams']);
         if (amount != null && amount > 0) return amount;
@@ -2769,11 +2807,14 @@ class _DietControlViewState extends State<DietControlView> {
     if (raw is! List) return const [];
     final result = <Map<String, dynamic>>[];
     for (final item in raw) {
-      if (item is Map<String, dynamic>) {
-        result.add(item);
-      } else if (item is Map) {
-        result.add(Map<String, dynamic>.from(item));
+      if (item is! Map) continue;
+      final serving = Map<String, dynamic>.from(item);
+      final description = (serving['description'] ?? '').toString();
+      final normalized = normalizeServingDescription(description);
+      if (normalized.isNotEmpty) {
+        serving['description'] = normalized;
       }
+      result.add(serving);
     }
     return result;
   }
