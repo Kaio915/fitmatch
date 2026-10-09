@@ -2667,7 +2667,7 @@ class _DietControlViewState extends State<DietControlView> {
   /// 2. Campo `servingAmountGrams` (peso da porção padrão do `food_description`).
   /// 3. Porção marcada como padrão no array `servings`.
   /// 4. Primeira porção com peso válido no array `servings`.
-  /// 5. Fallback final de 100 g.
+  /// 5. Fallback final de 50 g (≈ 1 unidade/porção desconhecida).
   double _pesoDaPorcaoPadrao(Map<String, dynamic> food) {
     final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
     if (defaultServing != null && defaultServing > 0) return defaultServing;
@@ -2687,7 +2687,7 @@ class _DietControlViewState extends State<DietControlView> {
       if (amount != null && amount > 0) return amount;
     }
 
-    return 100; // último caso: assume 100 g como porção padrão
+    return 50; // fallback seguro: unidade/porção desconhecida ≈ 50 g
   }
 
   /// Mantém o cálculo correto para entradas antigas salvas com a descrição
