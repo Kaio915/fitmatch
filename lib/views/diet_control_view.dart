@@ -2429,6 +2429,8 @@ class _DietControlViewState extends State<DietControlView> {
         return 'Já cadastrado';
       case 'fatsecret':
         return 'FatSecret';
+      case 'taco':
+        return 'TACO';
       case 'openfoodfacts':
       case 'open food facts':
         return 'Open Food Facts';
@@ -2438,6 +2440,9 @@ class _DietControlViewState extends State<DietControlView> {
         return source[0].toUpperCase() + source.substring(1);
     }
   }
+
+  bool _isTacoSource(dynamic rawSource) =>
+      (rawSource?.toString().trim().toLowerCase() ?? '') == 'taco';
 
   Map<String, dynamic>? _resolveFoodFromTypedText() {
     final query = _foodSearchCtrl.text.trim().toLowerCase();
@@ -3740,8 +3745,32 @@ class _DietControlViewState extends State<DietControlView> {
                                         );
                                         return ListTile(
                                           dense: true,
-                                          title: Text(
-                                            (food['name'] ?? '').toString(),
+                                          title: Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  (food['name'] ?? '').toString(),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (_isTacoSource(food['source'])) ...[
+                                                const SizedBox(width: 6),
+                                                const Icon(
+                                                  Icons.verified,
+                                                  size: 16,
+                                                  color: Color(0xFF059669),
+                                                ),
+                                                const SizedBox(width: 2),
+                                                const Text(
+                                                  'TACO',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF059669),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                           subtitle: Text(
                                             '${_toDouble(food['caloriesPer100g']).toStringAsFixed(0)} kcal/100g • '
