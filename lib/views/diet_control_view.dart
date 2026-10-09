@@ -2514,6 +2514,7 @@ class _DietControlViewState extends State<DietControlView> {
     final servingAmountGrams = _toDoubleOrNull(food['servingAmountGrams']);
     final servingUnit = (food['servingUnit'] ?? '').toString();
     final servings = _extractServings(food);
+    final defaultServingGrams = _toDoubleOrNull(food['defaultServingGrams']);
 
     if (caloriesPer100g <= 0) {
       throw Exception('Calorias inválidas para cadastrar esse alimento.');
@@ -2532,6 +2533,7 @@ class _DietControlViewState extends State<DietControlView> {
         servingAmountGrams: servingAmountGrams,
         servingUnit: servingUnit.isEmpty ? null : servingUnit,
         servings: servings.isEmpty ? null : servings,
+        defaultServingGrams: defaultServingGrams,
       );
       return _toInt(created['id']);
     } catch (e) {
@@ -2657,22 +2659,35 @@ class _DietControlViewState extends State<DietControlView> {
   }
 
   /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
-  /// pela API.
+  /// pela API/base. Representa o "peso unitário oficial" (`pesoPorcao`) usado na
+  /// Regra de 3 para as unidades "unidade(s)", "porção" e "fatia(s)".
   ///
-  /// Prioriza o array `servings` (peso real da unidade/porção, ex.: "1 ovo" =
-  /// 50 g), pois `servingAmountGrams` costuma ser a base "100 g" da descrição.
-  /// Se a API não informar o peso daquela unidade específica, aplica um fallback
-  /// de segurança de 50 g.
+  /// Prioridade:
+  /// 1. Campo `defaultServingGrams` (peso oficial da porção vindo da API).
+  /// 2. Campo `servingAmountGrams` (peso da porção padrão do `food_description`).
+  /// 3. Porção marcada como padrão no array `servings`.
+  /// 4. Primeira porção com peso válido no array `servings`.
+  /// 5. Fallback final de 100 g.
   double _pesoDaPorcaoPadrao(Map<String, dynamic> food) {
+    final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
+    if (defaultServing != null && defaultServing > 0) return defaultServing;
+
+    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
+    if (servingAmount != null && servingAmount > 0) return servingAmount;
+
+    for (final s in _extractServings(food)) {
+      if (s['isDefault'] == true) {
+        final amount = _toDoubleOrNull(s['amountGrams']);
+        if (amount != null && amount > 0) return amount;
+      }
+    }
+
     for (final s in _extractServings(food)) {
       final amount = _toDoubleOrNull(s['amountGrams']);
       if (amount != null && amount > 0) return amount;
     }
 
-    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
-    if (servingAmount != null && servingAmount > 0) return servingAmount;
-
-    return 50; // fallback de segurança
+    return 100; // último caso: assume 100 g como porção padrão
   }
 
   /// Mantém o cálculo correto para entradas antigas salvas com a descrição
@@ -2687,6 +2702,10 @@ class _DietControlViewState extends State<DietControlView> {
         break;
       }
     }
+    final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
+    if (defaultServing != null && defaultServing > 0) return defaultServing;
+    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
+    if (servingAmount != null && servingAmount > 0) return servingAmount;
     return 1; // comportamento legado: mantém o valor informado
   }
 
