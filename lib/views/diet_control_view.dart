@@ -53,6 +53,35 @@ class _DietControlViewState extends State<DietControlView> {
     'colher de sopa',
   ];
 
+  // Palavras-chave (sem acento) usadas para detectar combinações
+  // alimento + unidade atípicas e orientar o usuário com um aviso.
+
+  /// Alimentos sólidos: não costumam ser medidos em "ml".
+  static const List<String> _solidFoodKeywords = [
+    'pao', 'paozinho', 'paes', 'carne', 'frango', 'arroz', 'feijao',
+    'ovo', 'ovos', 'bife', 'file', 'peixe', 'macarrao', 'massa', 'queijo',
+    'batata', 'pizza', 'hamburguer', 'sanduiche', 'maca', 'banana', 'bolo',
+    'torta', 'torrada', 'biscoito', 'bolacha', 'legume', 'verdura', 'fruta',
+    'cereal', 'granola', 'aveia', 'farinha', 'lentilha', 'quinoa', 'grao',
+    'castanha', 'amendoim', 'noz',
+  ];
+
+  /// Alimentos em peça inteira/fatia: não costumam ser medidos em
+  /// "colher de sopa".
+  static const List<String> _wholeOrSliceFoodKeywords = [
+    'pao', 'paozinho', 'paes', 'file', 'frango', 'maca', 'banana', 'ovo',
+    'ovos', 'bife', 'peixe', 'pizza', 'torrada', 'fatia', 'hamburguer',
+    'sanduiche', 'bolo',
+  ];
+
+  /// Líquidos ou grãos soltos: não costumam ser medidos em "fatia(s)".
+  static const List<String> _liquidOrLooseGrainKeywords = [
+    'leite', 'oleo', 'azeite', 'agua', 'suco', 'refrigerante', 'cafe',
+    'cha', 'iogurte', 'molho', 'bebida', 'arroz', 'feijao', 'aveia',
+    'farinha', 'acucar', 'lentilha', 'quinoa', 'granola', 'cereal', 'grao',
+    'mel', 'vinagre', 'extrato',
+  ];
+
   DateTime _selectedDate = DateTime.now();
   bool _loading = true;
   bool _loadingDay = false;
@@ -2743,6 +2772,92 @@ class _DietControlViewState extends State<DietControlView> {
   double get _previewCarbs => _macroForQty('carbsPer100g');
   double get _previewFat => _macroForQty('fatPer100g');
 
+  /// Normaliza o nome do alimento removendo acentos e deixando em minúsculas,
+  /// para comparar com as palavras-chave (ex.: "Pão de Forma" → "pao de forma").
+  String _normalizeFoodName(String raw) {
+    const accents = 'áàâãäéèêëíìîïóòôõöúùûüç';
+    const plain = 'aaaaaeeeeiiiiooooouuuuc';
+    final lower = raw.trim().toLowerCase();
+    final buffer = StringBuffer();
+    for (var i = 0; i < lower.length; i++) {
+      final ch = lower[i];
+      final idx = accents.indexOf(ch);
+      buffer.write(idx >= 0 ? plain[idx] : ch);
+    }
+    return buffer.toString();
+  }
+
+  /// Faz match por palavra inteira para evitar falsos positivos
+  /// (ex.: "sal" não deve casar com "salsicha" ou "salmão").
+  bool _matchesFoodKeyword(String name, String keyword) {
+    return RegExp('\\b${RegExp.escape(keyword)}\\b').hasMatch(name);
+  }
+
+  bool _matchesAnyFoodKeyword(String name, List<String> keywords) {
+    return keywords.any((k) => _matchesFoodKeyword(name, k));
+  }
+
+  /// Verifica se a combinação [nome do alimento] + [unidade selecionada] é
+  /// atípica/incomum, sinalizando que os valores calculados podem ser
+  /// imprecisos.
+  bool _hasUnusualUnit(Map<String, dynamic> food) {
+    final name = _normalizeFoodName((food['name'] ?? '').toString());
+    if (name.isEmpty) return false;
+
+    switch (_quantityUnit.trim().toLowerCase()) {
+      case 'ml':
+        // Sólidos medidos em "ml" são atípicos.
+        return _matchesAnyFoodKeyword(name, _solidFoodKeywords);
+      case 'colher de sopa':
+        // Peças inteiras/fatias medidas em colher são atípicas.
+        return _matchesAnyFoodKeyword(name, _wholeOrSliceFoodKeywords);
+      case 'fatia(s)':
+        // Líquidos ou grãos soltos medidos em fatias são atípicos.
+        return _matchesAnyFoodKeyword(name, _liquidOrLooseGrainKeywords);
+      default:
+        return false;
+    }
+  }
+
+  /// Resolve o alimento atualmente selecionado no formulário e retorna se a
+  /// unidade escolhida é atípica para ele (controla a exibição do aviso).
+  bool get _showUnusualUnitWarning {
+    final selected = _resolveFoodFromTypedText();
+    return selected != null && _hasUnusualUnit(selected);
+  }
+
+  /// Aviso exibido no painel de calorias quando a unidade é atípica para o
+  /// alimento (ex.: pão em "ml", leite em "fatia(s)").
+  Widget _buildUnusualUnitWarning() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFFDBA74)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFEA580C)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Atenção: Esta unidade de medida pode não ser comum para este alimento. Os valores podem ser imprecisos.',
+              style: TextStyle(
+                color: Color(0xFF9A3412),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -3914,6 +4029,10 @@ class _DietControlViewState extends State<DietControlView> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (_showUnusualUnitWarning) ...[
+                            const SizedBox(height: 10),
+                            _buildUnusualUnitWarning(),
+                          ],
                         ],
                       ),
                     ),
