@@ -48,7 +48,6 @@ class _DietControlViewState extends State<DietControlView> {
     'g',
     'ml',
     'unidade(s)',
-    'porção',
     'fatia(s)',
     'colher de sopa',
   ];
@@ -2666,21 +2665,25 @@ class _DietControlViewState extends State<DietControlView> {
   ///
   /// - "g" e "ml": peso/volume livre (1 ml ≈ 1 g).
   /// - "colher de sopa": 15 g (padrão nutricional).
-  /// - "unidade(s)", "porção" e "fatia(s)": quantidade × peso da porção padrão.
+  /// - "unidade(s)" e "fatia(s)": quantidade × peso da porção padrão.
   double _pesoTotalEmGramas(
     Map<String, dynamic> food,
     double quantidadeDigitada,
   ) {
-    switch (_quantityUnit.trim().toLowerCase()) {
+    final unit = _quantityUnit.trim().toLowerCase();
+    switch (unit) {
       case 'g':
       case 'ml':
         return quantidadeDigitada;
       case 'colher de sopa':
         return quantidadeDigitada * 15;
       case 'unidade(s)':
-      case 'porção':
       case 'fatia(s)':
-        return quantidadeDigitada * _pesoDaPorcaoPadrao(food);
+        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
+      case 'porção':
+        // Opção removida do dropdown, mas mantida por compatibilidade com
+        // entradas antigas salvas com a unidade "porção".
+        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, 'porção');
       default:
         // Unidade legada (descrição dinâmica antiga, ex.: "1 unidade").
         return quantidadeDigitada * _legacyServingWeightGrams(food, _quantityUnit);
@@ -2689,15 +2692,15 @@ class _DietControlViewState extends State<DietControlView> {
 
   /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
   /// pela API/base. Representa o "peso unitário oficial" (`pesoPorcao`) usado na
-  /// Regra de 3 para as unidades "unidade(s)", "porção" e "fatia(s)".
+  /// Regra de 3 para as unidades "unidade(s)" e "fatia(s)".
   ///
   /// Prioridade:
   /// 1. Campo `defaultServingGrams` (peso oficial da porção vindo da API).
   /// 2. Campo `servingAmountGrams` (peso da porção padrão do `food_description`).
   /// 3. Porção marcada como padrão no array `servings`.
   /// 4. Primeira porção com peso válido no array `servings`.
-  /// 5. Fallback final de 50 g (≈ 1 unidade/porção desconhecida).
-  double _pesoDaPorcaoPadrao(Map<String, dynamic> food) {
+  /// 5. Fallback inteligente por nome de alimento e unidade (nunca iguais).
+  double _pesoDaPorcaoPadrao(Map<String, dynamic> food, String unit) {
     final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
     if (defaultServing != null && defaultServing > 0) return defaultServing;
 
@@ -2716,7 +2719,30 @@ class _DietControlViewState extends State<DietControlView> {
       if (amount != null && amount > 0) return amount;
     }
 
-    return 50; // fallback seguro: unidade/porção desconhecida ≈ 50 g
+    return _fallbackServingWeightGrams(food, unit);
+  }
+
+  /// Fallback inteligente baseado no nome do alimento, usado somente quando a
+  /// API/base não informa o peso oficial da porção (`null`).
+  ///
+  /// Garante que "fatia(s)" e "unidade(s)" nunca fiquem com o mesmo peso
+  /// genérico para alimentos diferentes:
+  /// - fatia(s): bolo/torta = 60 g, pão/queijo = 25 g, demais = 30 g.
+  /// - unidade(s): ovo = 50 g, demais = 100 g.
+  /// - porção (legada) e outros: 50 g.
+  double _fallbackServingWeightGrams(Map<String, dynamic> food, String unit) {
+    final name = _normalizeFoodName((food['name'] ?? '').toString());
+    switch (unit.trim().toLowerCase()) {
+      case 'fatia(s)':
+        if (const ['bolo', 'torta'].any((k) => name.contains(k))) return 60;
+        if (const ['pao', 'paes', 'queijo'].any((k) => name.contains(k))) return 25;
+        return 30;
+      case 'unidade(s)':
+        if (const ['ovo', 'ovos'].any((k) => name.contains(k))) return 50;
+        return 100;
+      default:
+        return 50;
+    }
   }
 
   /// Mantém o cálculo correto para entradas antigas salvas com a descrição
