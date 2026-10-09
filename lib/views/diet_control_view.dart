@@ -12,9 +12,12 @@ import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
 // O dropdown de unidades é limpo: exibe apenas as opções essenciais (g, ml,
-// unidade(s), fatia(s), colher de sopa e "Recipiente (copo/caixinha/garrafinha)").
-// Quando "Recipiente" é selecionado, um campo extra pede o tipo (copo/caixinha/
-// garrafinha) e o volume em ml, e o peso é calculado como qtd × volume (1 ml = 1 g).
+// unidade(s), fatia(s) e colher de sopa).
+//
+// Quando "unidade(s)" é selecionado para um alimento líquido, o card
+// "Recipiente / Tipo" aparece logo abaixo pedindo o tipo (copo/caixinha/
+// garrafinha) e o volume em ml; o peso é calculado como qtd × volume (1 ml = 1 g).
+// Para sólidos, o volume fica oculto e o peso é qtd × peso unitário oficial.
 // O peso real (Unidade Lógica) é resolvido em `_pesoTotalEmGramas`.
 
 class DietControlView extends StatefulWidget {
@@ -53,11 +56,8 @@ class _DietControlViewState extends State<DietControlView> {
     'unidade(s)',
     'fatia(s)',
     'colher de sopa',
-    'Recipiente (copo/caixinha/garrafinha)',
   ];
 
-  static const String _containerUnitLabel =
-      'Recipiente (copo/caixinha/garrafinha)';
   static const List<String> _containerTypes = [
     'Copo',
     'Caixinha',
@@ -90,6 +90,16 @@ class _DietControlViewState extends State<DietControlView> {
     'leite', 'oleo', 'azeite', 'agua', 'suco', 'refrigerante', 'cafe',
     'cha', 'iogurte', 'molho', 'bebida', 'arroz', 'feijao', 'aveia',
     'farinha', 'acucar', 'lentilha', 'quinoa', 'granola', 'cereal', 'grao',
+    'mel', 'vinagre', 'extrato',
+  ];
+
+  /// Líquidos/bebidas: compatíveis com medição por recipiente (volume em ml).
+  /// Usado para exibir o card "Recipiente / Tipo" quando a unidade é
+  /// "unidade(s)" — sólidos ficam sem volume e usam apenas a quantidade.
+  static const List<String> _liquidFoodKeywords = [
+    'leite', 'agua', 'suco', 'refrigerante', 'cafe', 'cha', 'iogurte',
+    'bebida', 'achocolatado', 'vitamina', 'shake', 'smoothie', 'isotonico',
+    'cerveja', 'vinho', 'sopa', 'caldo', 'molho', 'oleo', 'azeite',
     'mel', 'vinagre', 'extrato',
   ];
 
@@ -855,7 +865,7 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
-    if (_isContainerUnit(_quantityUnit) && _containerVolumeMl <= 0) {
+    if (_isContainerSelection && _containerVolumeMl <= 0) {
       _showSnack('Informe o volume do recipiente em ml.');
       return;
     }
@@ -935,11 +945,13 @@ class _DietControlViewState extends State<DietControlView> {
     String scope = 'TODAY';
     final editUnitChoices = _buildUnitChoices(_extractServings(entry));
     final rawUnit = (entry['unit'] ?? 'g').toString().trim();
+    final dialogIsLiquid =
+        rawUnit.startsWith('recipiente|') || _isLiquidFoodName(foodName);
     String selectedUnit;
     String dialogContainerType = 'Copo';
     final volumeCtrl = TextEditingController();
     if (rawUnit.startsWith('recipiente|')) {
-      selectedUnit = _containerUnitLabel;
+      selectedUnit = 'unidade(s)';
       final parts = rawUnit.split('|');
       if (parts.length > 1 && parts[1].trim().isNotEmpty) {
         final type = parts[1].trim();
@@ -1004,7 +1016,7 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                   ],
                 ),
-                if (selectedUnit == _containerUnitLabel) ...[
+                if (selectedUnit == 'unidade(s)' && dialogIsLiquid) ...[
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -1114,7 +1126,7 @@ class _DietControlViewState extends State<DietControlView> {
     }
 
     var unitToSave = selectedUnit;
-    if (selectedUnit == _containerUnitLabel) {
+    if (selectedUnit == 'unidade(s)' && dialogIsLiquid) {
       final volume = _tryParseNumber(volumeText);
       if (volume == null || volume <= 0) {
         _showSnack('Informe o volume do recipiente em ml.');
@@ -2775,10 +2787,10 @@ class _DietControlViewState extends State<DietControlView> {
   }
 
   /// Monta a lista limpa de unidades do dropdown, contendo apenas as opções
-  /// essenciais ("g", "ml", "unidade(s)", "fatia(s)", "colher de sopa" e
-  /// "Recipiente"). As porções dinâmicas vindas das APIs (ex.: "onças",
-  /// "fl onças", "100 g", "100 ml", "1 copo") ficam de fora para evitar
-  /// poluição visual na seleção de unidades.
+  /// essenciais ("g", "ml", "unidade(s)", "fatia(s)" e "colher de sopa").
+  /// As porções dinâmicas vindas das APIs (ex.: "onças", "fl onças", "100 g",
+  /// "100 ml", "1 copo") ficam de fora para evitar poluição visual na seleção
+  /// de unidades.
   List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
     return List.of(_quantityUnits);
   }
@@ -2789,7 +2801,9 @@ class _DietControlViewState extends State<DietControlView> {
   ///
   /// - "g" e "ml": peso/volume livre (1 ml ≈ 1 g).
   /// - "colher de sopa": 15 g (padrão nutricional).
-  /// - "unidade(s)" e "fatia(s)": quantidade × peso da porção padrão.
+  /// - "unidade(s)": líquido = quantidade × volume (ml); sólido = quantidade ×
+  ///   peso da porção padrão.
+  /// - "fatia(s)": quantidade × peso da porção padrão.
   double _pesoTotalEmGramas(
     Map<String, dynamic> food,
     double quantidadeDigitada,
@@ -2801,9 +2815,13 @@ class _DietControlViewState extends State<DietControlView> {
         return quantidadeDigitada;
       case 'colher de sopa':
         return quantidadeDigitada * 15;
-      case 'recipiente (copo/caixinha/garrafinha)':
-        return quantidadeDigitada * _containerVolumeMl;
       case 'unidade(s)':
+        // Líquido com recipiente customizado: total em ml = qtd × volume.
+        if (_isLiquidFood(food)) {
+          return quantidadeDigitada * _containerVolumeMl;
+        }
+        // Sólido: total em unidades = qtd × peso unitário oficial.
+        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
       case 'fatia(s)':
         return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
       case 'porção':
@@ -2816,8 +2834,25 @@ class _DietControlViewState extends State<DietControlView> {
     }
   }
 
-  bool _isContainerUnit(String unit) =>
-      unit.trim().toLowerCase() == _containerUnitLabel.toLowerCase();
+  /// Verdadeiro quando a unidade "unidade(s)" está selecionada E o alimento
+  /// resolvido é um líquido — ou seja, o card "Recipiente / Tipo" deve aparecer
+  /// e o cálculo usa o volume em ml do recipiente (qtd × volume).
+  bool get _isContainerSelection {
+    if (_quantityUnit.trim().toLowerCase() != 'unidade(s)') return false;
+    final food = _resolveFoodFromTypedText();
+    return food != null && _isLiquidFood(food);
+  }
+
+  /// Detecta se o alimento é um líquido/bebida (compatível com recipiente + ml).
+  bool _isLiquidFood(Map<String, dynamic> food) =>
+      _isLiquidFoodName((food['name'] ?? '').toString());
+
+  /// Versão por nome (usada também no diálogo de edição, que só tem o nome).
+  bool _isLiquidFoodName(String name) {
+    final normalized = _normalizeFoodName(name);
+    if (normalized.isEmpty) return false;
+    return _matchesAnyFoodKeyword(normalized, _liquidFoodKeywords);
+  }
 
   /// Volume em ml informado para o recipiente customizado (1 ml ≈ 1 g).
   double get _containerVolumeMl {
@@ -2838,7 +2873,7 @@ class _DietControlViewState extends State<DietControlView> {
   /// "recipiente|&lt;tipo&gt;|&lt;volumeMl&gt;" (ex.: "recipiente|copo|200"),
   /// de modo que o backend consiga calcular o peso unitário (1 ml = 1 g).
   String get _effectiveUnit {
-    if (_isContainerUnit(_quantityUnit)) {
+    if (_isContainerSelection) {
       final volume = _containerVolumeMl;
       return 'recipiente|${_containerType.trim().toLowerCase()}|'
           '${volume > 0 ? _formatVolumeForUnit(volume) : '0'}';
@@ -4186,12 +4221,12 @@ class _DietControlViewState extends State<DietControlView> {
                       ),
                     ),
                   ),
-                  if (_isContainerUnit(_quantityUnit))
+                  if (_isContainerSelection)
                     SizedBox(
                       width: blockWidth,
                       child: _FormBlock(
                         icon: Icons.local_drink_rounded,
-                        title: 'Recipiente',
+                        title: 'Recipiente / Tipo',
                         accent: const Color(0xFF0EA5E9),
                         child: Row(
                           children: [
