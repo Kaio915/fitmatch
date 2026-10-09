@@ -11,11 +11,11 @@ import '../core/serving_units.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
-// O dropdown de unidades é dinâmico: sempre parte das opções base "g" e "ml" e
-// acrescenta as porções reais do alimento selecionado (`servings`), traduzidas
-// e limpas via `lib/core/serving_units.dart`. As unidades genéricas
-// (`_quantityUnits`) permanecem como fallback. O peso real (Unidade Lógica) é
-// resolvido em `_pesoTotalEmGramas`.
+// O dropdown de unidades é limpo: exibe apenas as opções essenciais (g, ml,
+// unidade(s), fatia(s), colher de sopa e "Recipiente (copo/caixinha/garrafinha)").
+// Quando "Recipiente" é selecionado, um campo extra pede o tipo (copo/caixinha/
+// garrafinha) e o volume em ml, e o peso é calculado como qtd × volume (1 ml = 1 g).
+// O peso real (Unidade Lógica) é resolvido em `_pesoTotalEmGramas`.
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -53,6 +53,15 @@ class _DietControlViewState extends State<DietControlView> {
     'unidade(s)',
     'fatia(s)',
     'colher de sopa',
+    'Recipiente (copo/caixinha/garrafinha)',
+  ];
+
+  static const String _containerUnitLabel =
+      'Recipiente (copo/caixinha/garrafinha)';
+  static const List<String> _containerTypes = [
+    'Copo',
+    'Caixinha',
+    'Garrafinha',
   ];
 
   // Palavras-chave (sem acento) usadas para detectar combinações
@@ -120,6 +129,9 @@ class _DietControlViewState extends State<DietControlView> {
     text: '100',
   );
   String _quantityUnit = 'g';
+  String _containerType = 'Copo';
+  final TextEditingController _containerVolumeController =
+      TextEditingController();
   Timer? _foodSearchDebounce;
 
   List<Map<String, dynamic>> _foodSuggestions = [];
@@ -470,6 +482,7 @@ class _DietControlViewState extends State<DietControlView> {
     _foodSearchDebounce?.cancel();
     _foodSearchCtrl.dispose();
     _quantityCtrl.dispose();
+    _containerVolumeController.dispose();
     super.dispose();
   }
 
@@ -842,6 +855,11 @@ class _DietControlViewState extends State<DietControlView> {
       return;
     }
 
+    if (_isContainerUnit(_quantityUnit) && _containerVolumeMl <= 0) {
+      _showSnack('Informe o volume do recipiente em ml.');
+      return;
+    }
+
     final kcal100 = _toDouble(selectedFood['caloriesPer100g']);
     if (kcal100 <= 0) {
       _showSnack('Não foi possível obter as calorias desse alimento.');
@@ -858,7 +876,7 @@ class _DietControlViewState extends State<DietControlView> {
         mealType: _selectedMeal,
         quantityGrams: qty,
         dateIso: _toDateIso(_selectedDate),
-        unit: _quantityUnit,
+        unit: _effectiveUnit,
       );
       // Usuário adicionou item: remove supressão permanente do mealType
       _suppressedMealTypeSince.remove(_selectedMeal);
@@ -916,10 +934,25 @@ class _DietControlViewState extends State<DietControlView> {
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
     final editUnitChoices = _buildUnitChoices(_extractServings(entry));
-    String selectedUnit = normalizeServingDescription(
-      (entry['unit'] ?? 'g').toString(),
-    );
-    if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
+    final rawUnit = (entry['unit'] ?? 'g').toString().trim();
+    String selectedUnit;
+    String dialogContainerType = 'Copo';
+    final volumeCtrl = TextEditingController();
+    if (rawUnit.startsWith('recipiente|')) {
+      selectedUnit = _containerUnitLabel;
+      final parts = rawUnit.split('|');
+      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+        final type = parts[1].trim();
+        dialogContainerType = _containerTypes.firstWhere(
+          (t) => t.toLowerCase() == type.toLowerCase(),
+          orElse: () => 'Copo',
+        );
+      }
+      if (parts.length > 2) volumeCtrl.text = parts[2].trim();
+    } else {
+      selectedUnit = normalizeServingDescription(rawUnit);
+      if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -971,6 +1004,54 @@ class _DietControlViewState extends State<DietControlView> {
                     ),
                   ],
                 ),
+                if (selectedUnit == _containerUnitLabel) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _containerTypes.contains(
+                            dialogContainerType,
+                          )
+                              ? dialogContainerType
+                              : _containerTypes.first,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _containerTypes
+                              .map(
+                                (t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(t),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setDialogState(() => dialogContainerType = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: volumeCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Volume (ml)',
+                            hintText: 'ex: 200',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 10),
                 const Text(
                   'Os valores nutricionais serão calculados com base nos dados cadastrados para este alimento.',
@@ -1019,14 +1100,29 @@ class _DietControlViewState extends State<DietControlView> {
       ),
     );
 
+    final qtyText = qtyCtrl.text;
+    final volumeText = volumeCtrl.text;
     qtyCtrl.dispose();
+    volumeCtrl.dispose();
 
     if (confirmed != true) return;
 
-    final qty = _tryParseNumber(qtyCtrl.text);
+    final qty = _tryParseNumber(qtyText);
     if (qty == null || qty <= 0) {
       _showSnack('Informe uma quantidade válida.');
       return;
+    }
+
+    var unitToSave = selectedUnit;
+    if (selectedUnit == _containerUnitLabel) {
+      final volume = _tryParseNumber(volumeText);
+      if (volume == null || volume <= 0) {
+        _showSnack('Informe o volume do recipiente em ml.');
+        return;
+      }
+      unitToSave =
+          'recipiente|${dialogContainerType.toLowerCase()}|'
+          '${_formatVolumeForUnit(volume)}';
     }
 
     try {
@@ -1035,7 +1131,7 @@ class _DietControlViewState extends State<DietControlView> {
         entryId: entryId,
         quantityGrams: qty,
         scope: scope,
-        unit: selectedUnit,
+        unit: unitToSave,
       );
 
       final selectedDate = DateTime(
@@ -2678,23 +2774,13 @@ class _DietControlViewState extends State<DietControlView> {
     return _buildUnitChoices(food == null ? const [] : _extractServings(food));
   }
 
-  /// Monta a lista de unidades do dropdown: sempre "g" e "ml" como base, mais
-  /// as porções específicas do alimento (traduzidas/limpas) e, por fim, as
-  /// unidades genéricas como fallback.
+  /// Monta a lista limpa de unidades do dropdown, contendo apenas as opções
+  /// essenciais ("g", "ml", "unidade(s)", "fatia(s)", "colher de sopa" e
+  /// "Recipiente"). As porções dinâmicas vindas das APIs (ex.: "onças",
+  /// "fl onças", "100 g", "100 ml", "1 copo") ficam de fora para evitar
+  /// poluição visual na seleção de unidades.
   List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
-    final choices = <String>['g', 'ml'];
-    for (final serving in servings) {
-      final label = normalizeServingDescription(
-        (serving['description'] ?? '').toString(),
-      );
-      if (label.isNotEmpty && !choices.contains(label)) {
-        choices.add(label);
-      }
-    }
-    for (final unit in _quantityUnits) {
-      if (!choices.contains(unit)) choices.add(unit);
-    }
-    return choices;
+    return List.of(_quantityUnits);
   }
 
   /// Converte a quantidade digitada para o peso total em gramas, aplicando a
@@ -2715,6 +2801,8 @@ class _DietControlViewState extends State<DietControlView> {
         return quantidadeDigitada;
       case 'colher de sopa':
         return quantidadeDigitada * 15;
+      case 'recipiente (copo/caixinha/garrafinha)':
+        return quantidadeDigitada * _containerVolumeMl;
       case 'unidade(s)':
       case 'fatia(s)':
         return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
@@ -2726,6 +2814,63 @@ class _DietControlViewState extends State<DietControlView> {
         // Unidade legada (descrição dinâmica antiga, ex.: "1 unidade").
         return quantidadeDigitada * _legacyServingWeightGrams(food, _quantityUnit);
     }
+  }
+
+  bool _isContainerUnit(String unit) =>
+      unit.trim().toLowerCase() == _containerUnitLabel.toLowerCase();
+
+  /// Volume em ml informado para o recipiente customizado (1 ml ≈ 1 g).
+  double get _containerVolumeMl {
+    final value = _tryParseNumber(_containerVolumeController.text);
+    return (value == null || value <= 0) ? 0 : value;
+  }
+
+  /// Formata o volume (ml) para codificação na unidade, preservando decimais
+  /// apenas quando necessários (ex.: "200" e "200.5").
+  String _formatVolumeForUnit(double value) {
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toString();
+  }
+
+  /// Unidade enviada/persistida no backend.
+  ///
+  /// Para o recipiente customizado, codifica o tipo e o volume no formato
+  /// "recipiente|&lt;tipo&gt;|&lt;volumeMl&gt;" (ex.: "recipiente|copo|200"),
+  /// de modo que o backend consiga calcular o peso unitário (1 ml = 1 g).
+  String get _effectiveUnit {
+    if (_isContainerUnit(_quantityUnit)) {
+      final volume = _containerVolumeMl;
+      return 'recipiente|${_containerType.trim().toLowerCase()}|'
+          '${volume > 0 ? _formatVolumeForUnit(volume) : '0'}';
+    }
+    return _quantityUnit;
+  }
+
+  /// Rótulo amigável da unidade de um registro para exibição na lista.
+  String _entryUnitLabel(Map<String, dynamic> entry) {
+    final unit = (entry['unit'] ?? 'g').toString().trim();
+    if (!unit.startsWith('recipiente|')) return unit;
+    final parts = unit.split('|');
+    final type = parts.length > 1 ? parts[1].trim().toLowerCase() : 'recipiente';
+    final ml = parts.length > 2 ? parts[2].trim() : '';
+    final qty = _toDouble(entry['quantityGrams']);
+    final String typeLabel;
+    switch (type) {
+      case 'copo':
+        typeLabel = 'copo';
+        break;
+      case 'caixinha':
+        typeLabel = 'caixinha';
+        break;
+      case 'garrafinha':
+        typeLabel = 'garrafinha';
+        break;
+      default:
+        typeLabel = 'recipiente';
+    }
+    final plural = qty == 1 ? '' : 's';
+    final mlLabel = ml.isNotEmpty ? ' ($ml ml)' : '';
+    return '$typeLabel$plural$mlLabel';
   }
 
   /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
@@ -4041,6 +4186,67 @@ class _DietControlViewState extends State<DietControlView> {
                       ),
                     ),
                   ),
+                  if (_isContainerUnit(_quantityUnit))
+                    SizedBox(
+                      width: blockWidth,
+                      child: _FormBlock(
+                        icon: Icons.local_drink_rounded,
+                        title: 'Recipiente',
+                        accent: const Color(0xFF0EA5E9),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _containerTypes.contains(
+                                  _containerType,
+                                )
+                                    ? _containerType
+                                    : _containerTypes.first,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipo',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                                items: _containerTypes
+                                    .map(
+                                      (t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _isPastDay
+                                    ? null
+                                    : (v) {
+                                        if (v == null) return;
+                                        setState(() => _containerType = v);
+                                      },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _containerVolumeController,
+                                readOnly: _isPastDay,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Volume (ml)',
+                                  hintText: 'ex: 200',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                                onChanged: _isPastDay
+                                    ? null
+                                    : (_) => setState(() {}),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   SizedBox(
                     width: blockWidth,
                     child: _FormBlock(
@@ -4348,7 +4554,7 @@ class _DietControlViewState extends State<DietControlView> {
           ...entries.map((entry) {
             final foodName = (entry['foodName'] ?? '-').toString();
             final grams = _toDouble(entry['quantityGrams']).toStringAsFixed(0);
-            final unitLabel = (entry['unit'] ?? 'g').toString();
+            final unitLabel = _entryUnitLabel(entry);
             final kcal = _toDouble(entry['calories']).toStringAsFixed(0);
             final p = _toDouble(entry['protein']).toStringAsFixed(1);
             final c = _toDouble(entry['carbs']).toStringAsFixed(1);
@@ -4491,7 +4697,7 @@ class _DietControlViewState extends State<DietControlView> {
               final grams = _toDouble(
                 entry['quantityGrams'],
               ).toStringAsFixed(0);
-              final unitLabel = (entry['unit'] ?? 'g').toString();
+              final unitLabel = _entryUnitLabel(entry);
               final kcal = _toDouble(entry['calories']).toStringAsFixed(0);
               final p = _toDouble(entry['protein']).toStringAsFixed(1);
               final c = _toDouble(entry['carbs']).toStringAsFixed(1);
