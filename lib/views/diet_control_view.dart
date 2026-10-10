@@ -1398,12 +1398,13 @@ class _DietControlViewState extends State<DietControlView> {
                     final grams = _toDouble(
                       entry['quantityGrams'],
                     ).toStringAsFixed(0);
+                    final unitLabel = _entryUnitLabel(entry);
                     final kcal = _toDouble(
                       entry['calories'],
                     ).toStringAsFixed(0);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text('• $name - ${grams}g ($kcal kcal)'),
+                      child: Text('• $name - $grams $unitLabel ($kcal kcal)'),
                     );
                   }),
                 ],
@@ -1502,14 +1503,21 @@ class _DietControlViewState extends State<DietControlView> {
 
     final templateItems = entries
         .map(
-          (entry) => {
-            'foodId': _toInt(entry['foodId']),
-            'foodName': (entry['foodName'] ?? '').toString(),
-            'quantityGrams': _toDouble(entry['quantityGrams']),
-            'calories': _toDouble(entry['calories']),
-            'protein': _toDouble(entry['protein']),
-            'carbs': _toDouble(entry['carbs']),
-            'fat': _toDouble(entry['fat']),
+          (entry) {
+            final food = _foodByIdInMemory(_toInt(entry['foodId']));
+            return {
+              'foodId': _toInt(entry['foodId']),
+              'foodName': (entry['foodName'] ?? '').toString(),
+              'quantityGrams': _toDouble(entry['quantityGrams']),
+              'calories': _toDouble(entry['calories']),
+              'protein': _toDouble(entry['protein']),
+              'carbs': _toDouble(entry['carbs']),
+              'fat': _toDouble(entry['fat']),
+              'unit': (entry['unit'] ?? 'g').toString(),
+              'defaultServingGrams': food == null
+                  ? null
+                  : _toDoubleOrNull(food['defaultServingGrams']),
+            };
           },
         )
         .toList();
@@ -4182,13 +4190,14 @@ class _DietControlViewState extends State<DietControlView> {
                                     final grams = _toDouble(
                                       item['quantityGrams'],
                                     ).toStringAsFixed(0);
+                                    final unitLabel = _entryUnitLabel(item);
                                     final itemKcal = _toDouble(
                                       item['calories'],
                                     ).toStringAsFixed(0);
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 4),
                                       child: Text(
-                                        '• $foodName - ${grams}g ($itemKcal kcal)',
+                                        '• $foodName - $grams $unitLabel ($itemKcal kcal)',
                                         style: const TextStyle(
                                           color: Color(0xFF475569),
                                         ),
