@@ -1342,6 +1342,7 @@ class _DietControlViewState extends State<DietControlView> {
     }
 
     final nameCtrl = TextEditingController(text: '$mealType - Favorito');
+    final isNarrow = MediaQuery.of(context).size.width < 600;
 
     final confirmed =
         await showDialog<bool>(
@@ -1351,6 +1352,7 @@ class _DietControlViewState extends State<DietControlView> {
               horizontal: 24,
               vertical: 20,
             ),
+            scrollable: isNarrow,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
             ),
@@ -1566,6 +1568,7 @@ class _DietControlViewState extends State<DietControlView> {
         .trim();
 
     String selectedMealType = _applyAsFavoriteNameOption;
+    final isNarrow = MediaQuery.of(context).size.width < 600;
 
     final applyConfirmed =
         await showDialog<bool>(
@@ -1592,6 +1595,7 @@ class _DietControlViewState extends State<DietControlView> {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedMealType,
+                      isExpanded: isNarrow,
                       decoration: const InputDecoration(
                         labelText: 'Em qual refeição deseja adicionar?',
                         border: OutlineInputBorder(),
@@ -1601,10 +1605,19 @@ class _DietControlViewState extends State<DietControlView> {
                           value: _applyAsFavoriteNameOption,
                           child: Text(
                             'Adicionar no dia atual (nome do favorito)',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         ...mealChoices.map(
-                          (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          (m) => DropdownMenuItem(
+                            value: m,
+                            child: Text(
+                              m,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                         ),
                       ],
                       onChanged: (value) {
