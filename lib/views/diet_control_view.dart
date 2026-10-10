@@ -62,7 +62,44 @@ class _DietControlViewState extends State<DietControlView> {
     'Copo',
     'Caixinha',
     'Garrafinha',
+    'Lata',
   ];
+
+  /// Medidas caseiras para alimentos sólidos, exibidas no card
+  /// "Medida Caseira / Porção" quando a unidade é "unidade(s)". As três
+  /// primeiras possuem peso padrão em gramas já embutido; "Unidade / Pedaço"
+  /// puxa o peso oficial do alimento (fallback 50 g).
+  static const List<String> _solidMeasureTypes = [
+    'Colher de servir',
+    'Concha',
+    'Prato / Porção',
+    'Unidade / Pedaço',
+  ];
+
+  /// Token canônico (sem acento/espaço) usado para codificar cada medida
+  /// sólida no campo `unit` persistido no backend.
+  static const Map<String, String> _solidMeasureTokens = {
+    'Colher de servir': 'colher',
+    'Concha': 'concha',
+    'Prato / Porção': 'prato',
+    'Unidade / Pedaço': 'unidade',
+  };
+
+  /// Rótulo amigável de exibição para cada token de medida sólida.
+  static const Map<String, String> _solidMeasureLabels = {
+    'colher': 'colher de servir',
+    'concha': 'concha',
+    'prato': 'prato',
+    'unidade': 'unidade/pedaço',
+  };
+
+  /// Rótulo no plural para cada token de medida sólida.
+  static const Map<String, String> _solidMeasurePluralLabels = {
+    'colher': 'colheres de servir',
+    'concha': 'conchas',
+    'prato': 'pratos',
+    'unidade': 'unidades/pedaços',
+  };
 
   // Palavras-chave (sem acento) usadas para detectar combinações
   // alimento + unidade atípicas e orientar o usuário com um aviso.
@@ -99,7 +136,7 @@ class _DietControlViewState extends State<DietControlView> {
   static const List<String> _liquidFoodKeywords = [
     'leite', 'agua', 'suco', 'refrigerante', 'cafe', 'cha', 'iogurte',
     'bebida', 'achocolatado', 'vitamina', 'shake', 'smoothie', 'isotonico',
-    'cerveja', 'vinho', 'sopa', 'caldo', 'molho', 'oleo', 'azeite',
+    'cerveja', 'vinho', 'caldo', 'molho', 'oleo', 'azeite',
     'mel', 'vinagre', 'extrato',
   ];
 
@@ -140,6 +177,7 @@ class _DietControlViewState extends State<DietControlView> {
   );
   String _quantityUnit = 'g';
   String _containerType = 'Copo';
+  String _solidMeasureType = _solidMeasureTypes.first;
   final TextEditingController _containerVolumeController =
       TextEditingController();
   Timer? _foodSearchDebounce;
@@ -949,6 +987,8 @@ class _DietControlViewState extends State<DietControlView> {
         rawUnit.startsWith('recipiente|') || _isLiquidFoodName(foodName);
     String selectedUnit;
     String dialogContainerType = 'Copo';
+    String dialogSolidMeasureType = _solidMeasureTypes.first;
+    double? dialogSolidMeasureWeight;
     final volumeCtrl = TextEditingController();
     if (rawUnit.startsWith('recipiente|')) {
       selectedUnit = 'unidade(s)';
@@ -961,6 +1001,18 @@ class _DietControlViewState extends State<DietControlView> {
         );
       }
       if (parts.length > 2) volumeCtrl.text = parts[2].trim();
+    } else if (rawUnit.startsWith('medida|')) {
+      selectedUnit = 'unidade(s)';
+      final parts = rawUnit.split('|');
+      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+        final token = parts[1].trim().toLowerCase();
+        dialogSolidMeasureType =
+            _solidMeasureTypeFromToken(token) ?? _solidMeasureTypes.first;
+      }
+      if (parts.length > 2) {
+        final weight = _tryParseNumber(parts[2].trim());
+        if (weight != null && weight > 0) dialogSolidMeasureWeight = weight;
+      }
     } else {
       selectedUnit = normalizeServingDescription(rawUnit);
       if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
@@ -1063,6 +1115,32 @@ class _DietControlViewState extends State<DietControlView> {
                       ),
                     ],
                   ),
+                ] else if (selectedUnit == 'unidade(s)') ...[
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: _solidMeasureTypes.contains(
+                      dialogSolidMeasureType,
+                    )
+                        ? dialogSolidMeasureType
+                        : _solidMeasureTypes.first,
+                    decoration: const InputDecoration(
+                      labelText: 'Medida Caseira / Porção',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _solidMeasureTypes
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setDialogState(() => dialogSolidMeasureType = v);
+                    },
+                  ),
                 ],
                 const SizedBox(height: 10),
                 const Text(
@@ -1135,6 +1213,17 @@ class _DietControlViewState extends State<DietControlView> {
       unitToSave =
           'recipiente|${dialogContainerType.toLowerCase()}|'
           '${_formatVolumeForUnit(volume)}';
+    } else if (selectedUnit == 'unidade(s)') {
+      // Medida caseira sólida: resolve o peso da opção escolhida e codifica
+      // no formato "medida|<token>|<pesoGrams>" para o backend.
+      final food = _foodByIdInMemory(_toInt(entry['foodId']));
+      final weight = _solidMeasureWeightFor(
+        dialogSolidMeasureType,
+        food,
+        dialogSolidMeasureWeight,
+      );
+      final token = _solidMeasureTokens[dialogSolidMeasureType] ?? 'medida';
+      unitToSave = 'medida|$token|${_formatMeasureAmount(weight)}';
     }
 
     try {
@@ -2637,6 +2726,16 @@ class _DietControlViewState extends State<DietControlView> {
     return Map<String, dynamic>.from(exactSuggestion);
   }
 
+  /// Busca na lista de alimentos locais (`_foods`) pelo id, retornando o mapa
+  /// completo (com peso oficial da porção) para o diálogo de edição.
+  Map<String, dynamic>? _foodByIdInMemory(int? foodId) {
+    if (foodId == null || foodId <= 0) return null;
+    return _foods.cast<Map<String, dynamic>?>().firstWhere(
+          (f) => _toInt(f?['id']) == foodId,
+          orElse: () => null,
+        );
+  }
+
   Future<int> _ensureLocalFoodId(Map<String, dynamic> food) async {
     final name = (food['name'] ?? '').toString().trim();
     if (name.isEmpty) {
@@ -2820,8 +2919,8 @@ class _DietControlViewState extends State<DietControlView> {
         if (_isLiquidFood(food)) {
           return quantidadeDigitada * _containerVolumeMl;
         }
-        // Sólido: total em unidades = qtd × peso unitário oficial.
-        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
+        // Sólido: total em gramas = qtd × peso da medida caseira escolhida.
+        return quantidadeDigitada * _solidMeasureWeightGrams(food);
       case 'fatia(s)':
         return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
       case 'porção':
@@ -2843,6 +2942,14 @@ class _DietControlViewState extends State<DietControlView> {
     return food != null && _isLiquidFood(food);
   }
 
+  /// Verdadeiro quando "unidade(s)" está selecionado E o alimento é sólido —
+  /// o card "Medida Caseira / Porção" deve aparecer no lugar do recipiente.
+  bool get _isSolidMeasureSelection {
+    if (_quantityUnit.trim().toLowerCase() != 'unidade(s)') return false;
+    final food = _resolveFoodFromTypedText();
+    return food != null && !_isLiquidFood(food);
+  }
+
   /// Detecta se o alimento é um líquido/bebida (compatível com recipiente + ml).
   bool _isLiquidFood(Map<String, dynamic> food) =>
       _isLiquidFoodName((food['name'] ?? '').toString());
@@ -2862,21 +2969,35 @@ class _DietControlViewState extends State<DietControlView> {
 
   /// Formata o volume (ml) para codificação na unidade, preservando decimais
   /// apenas quando necessários (ex.: "200" e "200.5").
-  String _formatVolumeForUnit(double value) {
+  String _formatVolumeForUnit(double value) => _formatMeasureAmount(value);
+
+  /// Formata um número para codificação na unidade, preservando decimais
+  /// apenas quando necessários (ex.: "25" e "200.5").
+  String _formatMeasureAmount(double value) {
     if (value == value.roundToDouble()) return value.toStringAsFixed(0);
     return value.toString();
   }
 
   /// Unidade enviada/persistida no backend.
   ///
-  /// Para o recipiente customizado, codifica o tipo e o volume no formato
-  /// "recipiente|&lt;tipo&gt;|&lt;volumeMl&gt;" (ex.: "recipiente|copo|200"),
+  /// Para o recipiente customizado (líquido), codifica o tipo e o volume no
+  /// formato "recipiente|&lt;tipo&gt;|&lt;volumeMl&gt;" (ex.: "recipiente|copo|200"),
   /// de modo que o backend consiga calcular o peso unitário (1 ml = 1 g).
+  ///
+  /// Para a medida caseira (sólido), codifica o token e o peso no formato
+  /// "medida|&lt;token&gt;|&lt;pesoGrams&gt;" (ex.: "medida|concha|130"),
+  /// de modo que o backend aplique exatamente o peso escolhido no card.
   String get _effectiveUnit {
     if (_isContainerSelection) {
       final volume = _containerVolumeMl;
       return 'recipiente|${_containerType.trim().toLowerCase()}|'
           '${volume > 0 ? _formatVolumeForUnit(volume) : '0'}';
+    }
+    if (_isSolidMeasureSelection) {
+      final food = _resolveFoodFromTypedText();
+      final weight = food == null ? 50.0 : _solidMeasureWeightGrams(food);
+      final token = _solidMeasureTokens[_solidMeasureType] ?? 'medida';
+      return 'medida|$token|${_formatMeasureAmount(weight)}';
     }
     return _quantityUnit;
   }
@@ -2884,28 +3005,42 @@ class _DietControlViewState extends State<DietControlView> {
   /// Rótulo amigável da unidade de um registro para exibição na lista.
   String _entryUnitLabel(Map<String, dynamic> entry) {
     final unit = (entry['unit'] ?? 'g').toString().trim();
-    if (!unit.startsWith('recipiente|')) return unit;
-    final parts = unit.split('|');
-    final type = parts.length > 1 ? parts[1].trim().toLowerCase() : 'recipiente';
-    final ml = parts.length > 2 ? parts[2].trim() : '';
-    final qty = _toDouble(entry['quantityGrams']);
-    final String typeLabel;
-    switch (type) {
-      case 'copo':
-        typeLabel = 'copo';
-        break;
-      case 'caixinha':
-        typeLabel = 'caixinha';
-        break;
-      case 'garrafinha':
-        typeLabel = 'garrafinha';
-        break;
-      default:
-        typeLabel = 'recipiente';
+    if (unit.startsWith('recipiente|')) {
+      final parts = unit.split('|');
+      final type =
+          parts.length > 1 ? parts[1].trim().toLowerCase() : 'recipiente';
+      final ml = parts.length > 2 ? parts[2].trim() : '';
+      final qty = _toDouble(entry['quantityGrams']);
+      final String typeLabel;
+      switch (type) {
+        case 'copo':
+          typeLabel = 'copo';
+          break;
+        case 'caixinha':
+          typeLabel = 'caixinha';
+          break;
+        case 'garrafinha':
+          typeLabel = 'garrafinha';
+          break;
+        case 'lata':
+          typeLabel = 'lata';
+          break;
+        default:
+          typeLabel = 'recipiente';
+      }
+      final plural = qty == 1 ? '' : 's';
+      final mlLabel = ml.isNotEmpty ? ' ($ml ml)' : '';
+      return '$typeLabel$plural$mlLabel';
     }
-    final plural = qty == 1 ? '' : 's';
-    final mlLabel = ml.isNotEmpty ? ' ($ml ml)' : '';
-    return '$typeLabel$plural$mlLabel';
+    if (unit.startsWith('medida|')) {
+      final parts = unit.split('|');
+      final token = parts.length > 1 ? parts[1].trim().toLowerCase() : 'medida';
+      final qty = _toDouble(entry['quantityGrams']);
+      final typeLabel = _solidMeasureLabels[token] ?? 'medida';
+      if (qty == 1) return typeLabel;
+      return _solidMeasurePluralLabels[token] ?? '${typeLabel}s';
+    }
+    return unit;
   }
 
   /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
@@ -2919,6 +3054,18 @@ class _DietControlViewState extends State<DietControlView> {
   /// 4. Primeira porção com peso válido no array `servings`.
   /// 5. Fallback inteligente por nome de alimento e unidade (nunca iguais).
   double _pesoDaPorcaoPadrao(Map<String, dynamic> food, String unit) {
+    return _officialServingWeightOr(food, _fallbackServingWeightGrams(food, unit));
+  }
+
+  /// Peso oficial da porção (em gramas) vindo da API/base, ou [fallback]
+  /// quando nenhum peso válido é informado.
+  ///
+  /// Prioridade:
+  /// 1. Campo `defaultServingGrams` (peso oficial da porção vindo da API).
+  /// 2. Campo `servingAmountGrams` (peso da porção padrão do `food_description`).
+  /// 3. Porção marcada como padrão no array `servings`.
+  /// 4. Primeira porção com peso válido no array `servings`.
+  double _officialServingWeightOr(Map<String, dynamic> food, double fallback) {
     final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
     if (defaultServing != null && defaultServing > 0) return defaultServing;
 
@@ -2937,7 +3084,47 @@ class _DietControlViewState extends State<DietControlView> {
       if (amount != null && amount > 0) return amount;
     }
 
-    return _fallbackServingWeightGrams(food, unit);
+    return fallback;
+  }
+
+  /// Peso (em gramas) da medida caseira sólida selecionada no card
+  /// "Medida Caseira / Porção".
+  double _solidMeasureWeightGrams(Map<String, dynamic> food) =>
+      _solidMeasureWeightFor(_solidMeasureType, food, null);
+
+  /// Peso (em gramas) de uma medida caseira sólida específica.
+  ///
+  /// - "Colher de servir" = 25 g (ideal para arroz, farofa).
+  /// - "Concha" = 130 g (ideal para feijão, sopas).
+  /// - "Prato / Porção" = 350 g (refeição completa).
+  /// - "Unidade / Pedaço" = peso oficial do alimento ou 50 g de fallback.
+  double _solidMeasureWeightFor(
+    String measureType,
+    Map<String, dynamic>? food,
+    double? embeddedWeight,
+  ) {
+    switch (measureType) {
+      case 'Colher de servir':
+        return 25;
+      case 'Concha':
+        return 130;
+      case 'Prato / Porção':
+        return 350;
+      case 'Unidade / Pedaço':
+        if (embeddedWeight != null && embeddedWeight > 0) return embeddedWeight;
+        return food == null ? 50 : _officialServingWeightOr(food, 50);
+      default:
+        return 50;
+    }
+  }
+
+  /// Converte um token canônico ("colher", "concha", "prato", "unidade") de
+  /// volta para o rótulo de exibição usado no card "Medida Caseira / Porção".
+  String? _solidMeasureTypeFromToken(String token) {
+    for (final entry in _solidMeasureTokens.entries) {
+      if (entry.value == token) return entry.key;
+    }
+    return null;
   }
 
   /// Fallback inteligente baseado no nome do alimento, usado somente quando a
@@ -4226,7 +4413,7 @@ class _DietControlViewState extends State<DietControlView> {
                       width: blockWidth,
                       child: _FormBlock(
                         icon: Icons.local_drink_rounded,
-                        title: 'Recipiente / Tipo',
+                        title: 'Recipiente (Líquido)',
                         accent: const Color(0xFF0EA5E9),
                         child: Row(
                           children: [
@@ -4279,6 +4466,41 @@ class _DietControlViewState extends State<DietControlView> {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                  if (_isSolidMeasureSelection)
+                    SizedBox(
+                      width: blockWidth,
+                      child: _FormBlock(
+                        icon: Icons.restaurant_rounded,
+                        title: 'Medida Caseira / Porção',
+                        accent: const Color(0xFFF59E0B),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _solidMeasureTypes.contains(
+                            _solidMeasureType,
+                          )
+                              ? _solidMeasureType
+                              : _solidMeasureTypes.first,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _solidMeasureTypes
+                              .map(
+                                (t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(t),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _isPastDay
+                              ? null
+                              : (v) {
+                                  if (v == null) return;
+                                  setState(() => _solidMeasureType = v);
+                                },
                         ),
                       ),
                     ),
