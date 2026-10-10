@@ -175,6 +175,8 @@ class _DietControlViewState extends State<DietControlView> {
   String _solidMeasureType = _solidMeasureTypes.first;
   final TextEditingController _containerVolumeController =
       TextEditingController();
+  final TextEditingController _solidMeasureWeightController =
+      TextEditingController();
   Timer? _foodSearchDebounce;
 
   List<Map<String, dynamic>> _foodSuggestions = [];
@@ -475,6 +477,7 @@ class _DietControlViewState extends State<DietControlView> {
   void initState() {
     super.initState();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
+    _applySolidMeasureDefaultWeight();
     unawaited(_initStateAndLoad());
   }
 
@@ -526,6 +529,7 @@ class _DietControlViewState extends State<DietControlView> {
     _foodSearchCtrl.dispose();
     _quantityCtrl.dispose();
     _containerVolumeController.dispose();
+    _solidMeasureWeightController.dispose();
     super.dispose();
   }
 
@@ -985,6 +989,8 @@ class _DietControlViewState extends State<DietControlView> {
     String dialogSolidMeasureType = _solidMeasureTypes.first;
     double? dialogSolidMeasureWeight;
     final volumeCtrl = TextEditingController();
+    final solidWeightCtrl = TextEditingController();
+    final dialogFood = _foodByIdInMemory(_toInt(entry['foodId']));
     if (rawUnit.startsWith('recipiente|')) {
       selectedUnit = 'unidade(s)';
       final parts = rawUnit.split('|');
@@ -1019,6 +1025,14 @@ class _DietControlViewState extends State<DietControlView> {
       selectedUnit = normalizeServingDescription(rawUnit);
       if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
     }
+    // Pré-preenche o input "Peso (g)" do card sólido do diálogo com o peso
+    // embutido no token salvo (quando houver) ou com o peso de referência.
+    solidWeightCtrl.text = (dialogSolidMeasureWeight != null &&
+            dialogSolidMeasureWeight > 0)
+        ? _formatMeasureAmount(dialogSolidMeasureWeight)
+        : _formatMeasureAmount(
+            _solidMeasureWeightFor(dialogSolidMeasureType, dialogFood, null),
+          );
     // Mantém a unidade legada ("unidade(s)") disponível no dropdown de edição.
     if (selectedUnit == 'unidade(s)' && !editUnitChoices.contains(selectedUnit)) {
       editUnitChoices.add(selectedUnit);
@@ -1123,29 +1137,55 @@ class _DietControlViewState extends State<DietControlView> {
                   ),
                 ] else if (selectedUnit == 'unidade(s)') ...[
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: _solidMeasureTypes.contains(
-                      dialogSolidMeasureType,
-                    )
-                        ? dialogSolidMeasureType
-                        : _solidMeasureTypes.first,
-                    decoration: const InputDecoration(
-                      labelText: 'Medida Caseira / Porção',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: _solidMeasureTypes
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _solidMeasureTypes.contains(
+                            dialogSolidMeasureType,
+                          )
+                              ? dialogSolidMeasureType
+                              : _solidMeasureTypes.first,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo',
+                            border: OutlineInputBorder(),
+                            isDense: true,
                           ),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setDialogState(() => dialogSolidMeasureType = v);
-                    },
+                          items: _solidMeasureTypes
+                              .map(
+                                (t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(t),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setDialogState(() {
+                              dialogSolidMeasureType = v;
+                              solidWeightCtrl.text = _formatMeasureAmount(
+                                _solidMeasureWeightFor(v, dialogFood, null),
+                              );
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: solidWeightCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Peso (g)',
+                            hintText: 'ex: 250',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -1198,8 +1238,10 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyText = qtyCtrl.text;
     final volumeText = volumeCtrl.text;
+    final solidWeightText = solidWeightCtrl.text;
     qtyCtrl.dispose();
     volumeCtrl.dispose();
+    solidWeightCtrl.dispose();
 
     if (confirmed != true) return;
 
@@ -1220,14 +1262,18 @@ class _DietControlViewState extends State<DietControlView> {
           'recipiente|${dialogContainerType.toLowerCase()}|'
           '${_formatVolumeForUnit(volume)}';
     } else if (selectedUnit == 'unidade(s)') {
-      // Medida caseira sólida: resolve o peso da opção escolhida e codifica
-      // no formato "medida|<token>|<pesoGrams>" para o backend.
+      // Medida caseira sólida: usa o peso do input "Peso (g)" (ou o peso de
+      // referência da medida, quando o campo está vazio) e codifica no formato
+      // "medida|<token>|<pesoGrams>" para o backend.
       final food = _foodByIdInMemory(_toInt(entry['foodId']));
-      final weight = _solidMeasureWeightFor(
-        dialogSolidMeasureType,
-        food,
-        dialogSolidMeasureWeight,
-      );
+      final inputWeight = _tryParseNumber(solidWeightText);
+      final weight = (inputWeight != null && inputWeight > 0)
+          ? inputWeight
+          : _solidMeasureWeightFor(
+              dialogSolidMeasureType,
+              food,
+              dialogSolidMeasureWeight,
+            );
       final token = _solidMeasureTokens[dialogSolidMeasureType] ?? 'medida';
       unitToSave = 'medida|$token|${_formatMeasureAmount(weight)}';
     } else if (selectedUnit != 'g' && selectedUnit != 'ml') {
@@ -2921,7 +2967,7 @@ class _DietControlViewState extends State<DietControlView> {
         if (_isLiquidFood(food)) {
           return quantidadeDigitada * _containerVolumeMl;
         }
-        return quantidadeDigitada * _solidMeasureWeightGrams(food);
+        return quantidadeDigitada * _solidMeasureWeightGrams;
       default:
         // Porção oficial selecionada no dropdown dinâmico (legado): o peso real
         // (em gramas) vem de `amountGrams` da própria porção — sem chute.
@@ -2991,8 +3037,7 @@ class _DietControlViewState extends State<DietControlView> {
           '${volume > 0 ? _formatVolumeForUnit(volume) : '0'}';
     }
     if (_isSolidMeasureSelection) {
-      final food = _resolveFoodFromTypedText();
-      final weight = food == null ? 50.0 : _solidMeasureWeightGrams(food);
+      final weight = _solidMeasureWeightGrams;
       final token = _solidMeasureTokens[_solidMeasureType] ?? 'medida';
       return 'medida|$token|${_formatMeasureAmount(weight)}';
     }
@@ -3081,18 +3126,34 @@ class _DietControlViewState extends State<DietControlView> {
     return fallback;
   }
 
-  /// Peso (em gramas) da medida caseira sólida selecionada no card
-  /// "Medida Caseira / Porção".
-  double _solidMeasureWeightGrams(Map<String, dynamic> food) =>
-      _solidMeasureWeightFor(_solidMeasureType, food, null);
+  /// Peso (em gramas) efetivamente informado pelo usuário no card
+  /// "Medida Caseira / Porção": lê o input "Peso (g)" e, quando o campo está
+  /// vazio ou inválido, usa o peso de referência da medida selecionada.
+  double get _solidMeasureWeightGrams {
+    final input = _tryParseNumber(_solidMeasureWeightController.text);
+    if (input != null && input > 0) return input;
+    final food = _resolveFoodFromTypedText();
+    return _solidMeasureWeightFor(_solidMeasureType, food, null);
+  }
 
-  /// Peso (em gramas) de uma medida caseira sólida específica.
+  /// Preenche o input "Peso (g)" do card sólido com o peso de referência da
+  /// medida [measureType] (ou da medida atualmente selecionada, quando omitida).
+  void _applySolidMeasureDefaultWeight([String? measureType]) {
+    final type = measureType ?? _solidMeasureType;
+    final food = _resolveFoodFromTypedText();
+    _solidMeasureWeightController.text = _formatMeasureAmount(
+      _solidMeasureWeightFor(type, food, null),
+    );
+  }
+
+  /// Peso (em gramas) de referência nacional de uma medida caseira sólida.
   ///
-  /// - "Prato / Porção" = 350 g (refeição completa).
-  /// - "Marmita" = 300 g.
-  /// - "Concha" = 130 g (ideal para feijão, sopas).
-  /// - "Colher de servir" = 50 g (ideal para arroz, farofa).
-  /// - "Unidade / Pedaço" = peso oficial do alimento ou 40 g de fallback.
+  /// - "Prato / Porção" = 250 g (prato fundo/porção padrão).
+  /// - "Marmita" = 500 g (marmitex comercial média).
+  /// - "Concha" = 140 g (concha média cheia).
+  /// - "Colher de servir" = 50 g.
+  /// - "Unidade / Pedaço" = peso unitário oficial do alimento, exceto o valor
+  ///   genérico de 100 g vindo da TACO (substituído por 40 g); fallback 40 g.
   /// - "Fatia" = 30 g (bolos, pães, queijos).
   double _solidMeasureWeightFor(
     String measureType,
@@ -3101,18 +3162,23 @@ class _DietControlViewState extends State<DietControlView> {
   ) {
     switch (measureType) {
       case 'Prato / Porção':
-        return 350;
+        return 250;
       case 'Marmita':
-        return 300;
+        return 500;
       case 'Concha':
-        return 130;
+        return 140;
       case 'Colher de servir':
         return 50;
       case 'Fatia':
         return 30;
       case 'Unidade / Pedaço':
         if (embeddedWeight != null && embeddedWeight > 0) return embeddedWeight;
-        return food == null ? 40 : _officialServingWeightOr(food, 40);
+        if (food == null) return 40;
+        final official = _officialServingWeightOr(food, 40);
+        // A TACO descreve a composição sempre por 100 g; esse valor não é um
+        // peso unitário real ("1 unidade/pedaço"), então usamos 40 g.
+        if (official == 100 && _isTacoSource(food['source'])) return 40;
+        return official;
       default:
         return 40;
     }
@@ -4449,31 +4515,60 @@ class _DietControlViewState extends State<DietControlView> {
                         icon: Icons.restaurant_rounded,
                         title: 'Medida Caseira / Porção',
                         accent: const Color(0xFFF59E0B),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _solidMeasureTypes.contains(
-                            _solidMeasureType,
-                          )
-                              ? _solidMeasureType
-                              : _solidMeasureTypes.first,
-                          decoration: const InputDecoration(
-                            labelText: 'Tipo',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: _solidMeasureTypes
-                              .map(
-                                (t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _solidMeasureTypes.contains(
+                                  _solidMeasureType,
+                                )
+                                    ? _solidMeasureType
+                                    : _solidMeasureTypes.first,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipo',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
                                 ),
-                              )
-                              .toList(),
-                          onChanged: _isPastDay
-                              ? null
-                              : (v) {
-                                  if (v == null) return;
-                                  setState(() => _solidMeasureType = v);
-                                },
+                                items: _solidMeasureTypes
+                                    .map(
+                                      (t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _isPastDay
+                                    ? null
+                                    : (v) {
+                                        if (v == null) return;
+                                        setState(() {
+                                          _solidMeasureType = v;
+                                          _applySolidMeasureDefaultWeight(v);
+                                        });
+                                      },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _solidMeasureWeightController,
+                                readOnly: _isPastDay,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Peso (g)',
+                                  hintText: 'ex: 250',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                                onChanged: _isPastDay
+                                    ? null
+                                    : (_) => setState(() {}),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
