@@ -11,14 +11,17 @@ import '../core/serving_units.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
-// O dropdown de unidades é limpo: exibe apenas as opções essenciais (g, ml,
-// unidade(s), fatia(s) e colher de sopa).
+// O dropdown de unidades é dinâmico: exibe "g", "ml" e as medidas caseiras
+// reais (`servings`) cadastradas para o alimento selecionado (FatSecret/TACO).
 //
-// Quando "unidade(s)" é selecionado para um alimento líquido, o card
-// "Recipiente / Tipo" aparece logo abaixo pedindo o tipo (copo/caixinha/
-// garrafinha) e o volume em ml; o peso é calculado como qtd × volume (1 ml = 1 g).
-// Para sólidos, o volume fica oculto e o peso é qtd × peso unitário oficial.
-// O peso real (Unidade Lógica) é resolvido em `_pesoTotalEmGramas`.
+// Cada porção tem seu próprio peso oficial em gramas (`amountGrams`), usado no
+// cálculo exato:
+//   pesoTotalEmGramas = quantidade × pesoOficialDaMedidaSelecionada
+//   caloriasFinais    = (pesoTotalEmGramas / 100) × caloriasBasePor100g
+//
+// "g" e "ml" possuem multiplicador direto 1:1. O peso real (Unidade Lógica) é
+// resolvido em `_pesoTotalEmGramas` e codificado no backend como
+// "porcao|<descricao>|<pesoGrams>".
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -53,9 +56,6 @@ class _DietControlViewState extends State<DietControlView> {
   static const List<String> _quantityUnits = [
     'g',
     'ml',
-    'unidade(s)',
-    'fatia(s)',
-    'colher de sopa',
   ];
 
   static const List<String> _containerTypes = [
@@ -1013,9 +1013,20 @@ class _DietControlViewState extends State<DietControlView> {
         final weight = _tryParseNumber(parts[2].trim());
         if (weight != null && weight > 0) dialogSolidMeasureWeight = weight;
       }
+    } else if (rawUnit.startsWith('porcao|')) {
+      final parts = rawUnit.split('|');
+      final description = parts.length > 1 ? parts[1].trim() : '';
+      selectedUnit = normalizeServingDescription(description);
+      if (selectedUnit.isNotEmpty && !editUnitChoices.contains(selectedUnit)) {
+        editUnitChoices.add(selectedUnit);
+      }
     } else {
       selectedUnit = normalizeServingDescription(rawUnit);
       if (!editUnitChoices.contains(selectedUnit)) selectedUnit = 'g';
+    }
+    // Mantém a unidade legada ("unidade(s)") disponível no dropdown de edição.
+    if (selectedUnit == 'unidade(s)' && !editUnitChoices.contains(selectedUnit)) {
+      editUnitChoices.add(selectedUnit);
     }
 
     final confirmed = await showDialog<bool>(
@@ -1224,6 +1235,12 @@ class _DietControlViewState extends State<DietControlView> {
       );
       final token = _solidMeasureTokens[dialogSolidMeasureType] ?? 'medida';
       unitToSave = 'medida|$token|${_formatMeasureAmount(weight)}';
+    } else if (selectedUnit != 'g' && selectedUnit != 'ml') {
+      // Porção oficial selecionada no dropdown dinâmico: codifica o peso real
+      // no formato "porcao|<descricao>|<pesoGrams>" para o backend.
+      final food = _foodByIdInMemory(_toInt(entry['foodId'])) ?? entry;
+      final weight = _servingWeightByDescription(food, selectedUnit);
+      unitToSave = 'porcao|$selectedUnit|${_formatMeasureAmount(weight)}';
     }
 
     try {
@@ -2876,33 +2893,43 @@ class _DietControlViewState extends State<DietControlView> {
   /// Unidades exibidas no dropdown de forma dinâmica, específicas para o
   /// alimento selecionado.
   ///
-  /// Sempre garante as opções base "g" e "ml" e acrescenta as porções reais
-  /// retornadas pela API/base (`servings`), traduzidas e limpas. As unidades
-  /// genéricas ("unidade(s)", "fatia(s)", "colher de sopa") permanecem como
-  /// fallback para alimentos sem porções específicas cadastradas.
+  /// Garante sempre as opções base "g" e "ml" e acrescenta as porções reais
+  /// retornadas pela API/base (`servings`), traduzidas e limpas. Sem unidades
+  /// genéricas fixas: apenas as medidas oficiais daquele alimento.
   List<String> get _quantityUnitChoices {
     final food = _resolveFoodFromTypedText();
     return _buildUnitChoices(food == null ? const [] : _extractServings(food));
   }
 
-  /// Monta a lista limpa de unidades do dropdown, contendo apenas as opções
-  /// essenciais ("g", "ml", "unidade(s)", "fatia(s)" e "colher de sopa").
-  /// As porções dinâmicas vindas das APIs (ex.: "onças", "fl onças", "100 g",
-  /// "100 ml", "1 copo") ficam de fora para evitar poluição visual na seleção
-  /// de unidades.
+  /// Monta a lista de unidades do dropdown dinamicamente, a partir das porções
+  /// reais cadastradas para o alimento selecionado (`servings`).
+  ///
+  /// Sempre inclui "g" e "ml" (multiplicador 1:1) e acrescenta a descrição de
+  /// cada porção oficial (ex.: "1 colher de sopa", "1 concha", "1 unidade",
+  /// "100 g"), deduplicada e com peso válido em gramas. Nenhuma unidade genérica
+  /// ("unidade(s)", "fatia(s)", "colher de sopa") é adicionada aqui.
   List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
-    return List.of(_quantityUnits);
+    final choices = <String>[..._quantityUnits];
+    final seen = <String>{..._quantityUnits};
+    for (final s in servings) {
+      final description = normalizeServingDescription(
+        (s['description'] ?? '').toString(),
+      );
+      final amount = _toDoubleOrNull(s['amountGrams']);
+      if (description.isEmpty || amount == null || amount <= 0) continue;
+      if (seen.add(description)) choices.add(description);
+    }
+    return choices;
   }
 
   /// Converte a quantidade digitada para o peso total em gramas, aplicando a
-  /// Regra de 3 conforme a unidade selecionada no dropdown (dinâmico por
-  /// alimento):
+  /// Regra de 3 conforme a unidade selecionada no dropdown dinâmico:
   ///
-  /// - "g" e "ml": peso/volume livre (1 ml ≈ 1 g).
-  /// - "colher de sopa": 15 g (padrão nutricional).
-  /// - "unidade(s)": líquido = quantidade × volume (ml); sólido = quantidade ×
-  ///   peso da porção padrão.
-  /// - "fatia(s)": quantidade × peso da porção padrão.
+  ///   pesoTotalEmGramas = quantidade × pesoOficialDaMedidaSelecionada
+  ///
+  /// - "g" e "ml": peso/volume livre (multiplicador direto 1:1).
+  /// - Demais opções: peso oficial em gramas (`amountGrams`) da porção real
+  ///   selecionada (sem chute de peso).
   double _pesoTotalEmGramas(
     Map<String, dynamic> food,
     double quantidadeDigitada,
@@ -2912,24 +2939,11 @@ class _DietControlViewState extends State<DietControlView> {
       case 'g':
       case 'ml':
         return quantidadeDigitada;
-      case 'colher de sopa':
-        return quantidadeDigitada * 15;
-      case 'unidade(s)':
-        // Líquido com recipiente customizado: total em ml = qtd × volume.
-        if (_isLiquidFood(food)) {
-          return quantidadeDigitada * _containerVolumeMl;
-        }
-        // Sólido: total em gramas = qtd × peso da medida caseira escolhida.
-        return quantidadeDigitada * _solidMeasureWeightGrams(food);
-      case 'fatia(s)':
-        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, unit);
-      case 'porção':
-        // Opção removida do dropdown, mas mantida por compatibilidade com
-        // entradas antigas salvas com a unidade "porção".
-        return quantidadeDigitada * _pesoDaPorcaoPadrao(food, 'porção');
       default:
-        // Unidade legada (descrição dinâmica antiga, ex.: "1 unidade").
-        return quantidadeDigitada * _legacyServingWeightGrams(food, _quantityUnit);
+        // Porção oficial selecionada no dropdown dinâmico: o peso real (em
+        // gramas) vem de `amountGrams` da própria porção — sem chute de peso.
+        return quantidadeDigitada *
+            _servingWeightByDescription(food, _quantityUnit);
     }
   }
 
@@ -2999,7 +3013,13 @@ class _DietControlViewState extends State<DietControlView> {
       final token = _solidMeasureTokens[_solidMeasureType] ?? 'medida';
       return 'medida|$token|${_formatMeasureAmount(weight)}';
     }
-    return _quantityUnit;
+    final unit = _quantityUnit;
+    if (unit == 'g' || unit == 'ml') return unit;
+    // Porção oficial selecionada: codifica o peso real no formato
+    // "porcao|<descricao>|<pesoGrams>" para o backend aplicar a regra de 3 exata.
+    final food = _resolveFoodFromTypedText();
+    final weight = food == null ? 1.0 : _servingWeightByDescription(food, unit);
+    return 'porcao|$unit|${_formatMeasureAmount(weight)}';
   }
 
   /// Rótulo amigável da unidade de um registro para exibição na lista.
@@ -3040,21 +3060,12 @@ class _DietControlViewState extends State<DietControlView> {
       if (qty == 1) return typeLabel;
       return _solidMeasurePluralLabels[token] ?? '${typeLabel}s';
     }
+    if (unit.startsWith('porcao|')) {
+      final parts = unit.split('|');
+      final description = parts.length > 1 ? parts[1].trim() : '';
+      if (description.isNotEmpty) return description;
+    }
     return unit;
-  }
-
-  /// Peso da porção padrão (em gramas) extraído do objeto do alimento retornado
-  /// pela API/base. Representa o "peso unitário oficial" (`pesoPorcao`) usado na
-  /// Regra de 3 para as unidades "unidade(s)" e "fatia(s)".
-  ///
-  /// Prioridade:
-  /// 1. Campo `defaultServingGrams` (peso oficial da porção vindo da API).
-  /// 2. Campo `servingAmountGrams` (peso da porção padrão do `food_description`).
-  /// 3. Porção marcada como padrão no array `servings`.
-  /// 4. Primeira porção com peso válido no array `servings`.
-  /// 5. Fallback inteligente por nome de alimento e unidade (nunca iguais).
-  double _pesoDaPorcaoPadrao(Map<String, dynamic> food, String unit) {
-    return _officialServingWeightOr(food, _fallbackServingWeightGrams(food, unit));
   }
 
   /// Peso oficial da porção (em gramas) vindo da API/base, ou [fallback]
@@ -3127,46 +3138,24 @@ class _DietControlViewState extends State<DietControlView> {
     return null;
   }
 
-  /// Fallback inteligente baseado no nome do alimento, usado somente quando a
-  /// API/base não informa o peso oficial da porção (`null`).
+  /// Peso oficial (em gramas) da porção cuja descrição casa com [unit].
   ///
-  /// Garante que "fatia(s)" e "unidade(s)" nunca fiquem com o mesmo peso
-  /// genérico para alimentos diferentes:
-  /// - fatia(s): bolo/torta = 60 g, pão/queijo = 25 g, demais = 30 g.
-  /// - unidade(s): ovo = 50 g, demais = 100 g.
-  /// - porção (legada) e outros: 50 g.
-  double _fallbackServingWeightGrams(Map<String, dynamic> food, String unit) {
-    final name = _normalizeFoodName((food['name'] ?? '').toString());
-    switch (unit.trim().toLowerCase()) {
-      case 'fatia(s)':
-        if (const ['bolo', 'torta'].any((k) => name.contains(k))) return 60;
-        if (const ['pao', 'paes', 'queijo'].any((k) => name.contains(k))) return 25;
-        return 30;
-      case 'unidade(s)':
-        if (const ['ovo', 'ovos'].any((k) => name.contains(k))) return 50;
-        return 100;
-      default:
-        return 50;
-    }
-  }
-
-  /// Mantém o cálculo correto para entradas antigas salvas com a descrição
-  /// dinâmica da porção no campo `unit`.
-  double _legacyServingWeightGrams(Map<String, dynamic> food, String unit) {
-    final normalized = normalizeServingDescription(unit).toLowerCase();
+  /// Usa estritamente o campo `amountGrams` da porção real cadastrada
+  /// (`servings`). Quando a descrição não é encontrada, usa o peso oficial da
+  /// porção padrão (`_officialServingWeightOr`), sem nenhum chute de peso.
+  double _servingWeightByDescription(Map<String, dynamic> food, String unit) {
+    final target = normalizeServingDescription(unit).toLowerCase();
     for (final s in _extractServings(food)) {
-      final desc = (s['description'] ?? '').toString().toLowerCase();
-      if (desc == normalized) {
+      final description = normalizeServingDescription(
+        (s['description'] ?? '').toString(),
+      ).toLowerCase();
+      if (description == target) {
         final amount = _toDoubleOrNull(s['amountGrams']);
         if (amount != null && amount > 0) return amount;
         break;
       }
     }
-    final defaultServing = _toDoubleOrNull(food['defaultServingGrams']);
-    if (defaultServing != null && defaultServing > 0) return defaultServing;
-    final servingAmount = _toDoubleOrNull(food['servingAmountGrams']);
-    if (servingAmount != null && servingAmount > 0) return servingAmount;
-    return 1; // comportamento legado: mantém o valor informado
+    return _officialServingWeightOr(food, 1.0);
   }
 
   List<Map<String, dynamic>> _extractServings(Map<String, dynamic> food) {
