@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
@@ -2279,8 +2280,12 @@ class _DietControlViewState extends State<DietControlView> {
     final selectedGoal = await _showTmbStep2Dialog();
     if (selectedGoal == null || !mounted) return;
 
-    final dailyTarget =
-        step1.totalEnergyExpenditure + kcalAdjustmentForObjective(selectedGoal);
+    // Trava de segurança nutricional: a meta diária automática nunca deve
+    // ficar abaixo da própria Taxa Metabólica Basal (TMB) do usuário.
+    final dailyTarget = math.max(
+      step1.basalKcal,
+      step1.totalEnergyExpenditure + kcalAdjustmentForObjective(selectedGoal),
+    );
 
     try {
       await AuthService.saveDietGoals(

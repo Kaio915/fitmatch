@@ -18,7 +18,7 @@ const List<String> kObjectiveOptions = [
 ///
 /// - Perder peso: défice de 500 kcal
 /// - Ganhar massa muscular / Aumentar força: superávite de 500 kcal
-/// - Definir / Hipertrofia: superávite leve de 250 kcal
+/// - Definir / Hipertrofia: défice leve de 250 kcal (definição/recomposição)
 /// - Demais objetivos: manutenção (0 kcal)
 int kcalAdjustmentForObjective(String objective) {
   switch (objective.trim()) {
@@ -28,7 +28,7 @@ int kcalAdjustmentForObjective(String objective) {
     case 'Aumentar força':
       return 500;
     case 'Definir / Hipertrofia':
-      return 250;
+      return -250;
     default:
       return 0;
   }
