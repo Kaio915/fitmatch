@@ -11,17 +11,19 @@ import '../core/serving_units.dart';
 import '../services/auth_service.dart';
 import '../widgets/logout_confirmation_dialog.dart';
 
-// O dropdown de unidades é dinâmico: exibe "g", "ml" e as medidas caseiras
-// reais (`servings`) cadastradas para o alimento selecionado (FatSecret/TACO).
+// O dropdown principal de unidades é fixo e exibe apenas "g", "ml" e
+// "unidade(s)". Ao escolher "unidade(s)", um card auxiliar é aberto:
+//   • sólidos  → "Medida Caseira / Porção" (peso em gramas embutido na opção);
+//   • líquidos → "Recipiente" (tipo + input de volume em ml).
 //
-// Cada porção tem seu próprio peso oficial em gramas (`amountGrams`), usado no
-// cálculo exato:
-//   pesoTotalEmGramas = quantidade × pesoOficialDaMedidaSelecionada
-//   caloriasFinais    = (pesoTotalEmGramas / 100) × caloriasBasePor100g
+// O cálculo nutricional multiplica rigorosamente a quantidade informada pelo
+// peso real da opção escolhida no card auxiliar:
+//   pesoTotalEmGramas = quantidade × pesoRealDaOpcao
+//   macroFinal        = (pesoTotalEmGramas / 100) × macroBasePor100g
 //
-// "g" e "ml" possuem multiplicador direto 1:1. O peso real (Unidade Lógica) é
-// resolvido em `_pesoTotalEmGramas` e codificado no backend como
-// "porcao|<descricao>|<pesoGrams>".
+// "g" e "ml" mantêm multiplicador direto 1:1. O peso/volume real é resolvido
+// em `_pesoTotalEmGramas` e codificado no backend como
+// "medida|<token>|<pesoGrams>" (sólido) ou "recipiente|<tipo>|<volumeMl>".
 
 class DietControlView extends StatefulWidget {
   final int userId;
@@ -56,49 +58,58 @@ class _DietControlViewState extends State<DietControlView> {
   static const List<String> _quantityUnits = [
     'g',
     'ml',
+    'unidade(s)',
   ];
 
   static const List<String> _containerTypes = [
     'Copo',
     'Caixinha',
     'Garrafinha',
-    'Lata',
   ];
 
   /// Medidas caseiras para alimentos sólidos, exibidas no card
-  /// "Medida Caseira / Porção" quando a unidade é "unidade(s)". As três
-  /// primeiras possuem peso padrão em gramas já embutido; "Unidade / Pedaço"
-  /// puxa o peso oficial do alimento (fallback 50 g).
+  /// "Medida Caseira / Porção" quando a unidade é "unidade(s)". Cada opção
+  /// possui um peso padrão em gramas já embutido; "Unidade / Pedaço" puxa o
+  /// peso oficial do alimento (fallback 40 g) e "Fatia" usa ~30 g (bolos,
+  /// pães, queijos).
   static const List<String> _solidMeasureTypes = [
-    'Colher de servir',
-    'Concha',
     'Prato / Porção',
+    'Marmita',
+    'Concha',
+    'Colher de servir',
     'Unidade / Pedaço',
+    'Fatia',
   ];
 
   /// Token canônico (sem acento/espaço) usado para codificar cada medida
   /// sólida no campo `unit` persistido no backend.
   static const Map<String, String> _solidMeasureTokens = {
-    'Colher de servir': 'colher',
-    'Concha': 'concha',
     'Prato / Porção': 'prato',
+    'Marmita': 'marmita',
+    'Concha': 'concha',
+    'Colher de servir': 'colher',
     'Unidade / Pedaço': 'unidade',
+    'Fatia': 'fatia',
   };
 
   /// Rótulo amigável de exibição para cada token de medida sólida.
   static const Map<String, String> _solidMeasureLabels = {
-    'colher': 'colher de servir',
-    'concha': 'concha',
     'prato': 'prato',
+    'marmita': 'marmita',
+    'concha': 'concha',
+    'colher': 'colher de servir',
     'unidade': 'unidade/pedaço',
+    'fatia': 'fatia',
   };
 
   /// Rótulo no plural para cada token de medida sólida.
   static const Map<String, String> _solidMeasurePluralLabels = {
-    'colher': 'colheres de servir',
-    'concha': 'conchas',
     'prato': 'pratos',
+    'marmita': 'marmitas',
+    'concha': 'conchas',
+    'colher': 'colheres de servir',
     'unidade': 'unidades/pedaços',
+    'fatia': 'fatias',
   };
 
   // Palavras-chave (sem acento) usadas para detectar combinações
@@ -114,25 +125,9 @@ class _DietControlViewState extends State<DietControlView> {
     'castanha', 'amendoim', 'noz',
   ];
 
-  /// Alimentos em peça inteira/fatia: não costumam ser medidos em
-  /// "colher de sopa".
-  static const List<String> _wholeOrSliceFoodKeywords = [
-    'pao', 'paozinho', 'paes', 'file', 'frango', 'maca', 'banana', 'ovo',
-    'ovos', 'bife', 'peixe', 'pizza', 'torrada', 'fatia', 'hamburguer',
-    'sanduiche', 'bolo',
-  ];
-
-  /// Líquidos ou grãos soltos: não costumam ser medidos em "fatia(s)".
-  static const List<String> _liquidOrLooseGrainKeywords = [
-    'leite', 'oleo', 'azeite', 'agua', 'suco', 'refrigerante', 'cafe',
-    'cha', 'iogurte', 'molho', 'bebida', 'arroz', 'feijao', 'aveia',
-    'farinha', 'acucar', 'lentilha', 'quinoa', 'granola', 'cereal', 'grao',
-    'mel', 'vinagre', 'extrato',
-  ];
-
   /// Líquidos/bebidas: compatíveis com medição por recipiente (volume em ml).
-  /// Usado para exibir o card "Recipiente / Tipo" quando a unidade é
-  /// "unidade(s)" — sólidos ficam sem volume e usam apenas a quantidade.
+  /// Usado para exibir o card "Recipiente (Líquido)" quando a unidade é
+  /// "unidade(s)" — sólidos exibem o card "Medida Caseira / Porção".
   static const List<String> _liquidFoodKeywords = [
     'leite', 'agua', 'suco', 'refrigerante', 'cafe', 'cha', 'iogurte',
     'bebida', 'achocolatado', 'vitamina', 'shake', 'smoothie', 'isotonico',
@@ -981,7 +976,7 @@ class _DietControlViewState extends State<DietControlView> {
 
     final qtyCtrl = TextEditingController(text: _fmt(currentQty));
     String scope = 'TODAY';
-    final editUnitChoices = _buildUnitChoices(_extractServings(entry));
+    final editUnitChoices = _buildUnitChoices();
     final rawUnit = (entry['unit'] ?? 'g').toString().trim();
     final dialogIsLiquid =
         rawUnit.startsWith('recipiente|') || _isLiquidFoodName(foodName);
@@ -2890,46 +2885,27 @@ class _DietControlViewState extends State<DietControlView> {
     return _entrySignature(mealType, entry);
   }
 
-  /// Unidades exibidas no dropdown de forma dinâmica, específicas para o
-  /// alimento selecionado.
-  ///
-  /// Garante sempre as opções base "g" e "ml" e acrescenta as porções reais
-  /// retornadas pela API/base (`servings`), traduzidas e limpas. Sem unidades
-  /// genéricas fixas: apenas as medidas oficiais daquele alimento.
-  List<String> get _quantityUnitChoices {
-    final food = _resolveFoodFromTypedText();
-    return _buildUnitChoices(food == null ? const [] : _extractServings(food));
-  }
+  List<String> get _quantityUnitChoices => _buildUnitChoices();
 
-  /// Monta a lista de unidades do dropdown dinamicamente, a partir das porções
-  /// reais cadastradas para o alimento selecionado (`servings`).
-  ///
-  /// Sempre inclui "g" e "ml" (multiplicador 1:1) e acrescenta a descrição de
-  /// cada porção oficial (ex.: "1 colher de sopa", "1 concha", "1 unidade",
-  /// "100 g"), deduplicada e com peso válido em gramas. Nenhuma unidade genérica
-  /// ("unidade(s)", "fatia(s)", "colher de sopa") é adicionada aqui.
-  List<String> _buildUnitChoices(List<Map<String, dynamic>> servings) {
-    final choices = <String>[..._quantityUnits];
-    final seen = <String>{..._quantityUnits};
-    for (final s in servings) {
-      final description = normalizeServingDescription(
-        (s['description'] ?? '').toString(),
-      );
-      final amount = _toDoubleOrNull(s['amountGrams']);
-      if (description.isEmpty || amount == null || amount <= 0) continue;
-      if (seen.add(description)) choices.add(description);
-    }
-    return choices;
+  /// Dropdown principal de unidades: exibe exclusivamente "g", "ml" e
+  /// "unidade(s)". As medidas caseiras ("colher de sopa", "fatia(s)" e porções
+  /// oficiais) foram removidas do menu principal e passam a viver apenas no
+  /// card auxiliar "Medida Caseira / Porção" (sólidos) ou "Recipiente"
+  /// (líquidos), abertos quando "unidade(s)" é selecionada.
+  List<String> _buildUnitChoices() {
+    return List<String>.of(_quantityUnits);
   }
 
   /// Converte a quantidade digitada para o peso total em gramas, aplicando a
-  /// Regra de 3 conforme a unidade selecionada no dropdown dinâmico:
+  /// Regra de 3 conforme a unidade selecionada no dropdown principal:
   ///
-  ///   pesoTotalEmGramas = quantidade × pesoOficialDaMedidaSelecionada
+  ///   pesoTotalEmGramas = quantidade × pesoRealDaOpcao
   ///
   /// - "g" e "ml": peso/volume livre (multiplicador direto 1:1).
-  /// - Demais opções: peso oficial em gramas (`amountGrams`) da porção real
-  ///   selecionada (sem chute de peso).
+  /// - "unidade(s)": líquidos usam o volume do recipiente (ml ≈ g) e sólidos
+  ///   usam o peso real da medida caseira escolhida no card auxiliar.
+  /// - Demais opções (legado): peso oficial em gramas (`amountGrams`) da porção
+  ///   real selecionada (sem chute de peso).
   double _pesoTotalEmGramas(
     Map<String, dynamic> food,
     double quantidadeDigitada,
@@ -2939,9 +2915,16 @@ class _DietControlViewState extends State<DietControlView> {
       case 'g':
       case 'ml':
         return quantidadeDigitada;
+      case 'unidade(s)':
+        // "Umbrella": líquidos usam o volume do recipiente (ml ≈ g) e sólidos
+        // usam o peso real da medida caseira escolhida no card auxiliar.
+        if (_isLiquidFood(food)) {
+          return quantidadeDigitada * _containerVolumeMl;
+        }
+        return quantidadeDigitada * _solidMeasureWeightGrams(food);
       default:
-        // Porção oficial selecionada no dropdown dinâmico: o peso real (em
-        // gramas) vem de `amountGrams` da própria porção — sem chute de peso.
+        // Porção oficial selecionada no dropdown dinâmico (legado): o peso real
+        // (em gramas) vem de `amountGrams` da própria porção — sem chute.
         return quantidadeDigitada *
             _servingWeightByDescription(food, _quantityUnit);
     }
@@ -3105,32 +3088,39 @@ class _DietControlViewState extends State<DietControlView> {
 
   /// Peso (em gramas) de uma medida caseira sólida específica.
   ///
-  /// - "Colher de servir" = 25 g (ideal para arroz, farofa).
-  /// - "Concha" = 130 g (ideal para feijão, sopas).
   /// - "Prato / Porção" = 350 g (refeição completa).
-  /// - "Unidade / Pedaço" = peso oficial do alimento ou 50 g de fallback.
+  /// - "Marmita" = 300 g.
+  /// - "Concha" = 130 g (ideal para feijão, sopas).
+  /// - "Colher de servir" = 50 g (ideal para arroz, farofa).
+  /// - "Unidade / Pedaço" = peso oficial do alimento ou 40 g de fallback.
+  /// - "Fatia" = 30 g (bolos, pães, queijos).
   double _solidMeasureWeightFor(
     String measureType,
     Map<String, dynamic>? food,
     double? embeddedWeight,
   ) {
     switch (measureType) {
-      case 'Colher de servir':
-        return 25;
-      case 'Concha':
-        return 130;
       case 'Prato / Porção':
         return 350;
+      case 'Marmita':
+        return 300;
+      case 'Concha':
+        return 130;
+      case 'Colher de servir':
+        return 50;
+      case 'Fatia':
+        return 30;
       case 'Unidade / Pedaço':
         if (embeddedWeight != null && embeddedWeight > 0) return embeddedWeight;
-        return food == null ? 50 : _officialServingWeightOr(food, 50);
+        return food == null ? 40 : _officialServingWeightOr(food, 40);
       default:
-        return 50;
+        return 40;
     }
   }
 
-  /// Converte um token canônico ("colher", "concha", "prato", "unidade") de
-  /// volta para o rótulo de exibição usado no card "Medida Caseira / Porção".
+  /// Converte um token canônico ("colher", "concha", "prato", "marmita",
+  /// "fatia", "unidade") de volta para o rótulo de exibição usado no card
+  /// "Medida Caseira / Porção".
   String? _solidMeasureTypeFromToken(String token) {
     for (final entry in _solidMeasureTokens.entries) {
       if (entry.value == token) return entry.key;
@@ -3231,12 +3221,6 @@ class _DietControlViewState extends State<DietControlView> {
       case 'ml':
         // Sólidos medidos em "ml" são atípicos.
         return _matchesAnyFoodKeyword(name, _solidFoodKeywords);
-      case 'colher de sopa':
-        // Peças inteiras/fatias medidas em colher são atípicas.
-        return _matchesAnyFoodKeyword(name, _wholeOrSliceFoodKeywords);
-      case 'fatia(s)':
-        // Líquidos ou grãos soltos medidos em fatias são atípicos.
-        return _matchesAnyFoodKeyword(name, _liquidOrLooseGrainKeywords);
       default:
         return false;
     }
