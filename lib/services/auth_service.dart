@@ -344,6 +344,58 @@ class AuthService {
     return data;
   }
 
+  // ✅ ESQUECI MINHA SENHA — solicita o código de recuperação por e-mail
+  static Future<void> forgotPassword({required String email}) async {
+    http.Response res;
+    try {
+      res = await http
+          .post(
+            Uri.parse('$_baseUrl/auth/forgot-password'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw Exception(
+        'Tempo de conexão esgotado. Verifique se a API está rodando na porta 8080.',
+      );
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
+  // ✅ ESQUECI MINHA SENHA — redefine a senha usando o código recebido
+  static Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    http.Response res;
+    try {
+      res = await http
+          .post(
+            Uri.parse('$_baseUrl/auth/reset-password'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email.trim(),
+              'code': code.trim(),
+              'newPassword': newPassword.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw Exception(
+        'Tempo de conexão esgotado. Verifique se a API está rodando na porta 8080.',
+      );
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception(_extractErrorMessage(res));
+    }
+  }
+
   static Future<Map<String, dynamic>> getCurrentUser() async {
     final res = await http.get(
       Uri.parse('$_baseUrl/auth/me'),

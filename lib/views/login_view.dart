@@ -3,6 +3,7 @@ import '../core/app_refresh_notifier.dart';
 import '../core/user_type.dart';
 import '../services/auth_service.dart';
 import '../widgets/fitmatch_logo.dart';
+import '../widgets/forgot_password_sheet.dart';
 import 'register_student_view.dart';
 import 'register_trainer_view.dart';
 import 'edit_student_cadastro_view.dart';
@@ -73,6 +74,28 @@ class _LoginViewState extends State<LoginView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  void _showSuccessSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF2E7D32),
+      ),
+    );
+  }
+
+  Future<void> _openForgotPassword() async {
+    FocusScope.of(context).unfocus();
+    final success = await ForgotPasswordSheet.show(
+      context,
+      initialEmail: _emailController.text.trim(),
+    );
+    if (success == true && mounted) {
+      _showSuccessSnack('Senha alterada com sucesso! Faça login com sua nova senha.');
+    }
   }
 
   bool _isCredentialsError(String msg) {
@@ -304,6 +327,25 @@ class _LoginViewState extends State<LoginView> {
                           focusNode: _passwordFocusNode,
                           textInputAction: TextInputAction.done,
                           onSubmitted: _onPasswordSubmitted,
+                        ),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: loading ? null : _openForgotPassword,
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Esqueci minha senha',
+                              style: TextStyle(
+                                color: Color(0xFF0B4DBA),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
 
                         const SizedBox(height: 16),
