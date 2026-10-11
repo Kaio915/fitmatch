@@ -26,6 +26,32 @@ import '../widgets/logout_confirmation_dialog.dart';
 // em `_pesoTotalEmGramas` e codificado no backend como
 // "medida|<token>|<pesoGrams>" (sólido) ou "recipiente|<tipo>|<volumeMl>".
 
+/// Snapshot imutável do dia armazenado no cache em memória
+/// (padrão Stale-While-Revalidate) para abrir a tela em 0ms.
+class _DietDaySnapshot {
+  _DietDaySnapshot({
+    required this.basalKcal,
+    required this.targetKcal,
+    required this.consumedKcal,
+    required this.remainingKcal,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    required this.meals,
+    required this.carryoverByMealType,
+  });
+
+  final double basalKcal;
+  final double targetKcal;
+  final double consumedKcal;
+  final double remainingKcal;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final List<Map<String, dynamic>> meals;
+  final Map<String, List<Map<String, dynamic>>> carryoverByMealType;
+}
+
 class DietControlView extends StatefulWidget {
   final int userId;
   final String userName;
@@ -156,6 +182,16 @@ class _DietControlViewState extends State<DietControlView> {
   // mealType → data ISO a partir da qual foi suprimido permanentemente
   final Map<String, String> _suppressedMealTypeSince = {};
 
+  // ── Cache em memória (Stale-While-Revalidate) ──────────────────────────────
+  // Guarda o último estado carregado para abrir a tela em 0ms e revalidar em
+  // segundo plano. Alimentos e favoritos são indexados por userId; as refeições
+  // e metas do dia são indexadas por `userId|dataISO`.
+  static final Map<int, List<Map<String, dynamic>>> _foodsCache = {};
+  static final Map<int, List<Map<String, dynamic>>> _savedMealsCache = {};
+  static final Map<String, _DietDaySnapshot> _dayCache = {};
+
+  static String _dayCacheKey(int userId, String dateIso) => '$userId|$dateIso';
+
   double _basalKcal = 0;
   double _targetKcal = 0;
   double _consumedKcal = 0;
@@ -187,6 +223,81 @@ class _DietControlViewState extends State<DietControlView> {
 
   void _onGlobalRefresh() {
     unawaited(_loadAll(keepUi: true));
+  }
+
+  /// Restaura o estado a partir do cache em memória (síncrono, sem I/O).
+  /// Retorna `true` quando há um snapshot do dia selecionado disponível,
+  /// permitindo abrir a tela sem qualquer indicador de carregamento.
+  bool _hydrateFromCache() {
+    final foods = _foodsCache[widget.userId];
+    final savedMeals = _savedMealsCache[widget.userId];
+    if (foods != null) {
+      _foods = foods.map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    if (savedMeals != null) {
+      _savedMealTemplates = savedMeals
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
+    final snapshot = _dayCache[_dayCacheKey(
+      widget.userId,
+      _toDateIso(_selectedDate),
+    )];
+    if (snapshot == null) return false;
+
+    _meals = snapshot.meals.map((e) => Map<String, dynamic>.from(e)).toList();
+    _carryoverByMealType = snapshot.carryoverByMealType.map(
+      (mealType, entries) => MapEntry(
+        mealType,
+        entries.map((e) => Map<String, dynamic>.from(e)).toList(),
+      ),
+    );
+    _basalKcal = snapshot.basalKcal;
+    _targetKcal = snapshot.targetKcal;
+    _consumedKcal = snapshot.consumedKcal;
+    _remainingKcal = snapshot.remainingKcal;
+    _protein = snapshot.protein;
+    _carbs = snapshot.carbs;
+    _fat = snapshot.fat;
+    _loading = false;
+
+    final mealChoices = _resolveMealChoices(
+      meals: _meals,
+      templates: _savedMealTemplates,
+    );
+    if (!mealChoices.contains(_selectedMeal)) {
+      _selectedMeal = mealChoices.isNotEmpty
+          ? mealChoices.first
+          : _mealTypes.first;
+    }
+    return true;
+  }
+
+  /// Grava o estado atual no cache em memória. Chamado após todo carregamento
+  /// ou mutação (adicionar/editar/excluir alimento, refeição, meta ou favorito),
+  /// já que todas essas operações convergem para `_loadAll`.
+  void _writeCache(String dateIso) {
+    _foodsCache[widget.userId] =
+        _foods.map((e) => Map<String, dynamic>.from(e)).toList();
+    _savedMealsCache[widget.userId] =
+        _savedMealTemplates.map((e) => Map<String, dynamic>.from(e)).toList();
+    _dayCache[_dayCacheKey(widget.userId, dateIso)] = _DietDaySnapshot(
+      basalKcal: _basalKcal,
+      targetKcal: _targetKcal,
+      consumedKcal: _consumedKcal,
+      remainingKcal: _remainingKcal,
+      protein: _protein,
+      carbs: _carbs,
+      fat: _fat,
+      meals: _meals.map((e) => Map<String, dynamic>.from(e)).toList(),
+      carryoverByMealType: _carryoverByMealType.map(
+        (mealType, entries) => MapEntry(
+          mealType,
+          entries.map((e) => Map<String, dynamic>.from(e)).toList(),
+        ),
+      ),
+    );
   }
 
   bool get _isPastDay {
@@ -479,7 +590,9 @@ class _DietControlViewState extends State<DietControlView> {
     super.initState();
     AppRefreshNotifier.signal.addListener(_onGlobalRefresh);
     _applySolidMeasureDefaultWeight();
-    unawaited(_initStateAndLoad());
+    // Restaura o estado do cache em memória (síncrono) para abrir a tela em 0ms.
+    final hydratedFromCache = _hydrateFromCache();
+    unawaited(_initStateAndLoad(hydratedFromCache: hydratedFromCache));
   }
 
   Future<Map<String, dynamic>?> _findLatestPreviousDayWithMeals({
@@ -504,13 +617,15 @@ class _DietControlViewState extends State<DietControlView> {
     return null;
   }
 
-  Future<void> _initStateAndLoad() async {
+  Future<void> _initStateAndLoad({bool hydratedFromCache = false}) async {
     try {
       await _restoreLocalDietState();
     } catch (_) {
       // If local restore fails, continue with remote data load.
     }
-    await _loadAll();
+    // Se já hidratamos a UI com cache, usa keepUi para revalidar em segundo
+    // plano sem esconder os dados exibidos (stale-while-revalidate).
+    await _loadAll(keepUi: hydratedFromCache);
   }
 
   void _showCoachTips() {
@@ -547,13 +662,7 @@ class _DietControlViewState extends State<DietControlView> {
     final capturedDateIso = _toDateIso(_selectedDate);
 
     try {
-      final foods = await AuthService.getDietFoods(widget.userId);
-      final daily = await AuthService.getDietEntriesByDate(
-        userId: widget.userId,
-        dateIso: capturedDateIso,
-      );
-
-      // Busca os últimos 7 dias em paralelo para carryover robusto (sem depender de SP)
+      // Busca os últimos 7 dias para carryover robusto (sem depender de SP).
       const int carryoverWindowDays = 7;
       final lookbackDates = List.generate(carryoverWindowDays, (i) {
         // Parseia capturedDateIso para evitar usar _selectedDate mutável
@@ -565,15 +674,29 @@ class _DietControlViewState extends State<DietControlView> {
         );
         return _toDateIso(base.subtract(Duration(days: i + 1)));
       });
-      final lookbackDailies = await Future.wait(
-        lookbackDates.map(
+
+      // Dispara em paralelo, no mesmo instante, todas as requisições independentes:
+      // alimentos, dia atual e janela de carryover. Elimina os awaits sequenciais
+      // que atrasavam a abertura da tela.
+      final futures = <Future<Object>>[
+        AuthService.getDietFoods(widget.userId),
+        AuthService.getDietEntriesByDate(
+          userId: widget.userId,
+          dateIso: capturedDateIso,
+        ),
+        ...lookbackDates.map<Future<Object>>(
           (d) => AuthService.getDietEntriesByDate(
             userId: widget.userId,
             dateIso: d,
           ),
         ),
-      );
+      ];
+      final results = await Future.wait<Object>(futures);
       if (!mounted) return;
+
+      final foods = results[0] as List<Map<String, dynamic>>;
+      final daily = results[1] as Map<String, dynamic>;
+      final lookbackDailies = results.sublist(2).cast<Map<String, dynamic>>();
 
       final totals = (daily['totals'] as Map<String, dynamic>?) ?? const {};
       final meals = (daily['meals'] as List<dynamic>? ?? const [])
@@ -849,6 +972,7 @@ class _DietControlViewState extends State<DietControlView> {
           _selectedMeal = mealChoices.first;
         }
       });
+      _writeCache(selectedDateIso);
       unawaited(_persistCarryoverState());
     } catch (e) {
       _showSnack(
@@ -3361,61 +3485,59 @@ class _DietControlViewState extends State<DietControlView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FB),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: RefreshIndicator(
-                onRefresh: () => _loadAll(keepUi: true),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                  children: [
-                    _buildHeaderActions(),
-                    const SizedBox(height: 16),
-                    _buildDaySelector(),
-                    if (_isPastDay) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFFDBA74)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.lock_clock_rounded,
-                              color: Color(0xFFEA580C),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Apenas o dia atual pode ser editado. Datas passadas e futuras ficam em modo somente leitura.',
-                                style: TextStyle(
-                                  color: Color(0xFF9A3412),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () => _loadAll(keepUi: true),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            children: [
+              _buildHeaderActions(),
+              const SizedBox(height: 16),
+              _buildDaySelector(),
+              if (_isPastDay) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFFDBA74)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.lock_clock_rounded,
+                        color: Color(0xFFEA580C),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Apenas o dia atual pode ser editado. Datas passadas e futuras ficam em modo somente leitura.',
+                          style: TextStyle(
+                            color: Color(0xFF9A3412),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 18),
-                    _buildMetrics(),
-                    const SizedBox(height: 16),
-                    _buildFavoritesCard(),
-                    const SizedBox(height: 14),
-                    _buildAddMealCard(),
-                    const SizedBox(height: 16),
-                    ..._buildMealSections(),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              ],
+              const SizedBox(height: 18),
+              _buildMetrics(),
+              const SizedBox(height: 16),
+              _buildFavoritesCard(),
+              const SizedBox(height: 14),
+              _buildAddMealCard(),
+              const SizedBox(height: 16),
+              ..._buildMealSections(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -3805,7 +3927,7 @@ class _DietControlViewState extends State<DietControlView> {
               ),
             ],
           ),
-          if (_loadingDay) ...[
+          if (_loadingDay || _loading) ...[
             const SizedBox(height: 10),
             const LinearProgressIndicator(minHeight: 3),
           ],
