@@ -108,11 +108,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   static const Map<String, String> _planInfoTexts = {
     'DIARIO':
-        'Plano diário: Permite selecionar horários avulsos apenas para um único dia. Ex: Agendar aula somente para hoje às 18:00 (ou 18:00 e 19:00 do mesmo dia).',
+        'Plano diário: Permite selecionar horários avulsos apenas para um único dia. Ex: Escolher dia 12/10 às 18:00 (ou 18:00 e 19:00 do mesmo dia) para treinar somente nessa data.',
     'SEMANAL':
-        'Plano semanal: Permite selecionar horários em diferentes dias dentro de até 7 dias a partir do primeiro horário escolhido. Ex: Escolher Seg às 18:00, Qua às 19:00 e Sex às 18:00 nesta semana.',
+        'Plano semanal: Permite selecionar horários em diferentes dias dentro de um período de 7 dias a partir do primeiro horário escolhido. Ex: Escolher Seg (12/10) às 18:00, Qua (14/10) às 19:00 e Sex (16/10) às 18:00.',
     'MENSAL':
-        'Plano mensal: Permite selecionar horários fixos que se repetirão ao longo de 1 mês (30 dias). Ex: Ao escolher Seg e Qua às 18:00, suas aulas ficarão agendadas para todas as segundas e quartas do mês nesse horário.',
+        'Plano mensal: Você não precisa marcar todos os dias do mês! Basta escolher seus dias e horários apenas uma vez e eles se repetirão automaticamente por 1 mês inteiro, sendo a última data exibida o último dia do seu plano. Ex: Ao marcar apenas uma Segunda (12/10) e uma Quarta (14/10) às 18:00, o sistema já agendará todas as segundas e quartas seguintes às 18:00 até a data final do plano (11/11).',
   };
 
   String _normalizeDayName(String raw) {
@@ -2500,7 +2500,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       top: false,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: const BoxDecoration(
           color: Color(0xFF0B4DBA),
           boxShadow: [
@@ -2512,22 +2512,26 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.info_outline_rounded,
-              color: Colors.white,
-              size: 20,
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.info_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 _planInfoText(_inlinePlanType),
+                softWrap: true,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w500,
-                  height: 1.3,
+                  height: 1.4,
                 ),
               ),
             ),
