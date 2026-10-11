@@ -106,6 +106,15 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     {'type': 'MENSAL', 'label': 'Mensal', 'sub': 'Por 1 mês'},
   ];
 
+  static const Map<String, String> _planInfoTexts = {
+    'DIARIO':
+        'Plano diário: Permite selecionar horários avulsos apenas para o dia escolhido.',
+    'SEMANAL':
+        'Plano semanal: Permite selecionar horários em até 7 dias a partir do primeiro horário escolhido.',
+    'MENSAL':
+        'Plano mensal: Permite selecionar horários fixos que se repetirão ao longo de 1 mês (30 dias).',
+  };
+
   String _normalizeDayName(String raw) {
     final source = raw
         .trim()
@@ -2453,7 +2462,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FB),
-      bottomNavigationBar: null,
+      bottomNavigationBar: _buildPlanInfoBanner(),
       body: SafeArea(
         child: Column(
           children: [
@@ -2475,6 +2484,57 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                       _buildReviewsCard(),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _planInfoText(String type) {
+    return _planInfoTexts[type] ?? _planInfoTexts['DIARIO']!;
+  }
+
+  // Barra informacional fixa no rodapé explicando o plano selecionado.
+  // Só aparece quando o aluno pode solicitar atendimento (canRequest), ou seja,
+  // quando a seção "Solicitação de atendimento" está visível.
+  Widget? _buildPlanInfoBanner() {
+    if (widget.studentId == null) return null;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0B4DBA),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 10,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _planInfoText(_inlinePlanType),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
                 ),
               ),
             ),
