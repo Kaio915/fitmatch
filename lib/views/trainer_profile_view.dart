@@ -108,11 +108,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
   static const Map<String, String> _planInfoTexts = {
     'DIARIO':
-        'Plano diário: Permite selecionar horários avulsos apenas para o dia escolhido.',
+        'Plano diário: Permite selecionar horários avulsos apenas para um único dia. Ex: Agendar aula somente para hoje às 18:00 (ou 18:00 e 19:00 do mesmo dia).',
     'SEMANAL':
-        'Plano semanal: Permite selecionar horários em até 7 dias a partir do primeiro horário escolhido.',
+        'Plano semanal: Permite selecionar horários em diferentes dias dentro de até 7 dias a partir do primeiro horário escolhido. Ex: Escolher Seg às 18:00, Qua às 19:00 e Sex às 18:00 nesta semana.',
     'MENSAL':
-        'Plano mensal: Permite selecionar horários fixos que se repetirão ao longo de 1 mês (30 dias).',
+        'Plano mensal: Permite selecionar horários fixos que se repetirão ao longo de 1 mês (30 dias). Ex: Ao escolher Seg e Qua às 18:00, suas aulas ficarão agendadas para todas as segundas e quartas do mês nesse horário.',
   };
 
   String _normalizeDayName(String raw) {
@@ -1901,13 +1901,6 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
     });
 
-    if (nextType.toUpperCase() == 'SEMANAL') {
-      _showSnack(
-        'Plano semanal permite selecionar horários em até 7 dias a partir do primeiro horário escolhido.',
-        icon: Icons.event_repeat_rounded,
-        color: const Color(0xFF0B4DBA),
-      );
-    }
   }
 
   /// Retorna as datas em que o horário recorrente de um plano MENSAL vai
