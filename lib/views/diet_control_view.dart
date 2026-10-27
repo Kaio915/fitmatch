@@ -2200,7 +2200,7 @@ class _DietControlViewState extends State<DietControlView> {
                   proteinPerGram < 0 ||
                   carbsPerGram < 0 ||
                   fatPerGram < 0) {
-                _showSnack('Preencha todos os campos corretamente.');
+                _showSnack('Preencha os campos corretamente.');
                 return;
               }
 
