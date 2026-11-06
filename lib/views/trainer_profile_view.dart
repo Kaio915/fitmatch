@@ -104,6 +104,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     {'type': 'DIARIO', 'label': 'Diário', 'sub': 'Mesmo dia'},
     {'type': 'SEMANAL', 'label': 'Semanal', 'sub': 'Recorrente'},
     {'type': 'MENSAL', 'label': 'Mensal', 'sub': 'Por 1 mês'},
+    {'type': 'SEMESTRAL', 'label': 'Semestral', 'sub': 'Por 6 meses'},
+    {'type': 'ANUAL', 'label': 'Anual', 'sub': 'Por 1 ano'},
   ];
 
   static const Map<String, String> _planInfoTexts = {
@@ -113,6 +115,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         'Plano semanal: Permite selecionar horários em diferentes dias dentro de um período de 7 dias a partir do primeiro horário escolhido. Ex: Escolher Seg (12/10) às 18:00, Qua (14/10) às 19:00 e Sex (16/10) às 18:00.',
     'MENSAL':
         'Plano mensal: Você não precisa marcar todos os dias do mês! Basta escolher seus dias e horários apenas uma vez e eles se repetirão automaticamente por 1 mês inteiro, sendo a última data exibida o último dia do seu plano. Ex: Ao marcar apenas uma Segunda (12/10) e uma Quarta (14/10) às 18:00, o sistema já agendará todas as segundas e quartas seguintes às 18:00 até a data final do plano (11/11).',
+    'SEMESTRAL':
+        'Plano semestral: Você não precisa marcar todos os dias! Basta escolher seus dias e horários apenas uma vez e eles se repetirão automaticamente por 6 meses, sendo a última data exibida o último dia do seu plano. Ex: Ao marcar apenas uma Segunda e uma Quarta às 18:00, o sistema já agendará todas as segundas e quartas seguintes às 18:00 até a data final do plano.',
+    'ANUAL':
+        'Plano anual: Você não precisa marcar todos os dias! Basta escolher seus dias e horários apenas uma vez e eles se repetirão automaticamente por 1 ano, sendo a última data exibida o último dia do seu plano. Ex: Ao marcar apenas uma Segunda e uma Quarta às 18:00, o sistema já agendará todas as segundas e quartas seguintes às 18:00 até a data final do plano.',
   };
 
   String _normalizeDayName(String raw) {
@@ -494,14 +500,14 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       final planType = (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-      if (planType != 'SEMANAL' && planType != 'MENSAL') {
+      if (planType != 'SEMANAL' && !_isRecurringWeeklyPlan(planType)) {
         continue;
       }
 
-      final monthlyWindow = planType == 'MENSAL'
+      final monthlyWindow = _isRecurringWeeklyPlan(planType)
           ? _monthlyCycleWindowForRequest(req)
           : null;
-      if (planType == 'MENSAL' && monthlyWindow == null) {
+      if (_isRecurringWeeklyPlan(planType) && monthlyWindow == null) {
         continue;
       }
 
@@ -562,6 +568,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final slots = _requestSlotsFromData(req);
     if (slots.isEmpty) return null;
 
+    final planType = (req['planType'] ?? 'MENSAL').toString().toUpperCase();
     final anchor =
         DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
         _requestAnchorForAvailability(req);
@@ -576,9 +583,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     }
 
     if (firstStart == null) return null;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstStart,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstStart, planType);
     return (
       start: firstStart,
       end: DateTime(
@@ -666,7 +671,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         continue;
       }
 
-      if (planType == 'MENSAL') {
+      if (_isRecurringWeeklyPlan(planType)) {
         final anchor =
             DateTime.tryParse((req['createdAt'] ?? '').toString()) ??
             _requestAnchorForAvailability(req);
@@ -703,6 +708,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         ? 'Plano Semanal'
         : planType == 'MENSAL'
         ? 'Plano Mensal'
+        : planType == 'SEMESTRAL'
+        ? 'Plano Semestral'
+        : planType == 'ANUAL'
+        ? 'Plano Anual'
         : 'Plano Diário';
 
     final orderedSlots = List<Map<String, String>>.from(selectedSlots)
@@ -715,8 +724,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         return (a['time'] ?? '').compareTo(b['time'] ?? '');
       });
 
-    final slotsText = planType.toUpperCase() == 'MENSAL'
-        ? _monthlySelectionSummaryLabels(orderedSlots, forChat: true).join('\n')
+    final slotsText = _isRecurringWeeklyPlan(planType)
+        ? _monthlySelectionSummaryLabels(
+            orderedSlots,
+            forChat: true,
+            planType: planType,
+          ).join('\n')
         : orderedSlots
               .map((s) {
                 final dayName = (s['dayName'] ?? '').trim();
@@ -793,10 +806,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final normalizedPlan = planType.toUpperCase();
     final base = _dateOnly(anchor ?? DateTime.now());
 
-    if (normalizedPlan == 'MENSAL') {
-      final endDate = _addOneMonthKeepingDay(
-        base,
-      ).subtract(const Duration(days: 1));
+    if (_isRecurringWeeklyPlan(normalizedPlan)) {
+      final endDate = _recurringCycleEndDate(base, normalizedPlan);
       return DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
     }
 
@@ -810,7 +821,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }) {
     final normalizedPlan = planType.toUpperCase();
     final effectiveSelections = selections ?? _inlineSelectedSlots;
-    if (normalizedPlan != 'SEMANAL' && normalizedPlan != 'MENSAL') {
+    if (normalizedPlan != 'SEMANAL' && !_isRecurringWeeklyPlan(normalizedPlan)) {
       return _dateOnly(fallback ?? DateTime.now());
     }
 
@@ -829,7 +840,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     DateTime? anchor,
   }) {
     final normalizedPlan = planType.toUpperCase();
-    if (normalizedPlan != 'MENSAL') {
+    if (!_isRecurringWeeklyPlan(normalizedPlan)) {
       return true;
     }
     final start = _dateOnly(anchor ?? DateTime.now());
@@ -941,11 +952,65 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  String _planNameLower(String planType) {
+    switch (planType.toUpperCase()) {
+      case 'SEMANAL':
+        return 'semanal';
+      case 'MENSAL':
+        return 'mensal';
+      case 'SEMESTRAL':
+        return 'semestral';
+      case 'ANUAL':
+        return 'anual';
+      default:
+        return 'diário';
+    }
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   DateTime? _selectionDateTime(Map<String, String> selection) {
@@ -994,6 +1059,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   List<String> _monthlySelectionSummaryLabels(
     List<Map<String, String>> selections, {
     bool forChat = false,
+    String planType = 'MENSAL',
   }) {
     if (selections.isEmpty) return const [];
 
@@ -1030,9 +1096,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     );
     final first = parsed.first;
     final firstDate = first['date'] as DateTime;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstDate,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstDate, planType);
     final windowEnd = DateTime(
       cycleEndDate.year,
       cycleEndDate.month,
@@ -1911,6 +1975,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     String time, {
     required DateTime anchor,
     required DateTime slotDate,
+    String planType = 'MENSAL',
   }) {
     final normalizedDay = _normalizeDayName(dayName);
     if (!_days.contains(normalizedDay)) return [];
@@ -1918,7 +1983,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     final hm = _parseHourMinute(time);
     if (hm == null) return [];
 
-    final windowEnd = _selectionWindowEnd('MENSAL', anchor: anchor);
+    final windowEnd = _selectionWindowEnd(planType, anchor: anchor);
     final start = _dateOnly(anchor);
     final conflicts = <DateTime>[];
 
@@ -2090,7 +2155,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
     }
 
-    if (_inlinePlanType.toUpperCase() == 'MENSAL') {
+    if (_isRecurringWeeklyPlan(_inlinePlanType)) {
       final normalizedTargetDay = _normalizeDayName(dayName);
       for (final s in _inlineSelectedSlots) {
         final sDay = _normalizeDayName((s['dayName'] ?? '').toString());
@@ -2100,7 +2165,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         final sDateIso = sIso.length >= 10 ? sIso.substring(0, 10) : sIso;
         if (sDateIso.isNotEmpty && sDateIso != resolvedDateIso) {
           _showSnack(
-            'No plano mensal, selecione horários do mesmo dia da semana na mesma data.',
+            'No plano ${_planNameLower(_inlinePlanType)}, selecione horários do mesmo dia da semana na mesma data.',
             icon: Icons.info_outline_rounded,
             color: const Color(0xFF0B4DBA),
           );
@@ -2115,7 +2180,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
 
       if (selectedWeekdays > 7) {
         _showSnack(
-          'Plano mensal permite no máximo 7 dias da semana diferentes.',
+          'Plano ${_planNameLower(_inlinePlanType)} permite no máximo 7 dias da semana diferentes.',
           icon: Icons.info_outline_rounded,
           color: const Color(0xFF0B4DBA),
         );
@@ -2161,9 +2226,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     )) {
       final end = _selectionWindowEnd(_inlinePlanType, anchor: anchor);
       final limitLabel = _formatDateLabel(end);
-      final msg = _inlinePlanType.toUpperCase() == 'SEMANAL'
-          ? 'Plano semanal permite selecionar horários somente até $limitLabel.'
-          : 'Plano mensal permite selecionar horários somente até $limitLabel.';
+      final msg = 'Plano ${_planNameLower(_inlinePlanType)} permite selecionar horários somente até $limitLabel.';
       _showSnack(
         msg,
         icon: Icons.info_outline_rounded,
@@ -2172,12 +2235,13 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       return;
     }
 
-    if (_inlinePlanType.toUpperCase() == 'MENSAL') {
+    if (_isRecurringWeeklyPlan(_inlinePlanType)) {
       final conflicts = _monthlyRecurringConflictDates(
         dayName,
         time,
         anchor: anchor,
         slotDate: resolvedDate,
+        planType: _inlinePlanType,
       );
       if (conflicts.isNotEmpty) {
         final proceed = await _confirmMonthlyConflict(dayName, time, conflicts);
@@ -2273,7 +2337,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       final normalizedPlanType = planType.toUpperCase();
-      if (normalizedPlanType == 'SEMANAL' || normalizedPlanType == 'MENSAL') {
+      if (normalizedPlanType == 'SEMANAL' || _isRecurringWeeklyPlan(normalizedPlanType)) {
         final mappedSelections = slotsWithDate
             .map(
               (slot) => {
@@ -2297,7 +2361,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           }
         }
 
-        if (normalizedPlanType == 'MENSAL') {
+        if (_isRecurringWeeklyPlan(normalizedPlanType)) {
           final selectedWeekdays = _countDistinctSelectedWeekdays(
             mappedSelections,
           );
@@ -2316,7 +2380,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           selections: mappedSelections,
           fallback: DateTime.now(),
         );
-        final windowEnd = normalizedPlanType == 'MENSAL'
+        final windowEnd = _isRecurringWeeklyPlan(normalizedPlanType)
             ? _selectionWindowEnd(normalizedPlanType, anchor: windowStart)
             : null;
 
@@ -2337,12 +2401,12 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
             return false;
           }
 
-          if (normalizedPlanType == 'MENSAL' &&
+          if (_isRecurringWeeklyPlan(normalizedPlanType) &&
               (candidate.isBefore(windowStart) ||
                   candidate.isAfter(windowEnd!))) {
             final limitLabel = _formatDateLabel(windowEnd!);
             final msg =
-                'Plano mensal permite solicitar horários somente até $limitLabel.';
+                'Plano ${_planNameLower(normalizedPlanType)} permite solicitar horários somente até $limitLabel.';
             _showSnack(
               msg,
               icon: Icons.info_outline_rounded,
@@ -2919,8 +2983,11 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           if (dateB != null) return 1;
           return (a['time'] ?? '').compareTo(b['time'] ?? '');
         });
-    final summaryLabels = _inlinePlanType == 'MENSAL'
-        ? _monthlySelectionSummaryLabels(orderedSelections)
+    final summaryLabels = _isRecurringWeeklyPlan(_inlinePlanType)
+        ? _monthlySelectionSummaryLabels(
+            orderedSelections,
+            planType: _inlinePlanType,
+          )
         : orderedSelections.map(_inlineSelectionLabel).toList();
     final availableCount = slots.where((s) {
       final state = canRequest
@@ -2945,6 +3012,10 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
           return 'Plano Semanal';
         case 'MENSAL':
           return 'Plano Mensal';
+        case 'SEMESTRAL':
+          return 'Plano Semestral';
+        case 'ANUAL':
+          return 'Plano Anual';
         default:
           return 'Plano Diário';
       }

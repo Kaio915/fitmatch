@@ -178,10 +178,37 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       list.add({
         'name': name,
         'category': category.isEmpty ? 'Outros' : category,
+        if ((item['sets'] ?? '').toString().trim().isNotEmpty)
+          'sets': (item['sets'] ?? '').toString().trim(),
+        if ((item['reps'] ?? '').toString().trim().isNotEmpty)
+          'reps': (item['reps'] ?? '').toString().trim(),
+        if ((item['tempo'] ?? '').toString().trim().isNotEmpty)
+          'tempo': (item['tempo'] ?? '').toString().trim(),
       });
     }
 
     return list;
+  }
+
+  String _formatSetsReps(String? sets, String? reps, String? tempo) {
+    final s = (sets ?? '').trim();
+    final r = (reps ?? '').trim();
+    final t = (tempo ?? '').trim();
+    final parts = <String>[];
+    if (s.isNotEmpty) parts.add('$s séries');
+    if (t.isNotEmpty) {
+      parts.add(t);
+    } else if (r.isNotEmpty) {
+      parts.add('$r reps');
+    }
+    return parts.join(' x ');
+  }
+
+  String _exerciseMeta(Map<String, String> ex) {
+    final category = ex['category'] ?? 'Outros';
+    final detail = _formatSetsReps(ex['sets'], ex['reps'], ex['tempo']);
+    if (detail.isEmpty) return category;
+    return '$category · $detail';
   }
 
   String _normalizeDayName(String raw) {
@@ -300,11 +327,50 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   DateTime _requestReferenceDate(Map<String, dynamic> req) {
@@ -438,6 +504,10 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
         return 'Plano Semanal';
       case 'MENSAL':
         return 'Plano Mensal';
+      case 'SEMESTRAL':
+        return 'Plano Semestral';
+      case 'ANUAL':
+        return 'Plano Anual';
       case 'DIARIO':
         return 'Plano Diário';
       default:
@@ -469,6 +539,16 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
       case 'MENSAL':
         return _addOneMonthKeepingDay(
           firstSlot,
+        ).subtract(const Duration(days: 1));
+      case 'SEMESTRAL':
+        return _addMonthsKeepingDay(
+          firstSlot,
+          6,
+        ).subtract(const Duration(days: 1));
+      case 'ANUAL':
+        return _addYearsKeepingDay(
+          firstSlot,
+          1,
         ).subtract(const Duration(days: 1));
       default:
         return null;
@@ -549,10 +629,8 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     }
 
     final planType = (req['planType'] ?? '').toString().toUpperCase();
-    if (planType == 'MENSAL' && firstDate != null && patternByKey.isNotEmpty) {
-      final cycleEndDate = _addOneMonthKeepingDay(
-        firstDate,
-      ).subtract(const Duration(days: 1));
+    if (_isRecurringWeeklyPlan(planType) && firstDate != null && patternByKey.isNotEmpty) {
+      final cycleEndDate = _recurringCycleEndDate(firstDate, planType);
       final windowEnd = DateTime(
         cycleEndDate.year,
         cycleEndDate.month,
@@ -758,6 +836,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
     required int index,
     required String name,
     required String category,
+    String sets = '',
+    String reps = '',
+    String tempo = '',
   }) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 6),
@@ -809,6 +890,17 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                     color: PdfColor.fromHex('#64748B'),
                   ),
                 ),
+                if (_formatSetsReps(sets, reps, tempo).isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    _formatSetsReps(sets, reps, tempo),
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromHex('#1D4ED8'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -933,6 +1025,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                 index: entry.key + 1,
                 name: entry.value['name'] ?? '',
                 category: entry.value['category'] ?? 'Outros',
+                sets: entry.value['sets'] ?? '',
+                reps: entry.value['reps'] ?? '',
+                tempo: entry.value['tempo'] ?? '',
               ),
             ),
         ],
@@ -1108,6 +1203,9 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                 index: i + 1,
                 name: ex['name'] ?? '',
                 category: ex['category'] ?? 'Outros',
+                sets: ex['sets'] ?? '',
+                reps: ex['reps'] ?? '',
+                tempo: ex['tempo'] ?? '',
               ),
             );
           }
@@ -1779,6 +1877,36 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                                                 fontSize: 26,
                                                               ),
                                                             ),
+                                                            if ((primaryPlan['name'] ??
+                                                                    '')
+                                                                .toString()
+                                                                .trim()
+                                                                .isNotEmpty) ...[
+                                                              const SizedBox(
+                                                                width: 10,
+                                                              ),
+                                                              Flexible(
+                                                                child: Text(
+                                                                  primaryPlan[
+                                                                          'name']
+                                                                      .toString(),
+                                                                  maxLines: 2,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    color: Color(
+                                                                      0xFF334155,
+                                                                    ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    fontSize: 14,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
                                                             const Spacer(),
                                                             Icon(
                                                               timeExpanded
@@ -1943,8 +2071,7 @@ class _StudentWorkoutViewState extends State<StudentWorkoutView> {
                                                                   ),
                                                                 ),
                                                                 Text(
-                                                                  ex['category'] ??
-                                                                      'Outros',
+                                                                  _exerciseMeta(ex),
                                                                   style: const TextStyle(
                                                                     fontSize:
                                                                         12,

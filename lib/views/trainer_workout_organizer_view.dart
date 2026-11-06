@@ -62,6 +62,7 @@ class _TrainerWorkoutOrganizerViewState
 
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _favoriteNameCtrl = TextEditingController();
+  final TextEditingController _planNameCtrl = TextEditingController();
   final TextEditingController _favoriteSearchCtrl = TextEditingController();
   final TextEditingController _customNameCtrl = TextEditingController();
   final ScrollController _pageScrollController = ScrollController();
@@ -97,6 +98,7 @@ class _TrainerWorkoutOrganizerViewState
     _searchCtrl.clear();
     setState(() {
       _editingPlanId = null;
+      _planNameCtrl.clear();
       _editingFavoriteId = null;
       _editingCustomId = null;
       _selectedExercises.clear();
@@ -169,6 +171,10 @@ class _TrainerWorkoutOrganizerViewState
         return 'Plano Semanal';
       case 'MENSAL':
         return 'Plano Mensal';
+      case 'SEMESTRAL':
+        return 'Plano Semestral';
+      case 'ANUAL':
+        return 'Plano Anual';
       default:
         return 'Plano de treino';
     }
@@ -313,6 +319,7 @@ class _TrainerWorkoutOrganizerViewState
     AppRefreshNotifier.signal.removeListener(_onGlobalRefresh);
     _searchCtrl.dispose();
     _favoriteNameCtrl.dispose();
+    _planNameCtrl.dispose();
     _favoriteSearchCtrl.dispose();
     _customNameCtrl.dispose();
     _pageScrollController.dispose();
@@ -446,84 +453,30 @@ class _TrainerWorkoutOrganizerViewState
     final defaultName = timeLabel.isEmpty
         ? 'Treino de $dayName'
         : 'Treino de $dayName $timeLabel';
-    final controller = TextEditingController(text: defaultName);
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Salvar como favorito'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Nome do treino',
-                hintText: 'Ex.: Pernas iniciante',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(dialogContext).pop(controller.text.trim()),
-                child: const Text('Salvar'),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      controller.dispose();
-    }
+    return await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _TextInputDialog(
+        title: 'Salvar como favorito',
+        initialValue: defaultName,
+        labelText: 'Nome do treino',
+        hintText: 'Ex.: Pernas iniciante',
+        confirmLabel: 'Salvar',
+      ),
+    );
   }
 
   Future<String?> _askCloneFavoriteName({required String currentName}) async {
     final base = currentName.trim().isEmpty ? 'Favorito' : currentName.trim();
-    final controller = TextEditingController(text: '$base (copia)');
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Clonar treino favorito'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Nome do novo treino',
-                hintText: 'Ex.: Treino para iniciantes 2',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  if (!dialogContext.mounted) return;
-                  Navigator.of(dialogContext, rootNavigator: true).pop();
-                },
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (!dialogContext.mounted) return;
-                  Navigator.of(
-                    dialogContext,
-                    rootNavigator: true,
-                  ).pop(controller.text.trim());
-                },
-                child: const Text('Clonar'),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      controller.dispose();
-    }
+    return await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _TextInputDialog(
+        title: 'Clonar treino favorito',
+        initialValue: '$base (copia)',
+        labelText: 'Nome do novo treino',
+        hintText: 'Ex.: Treino para iniciantes 2',
+        confirmLabel: 'Clonar',
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -569,6 +522,29 @@ class _TrainerWorkoutOrganizerViewState
 
   String _exerciseKey(String name, String category) {
     return '${name.trim().toLowerCase()}|${category.trim().toLowerCase()}';
+  }
+
+  String _seriesRepsLabel(Map<String, String> ex) {
+    final sets = (ex['sets'] ?? '').trim();
+    final reps = (ex['reps'] ?? '').trim();
+    final tempo = (ex['tempo'] ?? '').trim();
+
+    final parts = <String>[];
+    if (sets.isNotEmpty) parts.add('$sets séries');
+    if (tempo.isNotEmpty) {
+      parts.add(tempo);
+    } else if (reps.isNotEmpty) {
+      parts.add('$reps reps');
+    }
+    return parts.join(' x ');
+  }
+
+  String _exerciseSummary(Map<String, String> ex) {
+    final name = ex['name'] ?? '';
+    final category = ex['category'] ?? 'Outros';
+    final detail = _seriesRepsLabel(ex);
+    if (detail.isEmpty) return '$name ($category)';
+    return '$name ($category) · $detail';
   }
 
   String _favoriteSignature(List<Map<String, String>> exercises) {
@@ -783,6 +759,12 @@ class _TrainerWorkoutOrganizerViewState
           _selectedExercises[_exerciseKey(newName, newCategory)] = {
             'name': newName,
             'category': newCategory,
+            if ((oldSelection['sets'] ?? '').isNotEmpty)
+              'sets': oldSelection['sets'] ?? '',
+            if ((oldSelection['reps'] ?? '').isNotEmpty)
+              'reps': oldSelection['reps'] ?? '',
+            if ((oldSelection['tempo'] ?? '').isNotEmpty)
+              'tempo': oldSelection['tempo'] ?? '',
           };
         }
       });
@@ -845,6 +827,12 @@ class _TrainerWorkoutOrganizerViewState
       list.add({
         'name': name,
         'category': category.isEmpty ? 'Outros' : category,
+        if ((item['sets'] ?? '').toString().trim().isNotEmpty)
+          'sets': (item['sets'] ?? '').toString().trim(),
+        if ((item['reps'] ?? '').toString().trim().isNotEmpty)
+          'reps': (item['reps'] ?? '').toString().trim(),
+        if ((item['tempo'] ?? '').toString().trim().isNotEmpty)
+          'tempo': (item['tempo'] ?? '').toString().trim(),
       });
     }
 
@@ -871,6 +859,9 @@ class _TrainerWorkoutOrganizerViewState
         _selectedExercises[key] = {
           'name': name.trim(),
           'category': category.trim().isEmpty ? 'Outros' : category.trim(),
+          'sets': '',
+          'reps': '',
+          'tempo': '',
         };
       }
     });
@@ -883,7 +874,16 @@ class _TrainerWorkoutOrganizerViewState
       final category = (exercise['category'] ?? 'Outros').trim();
       if (name.isEmpty) continue;
       final key = _exerciseKey(name, category);
-      next[key] = {'name': name, 'category': category};
+      next[key] = {
+        'name': name,
+        'category': category,
+        if ((exercise['sets'] ?? '').trim().isNotEmpty)
+          'sets': (exercise['sets'] ?? '').trim(),
+        if ((exercise['reps'] ?? '').trim().isNotEmpty)
+          'reps': (exercise['reps'] ?? '').trim(),
+        if ((exercise['tempo'] ?? '').trim().isNotEmpty)
+          'tempo': (exercise['tempo'] ?? '').trim(),
+      };
     }
     setState(() {
       _selectedExercises
@@ -910,6 +910,7 @@ class _TrainerWorkoutOrganizerViewState
           trainerId: widget.trainerId,
           studentId: widget.studentId,
           dayName: _selectedDay,
+          name: _planNameCtrl.text.trim(),
           time: _selectedTime,
           exercises: exercises,
         );
@@ -919,6 +920,7 @@ class _TrainerWorkoutOrganizerViewState
           studentId: widget.studentId,
           planId: _editingPlanId!,
           dayName: _selectedDay,
+          name: _planNameCtrl.text.trim(),
           time: _selectedTime,
           exercises: exercises,
         );
@@ -929,6 +931,7 @@ class _TrainerWorkoutOrganizerViewState
       if (!mounted) return;
       setState(() {
         _editingPlanId = null;
+        _planNameCtrl.clear();
         _selectedExercises.clear();
       });
 
@@ -1195,6 +1198,7 @@ class _TrainerWorkoutOrganizerViewState
       if (_editingPlanId == planId) {
         setState(() {
           _editingPlanId = null;
+          _planNameCtrl.clear();
           _selectedExercises.clear();
         });
       }
@@ -1215,6 +1219,7 @@ class _TrainerWorkoutOrganizerViewState
 
     setState(() {
       _editingPlanId = id;
+      _planNameCtrl.text = (plan['name'] ?? '').toString().trim();
       if (_dayOptions.contains(day)) {
         _selectedDay = day;
       }
@@ -1239,6 +1244,85 @@ class _TrainerWorkoutOrganizerViewState
         alignment: 0.08,
       );
     });
+  }
+
+  Future<void> _renamePlan(Map<String, dynamic> plan) async {
+    final id = int.tryParse((plan['id'] ?? '').toString());
+    if (id == null) return;
+    final currentName = (plan['name'] ?? '').toString().trim();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _TextInputDialog(
+        title: 'Renomear treino',
+        initialValue: currentName.isEmpty ? 'Treino' : currentName,
+        labelText: 'Nome do treino',
+        hintText: 'Ex.: Treino A - Peito',
+        confirmLabel: 'Renomear',
+      ),
+    );
+    if (!mounted || name == null || name.trim().isEmpty) return;
+
+    try {
+      await AuthService.updateTrainerStudentWorkoutPlan(
+        trainerId: widget.trainerId,
+        studentId: widget.studentId,
+        planId: id,
+        dayName: (plan['dayName'] ?? '').toString(),
+        time: (plan['time'] ?? '').toString(),
+        name: name,
+        exercises: _extractExercises(plan['exercises']),
+      );
+      await _refreshPlansOnly();
+      if (mounted) {
+        _showSnack('Treino renomeado com sucesso.', color: const Color(0xFF16A34A));
+      }
+    } catch (e) {
+      _showSnack(
+        e.toString().replaceFirst('Exception: ', ''),
+        color: const Color(0xFFEF4444),
+      );
+    }
+  }
+
+  Future<void> _clonePlan(Map<String, dynamic> plan) async {
+    final id = int.tryParse((plan['id'] ?? '').toString());
+    if (id == null) return;
+    final target = await _askApplyFavoriteSlot(
+      favoriteName: (plan['name'] ?? 'Treino').toString(),
+    );
+    if (!mounted || target == null) return;
+    final currentName = (plan['name'] ?? '').toString().trim();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _TextInputDialog(
+        title: 'Clonar treino',
+        initialValue: currentName.isEmpty ? 'Treino (cópia)' : '$currentName (cópia)',
+        labelText: 'Nome do novo treino',
+        hintText: 'Ex.: Treino B',
+        confirmLabel: 'Clonar',
+      ),
+    );
+    if (!mounted || name == null || name.trim().isEmpty) return;
+
+    try {
+      await AuthService.cloneTrainerStudentWorkoutPlan(
+        trainerId: widget.trainerId,
+        studentId: widget.studentId,
+        planId: id,
+        dayName: (target['dayName'] ?? '').toString(),
+        time: (target['time'] ?? '').toString(),
+        name: name,
+      );
+      await _refreshPlansOnly();
+      if (mounted) {
+        _showSnack('Treino clonado com sucesso.', color: const Color(0xFF16A34A));
+      }
+    } catch (e) {
+      _showSnack(
+        e.toString().replaceFirst('Exception: ', ''),
+        color: const Color(0xFFEF4444),
+      );
+    }
   }
 
   void _startEditFavorite(Map<String, dynamic> favorite) {
@@ -1724,6 +1808,16 @@ class _TrainerWorkoutOrganizerViewState
                           ),
                         ),
                         const SizedBox(height: 10),
+                        TextField(
+                          controller: _planNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Nome do treino',
+                            hintText: 'Ex.: Treino A - Peito',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         SizedBox(
                           height: 40,
                           child: ListView.separated(
@@ -2143,23 +2237,17 @@ class _TrainerWorkoutOrganizerViewState
                         ),
                         if (_selectedExercises.isNotEmpty) ...[
                           const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: _selectedExercises.values
-                                .map(
-                                  (ex) => Chip(
-                                    label: Text(
-                                      '${ex["name"]} (${ex["category"]})',
-                                    ),
-                                    onDeleted: () => _toggleExercise(
-                                      ex['name'] ?? '',
-                                      ex['category'] ?? 'Outros',
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
+                          ..._selectedExercises.entries.map((entry) {
+                            final ex = entry.value;
+                            return _SelectedExerciseTile(
+                              key: ValueKey(entry.key),
+                              exercise: ex,
+                              onRemove: () => _toggleExercise(
+                                ex['name'] ?? '',
+                                ex['category'] ?? 'Outros',
+                              ),
+                            );
+                          }),
                         ],
                         const SizedBox(height: 10),
                         Row(
@@ -2169,6 +2257,7 @@ class _TrainerWorkoutOrganizerViewState
                                 setState(() {
                                   _selectedExercises.clear();
                                   _editingPlanId = null;
+                                  _planNameCtrl.clear();
                                 });
                               },
                               icon: const Icon(
@@ -2526,7 +2615,7 @@ class _TrainerWorkoutOrganizerViewState
                                                       ),
                                                     ),
                                                     child: Text(
-                                                      '${ex["name"]} (${ex["category"]})',
+                                                      _exerciseSummary(ex),
                                                       style: const TextStyle(
                                                         fontSize: 11.5,
                                                         color: Colors.black87,
@@ -2623,7 +2712,9 @@ class _TrainerWorkoutOrganizerViewState
                                             ),
                                           ),
                                           child: Text(
-                                            day,
+                                              (plan['name'] ?? '').toString().trim().isEmpty
+                                                  ? day
+                                                  : '${plan['name']} • $day',
                                             style: const TextStyle(
                                               color: Color(0xFF1D4ED8),
                                               fontWeight: FontWeight.w700,
@@ -2682,6 +2773,23 @@ class _TrainerWorkoutOrganizerViewState
                                               : () => _startEditPlan(plan),
                                           child: const Text('Editar'),
                                         ),
+                                        TextButton(
+                                          onPressed: id == null
+                                              ? null
+                                              : () => _renamePlan(plan),
+                                          child: const Text('Renomear'),
+                                        ),
+                                        IconButton(
+                                          onPressed: id == null
+                                              ? null
+                                              : () => _clonePlan(plan),
+                                          tooltip: 'Clonar treino',
+                                          icon: const Icon(
+                                            Icons.copy_rounded,
+                                            size: 18,
+                                            color: Color(0xFF2563EB),
+                                          ),
+                                        ),
                                         IconButton(
                                           onPressed: id == null
                                               ? null
@@ -2719,7 +2827,7 @@ class _TrainerWorkoutOrganizerViewState
                                                 ),
                                               ),
                                               child: Text(
-                                                '${ex["name"]} (${ex["category"]})',
+                                                _exerciseSummary(ex),
                                                 style: const TextStyle(
                                                   fontSize: 11.5,
                                                   color: Color(0xFF334155),
@@ -2783,6 +2891,210 @@ class _TrainerWorkoutOrganizerViewState
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _SelectedExerciseTile extends StatefulWidget {
+  final Map<String, String> exercise;
+  final VoidCallback onRemove;
+
+  const _SelectedExerciseTile({
+    super.key,
+    required this.exercise,
+    required this.onRemove,
+  });
+
+  @override
+  State<_SelectedExerciseTile> createState() => _SelectedExerciseTileState();
+}
+
+class _SelectedExerciseTileState extends State<_SelectedExerciseTile> {
+  late final TextEditingController _setsCtrl;
+  late final TextEditingController _repsCtrl;
+  late final TextEditingController _tempoCtrl;
+  late final FocusNode _setsFocus;
+  late final FocusNode _repsFocus;
+  late final FocusNode _tempoFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _setsCtrl = TextEditingController(text: widget.exercise['sets'] ?? '');
+    _repsCtrl = TextEditingController(text: widget.exercise['reps'] ?? '');
+    _tempoCtrl = TextEditingController(text: widget.exercise['tempo'] ?? '');
+    _setsFocus = FocusNode();
+    _repsFocus = FocusNode();
+    _tempoFocus = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _setsFocus.dispose();
+    _repsFocus.dispose();
+    _tempoFocus.dispose();
+    _setsCtrl.dispose();
+    _repsCtrl.dispose();
+    _tempoCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = widget.exercise['name'] ?? '';
+    final category = widget.exercise['category'] ?? 'Outros';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$name ($category)',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: widget.onRemove,
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: Color(0xFFB91C1C),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _setsCtrl,
+                  focusNode: _setsFocus,
+                  onChanged: (value) {
+                    widget.exercise['sets'] = value.trim();
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Séries',
+                    hintText: 'Ex: 3',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _repsCtrl,
+                  focusNode: _repsFocus,
+                  onChanged: (value) {
+                    widget.exercise['reps'] = value.trim();
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Repetições',
+                    hintText: 'Ex: 12',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _tempoCtrl,
+            focusNode: _tempoFocus,
+            onChanged: (value) {
+              widget.exercise['tempo'] = value.trim();
+            },
+            decoration: const InputDecoration(
+              labelText: 'Tempo (exercícios por tempo)',
+              hintText: 'Ex: 1 min, 45 seg',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _TextInputDialog extends StatefulWidget {
+  final String title;
+  final String initialValue;
+  final String labelText;
+  final String hintText;
+  final String confirmLabel;
+
+  const _TextInputDialog({
+    required this.title,
+    required this.initialValue,
+    required this.labelText,
+    required this.hintText,
+    required this.confirmLabel,
+  });
+
+  @override
+  State<_TextInputDialog> createState() => _TextInputDialogState();
+}
+
+class _TextInputDialogState extends State<_TextInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: widget.labelText,
+          hintText: widget.hintText,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: Text(widget.confirmLabel),
+        ),
+      ],
     );
   }
 }

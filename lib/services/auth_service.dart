@@ -1221,6 +1221,7 @@ class AuthService {
     required int trainerId,
     required int studentId,
     required String dayName,
+    String? name,
     String? time,
     required List<Map<String, String>> exercises,
   }) async {
@@ -1229,6 +1230,7 @@ class AuthService {
       headers: await _headers(json: true),
       body: jsonEncode({
         'dayName': dayName.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         if (time != null && time.trim().isNotEmpty) 'time': time.trim(),
         'exercises': exercises,
       }),
@@ -1242,6 +1244,7 @@ class AuthService {
     required int studentId,
     required int planId,
     required String dayName,
+    String? name,
     String? time,
     required List<Map<String, String>> exercises,
   }) async {
@@ -1250,8 +1253,32 @@ class AuthService {
       headers: await _headers(json: true),
       body: jsonEncode({
         'dayName': dayName.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         if (time != null && time.trim().isNotEmpty) 'time': time.trim(),
         'exercises': exercises,
+      }),
+    );
+    if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> cloneTrainerStudentWorkoutPlan({
+    required int trainerId,
+    required int studentId,
+    required int planId,
+    required String dayName,
+    required String time,
+    required String name,
+  }) async {
+    final res = await http.post(
+      Uri.parse(
+        '$_baseUrl/workouts/trainer/$trainerId/students/$studentId/plans/$planId/clone',
+      ),
+      headers: await _headers(json: true),
+      body: jsonEncode({
+        'dayName': dayName.trim(),
+        'time': time.trim(),
+        'name': name.trim(),
       }),
     );
     if (res.statusCode != 200) throw Exception(_extractErrorMessage(res));

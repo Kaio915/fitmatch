@@ -341,7 +341,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               .toUpperCase();
           if (planType == 'MENSAL' ||
               planType == 'DIARIO' ||
-              planType == 'SEMANAL') {
+              planType == 'SEMANAL' ||
+              planType == 'SEMESTRAL' ||
+              planType == 'ANUAL') {
             continue;
           }
           final studentName = (req['studentName'] ?? 'Aluno').toString().trim();
@@ -370,7 +372,9 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
               .toUpperCase();
           if (planType == 'MENSAL' ||
               planType == 'DIARIO' ||
-              planType == 'SEMANAL') {
+              planType == 'SEMANAL' ||
+              planType == 'SEMESTRAL' ||
+              planType == 'ANUAL') {
             continue;
           }
           final slots = _extractRequestSlots(req);
@@ -452,8 +456,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
         .toString()
         .trim()
         .toUpperCase();
-    final isMonthly =
-        normalizedPlanType == 'MENSAL' || normalizedPlanType.contains('MENSAL');
+    final isMonthly = _isRecurringWeeklyPlan(normalizedPlanType);
     final slotsText = isMonthly
         ? _requestSlotLabelsForAgenda(
             req,
@@ -955,11 +958,50 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   String _toDateIso(DateTime value) {
@@ -1165,16 +1207,15 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final approvedRequests = _allTrainerRequests.where((r) {
       final status = (r['status'] ?? '').toString().toUpperCase();
       final plan = (r['planType'] ?? 'DIARIO').toString().toUpperCase();
-      return status == 'APPROVED' && plan == 'MENSAL';
+      return status == 'APPROVED' && _isRecurringWeeklyPlan(plan);
     }).toList();
 
     for (final req in approvedRequests) {
+      final plan = (req['planType'] ?? 'DIARIO').toString().toUpperCase();
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final cycleEndDate = _addOneMonthKeepingDay(
-        firstSession,
-      ).subtract(const Duration(days: 1));
+      final cycleEndDate = _recurringCycleEndDate(firstSession, plan);
       final windowEnd = DateTime(
         cycleEndDate.year,
         cycleEndDate.month,
@@ -1212,14 +1253,12 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
 
     for (final req in _pendingRequests) {
       final plan = (req['planType'] ?? 'DIARIO').toString().toUpperCase();
-      if (plan != 'MENSAL') continue;
+      if (!_isRecurringWeeklyPlan(plan)) continue;
 
       final anchor = _requestWindowAnchor(req);
       final firstSession = _monthlyFirstSessionAt(req);
       if (firstSession == null) continue;
-      final cycleEndDate = _addOneMonthKeepingDay(
-        firstSession,
-      ).subtract(const Duration(days: 1));
+      final cycleEndDate = _recurringCycleEndDate(firstSession, plan);
       final windowEnd = DateTime(
         cycleEndDate.year,
         cycleEndDate.month,
@@ -1409,7 +1448,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     for (final req in _allTrainerRequests) {
       final plan = (req['planType'] ?? 'DIARIO').toString().toUpperCase();
       final status = (req['status'] ?? '').toString().toUpperCase();
-      if (plan != 'MENSAL') continue;
+      if (!_isRecurringWeeklyPlan(plan)) continue;
       if (status != 'APPROVED' && status != 'PENDING') continue;
 
       final slots = _extractRequestSlots(req);
@@ -1473,7 +1512,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final slots = _extractRequestSlots(req);
     if (slots.isEmpty) return const [];
 
-    if (planType != 'MENSAL' && !planType.contains('MENSAL')) {
+    if (!_isRecurringWeeklyPlan(planType)) {
       return slots.map((slot) {
         final dayName = (slot['dayName'] ?? '').toString().trim();
         final time = (slot['time'] ?? '').toString().trim();
@@ -1537,9 +1576,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstAt,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstAt, planType);
     final windowEnd = DateTime(
       cycleEndDate.year,
       cycleEndDate.month,
@@ -3405,6 +3442,10 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
           return 'Plano Semanal';
         case 'MENSAL':
           return 'Plano Mensal';
+        case 'SEMESTRAL':
+          return 'Plano Semestral';
+        case 'ANUAL':
+          return 'Plano Anual';
         default:
           return 'Aluno';
       }
@@ -5275,6 +5316,20 @@ class _RequestRow extends StatelessWidget {
           'Plano Mensal',
           Icons.calendar_month_rounded,
         );
+      case 'SEMESTRAL':
+        return (
+          const Color(0xFF7C3AED),
+          const Color(0xFFF3E8FF),
+          'Plano Semestral',
+          Icons.date_range_rounded,
+        );
+      case 'ANUAL':
+        return (
+          const Color(0xFF0891B2),
+          const Color(0xFFE0F2FE),
+          'Plano Anual',
+          Icons.event_available_rounded,
+        );
       default:
         return (
           const Color(0xFFB45309),
@@ -5386,11 +5441,50 @@ class _RequestRow extends StatelessWidget {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   DateTime? _parseSlotDateMeta(
@@ -5456,7 +5550,7 @@ class _RequestRow extends StatelessWidget {
             {'dayName': dayName, 'time': time},
           ];
 
-    if (planType.toUpperCase() != 'MENSAL') {
+    if (!_isRecurringWeeklyPlan(planType)) {
       return slots.map((slot) {
         final d = (slot['dayName'] ?? '').toString().trim();
         final t = (slot['time'] ?? '').toString().trim();
@@ -5510,9 +5604,7 @@ class _RequestRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstAt,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstAt, planType);
     final windowEnd = DateTime(
       cycleEndDate.year,
       cycleEndDate.month,
@@ -6391,6 +6483,10 @@ class _StudentRow extends StatelessWidget {
         return 'Plano Semanal';
       case 'MENSAL':
         return 'Plano Mensal';
+      case 'SEMESTRAL':
+        return 'Plano Semestral';
+      case 'ANUAL':
+        return 'Plano Anual';
       default:
         return 'Aluno';
     }
@@ -6472,11 +6568,50 @@ class _StudentRow extends StatelessWidget {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   String _formatDateLabel(DateTime date) {
@@ -6522,7 +6657,10 @@ class _StudentRow extends StatelessWidget {
     return null;
   }
 
-  List<String> _monthlySummaryLabels(List<Map<String, String>> slots) {
+  List<String> _monthlySummaryLabels(
+    List<Map<String, String>> slots, {
+    String planType = 'MENSAL',
+  }) {
     if (slots.isEmpty) return const [];
 
     final anchor = DateTime.now();
@@ -6574,9 +6712,7 @@ class _StudentRow extends StatelessWidget {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstAt,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstAt, planType);
     final windowEnd = DateTime(
       cycleEndDate.year,
       cycleEndDate.month,
@@ -6679,8 +6815,9 @@ class _StudentRow extends StatelessWidget {
             )
             .toList();
 
-        final labels = normalizedPlanType == 'MENSAL'
-            ? _monthlySummaryLabels(slots)
+        final normalized = normalizedPlanType ?? 'DIARIO';
+        final labels = _isRecurringWeeklyPlan(normalized)
+            ? _monthlySummaryLabels(slots, planType: normalized)
             : slots.map((slot) {
                 final slotDay = (slot['dayName'] ?? '').trim();
                 final slotTime = (slot['time'] ?? '').trim();

@@ -285,11 +285,50 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   }
 
   DateTime _addOneMonthKeepingDay(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextYear = date.month == 12 ? date.year + 1 : date.year;
-    final maxDayNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
-    final day = date.day <= maxDayNextMonth ? date.day : maxDayNextMonth;
-    return DateTime(nextYear, nextMonth, day, date.hour, date.minute);
+    return _addMonthsKeepingDay(date, 1);
+  }
+
+  DateTime _addMonthsKeepingDay(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  DateTime _addYearsKeepingDay(DateTime date, int years) {
+    final year = date.year + years;
+    final month = date.month;
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = date.day <= maxDay ? date.day : maxDay;
+    return DateTime(year, month, day, date.hour, date.minute);
+  }
+
+  bool _isRecurringWeeklyPlan(String planType) {
+    final normalized = planType.toUpperCase();
+    return normalized == 'MENSAL' ||
+        normalized == 'SEMESTRAL' ||
+        normalized == 'ANUAL';
+  }
+
+  DateTime _recurringCycleEndDate(DateTime firstStart, String planType) {
+    final normalized = planType.toUpperCase();
+    if (normalized == 'SEMESTRAL') {
+      return _addMonthsKeepingDay(
+        firstStart,
+        6,
+      ).subtract(const Duration(days: 1));
+    }
+    if (normalized == 'ANUAL') {
+      return _addYearsKeepingDay(
+        firstStart,
+        1,
+      ).subtract(const Duration(days: 1));
+    }
+    return _addOneMonthKeepingDay(
+      firstStart,
+    ).subtract(const Duration(days: 1));
   }
 
   DateTime? _parseSlotDateMeta(
@@ -348,6 +387,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
   List<String> _monthlySummaryLabels(
     List<Map<String, String>> slots, {
     bool forChat = true,
+    String planType = 'MENSAL',
   }) {
     if (slots.isEmpty) return const [];
 
@@ -394,9 +434,7 @@ class _TrainerChatViewState extends State<TrainerChatView> {
     );
     final first = parsed.first;
     final firstAt = first['startAt'] as DateTime;
-    final cycleEndDate = _addOneMonthKeepingDay(
-      firstAt,
-    ).subtract(const Duration(days: 1));
+    final cycleEndDate = _recurringCycleEndDate(firstAt, planType);
     final windowEnd = DateTime(
       cycleEndDate.year,
       cycleEndDate.month,
@@ -1332,6 +1370,10 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         ? 'Plano Semanal'
         : plan == 'MENSAL'
         ? 'Plano Mensal'
+        : plan == 'SEMESTRAL'
+        ? 'Plano Semestral'
+        : plan == 'ANUAL'
+        ? 'Plano Anual'
         : 'Plano Diário';
 
     final raw = widget.daysJson;
@@ -1351,8 +1393,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
             .where((s) => s['dayName']!.isNotEmpty && s['time']!.isNotEmpty)
             .toList();
 
-        final slotsText = plan == 'MENSAL'
-            ? _monthlySummaryLabels(slots, forChat: true).join('\n')
+        final slotsText = _isRecurringWeeklyPlan(plan)
+            ? _monthlySummaryLabels(slots, forChat: true, planType: plan).join('\n')
             : slots
                   .map((s) {
                     final dayName = (s['dayName'] ?? '').toString().trim();
@@ -1772,11 +1814,19 @@ class _TrainerChatViewState extends State<TrainerChatView> {
         ? 'Semanal'
         : plan == 'MENSAL'
         ? 'Mensal'
+        : plan == 'SEMESTRAL'
+        ? 'Semestral'
+        : plan == 'ANUAL'
+        ? 'Anual'
         : 'Diário';
     final (planFg, planBg) = plan == 'SEMANAL'
         ? (const Color(0xFF0B4DBA), const Color(0xFFEEF4FD))
         : plan == 'MENSAL'
         ? (const Color(0xFF0B4DBA), const Color(0xFFEEF4FD))
+        : plan == 'SEMESTRAL'
+        ? (const Color(0xFF7C3AED), const Color(0xFFF3E8FF))
+        : plan == 'ANUAL'
+        ? (const Color(0xFF0891B2), const Color(0xFFE0F2FE))
         : (const Color(0xFFB45309), const Color(0xFFFFFBEB));
 
     // Tenta parsear daysJson para exibir os slots
@@ -1804,8 +1854,8 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       ];
     }
 
-    final slotLabels = plan == 'MENSAL'
-        ? _monthlySummaryLabels(slots, forChat: false)
+    final slotLabels = _isRecurringWeeklyPlan(plan)
+        ? _monthlySummaryLabels(slots, forChat: false, planType: plan)
         : slots.map((s) {
             final dayName = (s['dayName'] ?? '').toString().trim();
             final time = (s['time'] ?? '').toString().trim();
