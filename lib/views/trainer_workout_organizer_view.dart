@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../core/app_refresh_notifier.dart';
 import '../services/auth_service.dart';
 
+enum _WorkoutEditTarget { plan, favorite }
+
 class TrainerWorkoutOrganizerView extends StatefulWidget {
   final int trainerId;
   final int studentId;
@@ -82,6 +84,7 @@ class _TrainerWorkoutOrganizerViewState
   String _selectedTime = '';
   int? _editingPlanId;
   int? _editingFavoriteId;
+  _WorkoutEditTarget? _editingTarget;
   int? _editingCustomId;
   String _selectedCustomCategory = 'Categoria livre';
 
@@ -98,6 +101,7 @@ class _TrainerWorkoutOrganizerViewState
     _searchCtrl.clear();
     setState(() {
       _editingPlanId = null;
+      _editingTarget = null;
       _planNameCtrl.clear();
       _editingFavoriteId = null;
       _editingCustomId = null;
@@ -378,6 +382,20 @@ class _TrainerWorkoutOrganizerViewState
     final safeTime = time.trim();
     if (safeTime.isEmpty) return safeDay;
     return '$safeDay $safeTime';
+  }
+
+  String _planTitle({required String name, required String day}) {
+    final safeName = name.trim();
+    final safeDay = day.trim();
+    if (safeName.isEmpty) return safeDay;
+    if (safeDay.isEmpty) return safeName;
+
+    final normalizedName = _normalizeDayName(safeName);
+    final normalizedDay = _normalizeDayName(safeDay);
+    final endsWithDay = RegExp(
+      r'(?:^|[\s•·\-–—:|])' + RegExp.escape(normalizedDay) + r'$',
+    ).hasMatch(normalizedName);
+    return endsWithDay ? safeName : '$safeName • $safeDay';
   }
 
   List<Map<String, String>> get _approvedSlotOptions {
@@ -893,6 +911,14 @@ class _TrainerWorkoutOrganizerViewState
   }
 
   Future<void> _savePlan() async {
+    if (_editingTarget == _WorkoutEditTarget.favorite) {
+      _showSnack(
+        'Finalize ou cancele a edição do favorito antes de salvar o treino do aluno.',
+        color: const Color(0xFF0B4DBA),
+      );
+      return;
+    }
+
     if (_selectedExercises.isEmpty) {
       _showSnack(
         'Selecione pelo menos um treino.',
@@ -931,6 +957,7 @@ class _TrainerWorkoutOrganizerViewState
       if (!mounted) return;
       setState(() {
         _editingPlanId = null;
+        _editingTarget = null;
         _planNameCtrl.clear();
         _selectedExercises.clear();
       });
@@ -947,6 +974,20 @@ class _TrainerWorkoutOrganizerViewState
     } finally {
       if (mounted) setState(() => _savingPlan = false);
     }
+  }
+
+  String _planSaveButtonLabel({required bool isMobile}) {
+    if (_editingTarget == _WorkoutEditTarget.favorite) {
+      return 'Edição de favorito ativa';
+    }
+
+    final action = _editingPlanId == null ? 'Salvar' : 'Atualizar';
+    final time = _selectedTime.trim();
+    if (isMobile) {
+      return '$action treino\n$_selectedDay $time'.trim();
+    }
+    if (time.isEmpty) return '$action treino de $_selectedDay';
+    return '$action treino de $_selectedDay $time';
   }
 
   Future<void> _refreshPlansOnly() async {
@@ -1013,7 +1054,9 @@ class _TrainerWorkoutOrganizerViewState
       setState(() {
         _favorites = List<Map<String, dynamic>>.from(favorites);
         _editingFavoriteId = null;
+        _editingTarget = null;
         _favoriteNameCtrl.clear();
+        _selectedExercises.clear();
       });
 
       _showSnack('Favorito salvo com sucesso.', color: const Color(0xFF16A34A));
@@ -1219,6 +1262,9 @@ class _TrainerWorkoutOrganizerViewState
 
     setState(() {
       _editingPlanId = id;
+      _editingFavoriteId = null;
+      _editingTarget = _WorkoutEditTarget.plan;
+      _favoriteNameCtrl.clear();
       _planNameCtrl.text = (plan['name'] ?? '').toString().trim();
       if (_dayOptions.contains(day)) {
         _selectedDay = day;
@@ -1274,7 +1320,10 @@ class _TrainerWorkoutOrganizerViewState
       );
       await _refreshPlansOnly();
       if (mounted) {
-        _showSnack('Treino renomeado com sucesso.', color: const Color(0xFF16A34A));
+        _showSnack(
+          'Treino renomeado com sucesso.',
+          color: const Color(0xFF16A34A),
+        );
       }
     } catch (e) {
       _showSnack(
@@ -1296,7 +1345,9 @@ class _TrainerWorkoutOrganizerViewState
       context: context,
       builder: (dialogContext) => _TextInputDialog(
         title: 'Clonar treino',
-        initialValue: currentName.isEmpty ? 'Treino (cópia)' : '$currentName (cópia)',
+        initialValue: currentName.isEmpty
+            ? 'Treino (cópia)'
+            : '$currentName (cópia)',
         labelText: 'Nome do novo treino',
         hintText: 'Ex.: Treino B',
         confirmLabel: 'Clonar',
@@ -1315,7 +1366,10 @@ class _TrainerWorkoutOrganizerViewState
       );
       await _refreshPlansOnly();
       if (mounted) {
-        _showSnack('Treino clonado com sucesso.', color: const Color(0xFF16A34A));
+        _showSnack(
+          'Treino clonado com sucesso.',
+          color: const Color(0xFF16A34A),
+        );
       }
     } catch (e) {
       _showSnack(
@@ -1332,6 +1386,9 @@ class _TrainerWorkoutOrganizerViewState
 
     setState(() {
       _editingFavoriteId = id;
+      _editingPlanId = null;
+      _editingTarget = _WorkoutEditTarget.favorite;
+      _planNameCtrl.clear();
       _favoriteNameCtrl.text = name;
     });
     _applyExercises(exercises);
@@ -1531,6 +1588,7 @@ class _TrainerWorkoutOrganizerViewState
           trainerId: widget.trainerId,
           studentId: widget.studentId,
           dayName: targetDay,
+          name: favoriteName,
           time: targetTime,
           exercises: replacementExercises,
         );
@@ -1549,6 +1607,7 @@ class _TrainerWorkoutOrganizerViewState
           studentId: widget.studentId,
           planId: planId,
           dayName: targetDay,
+          name: favoriteName,
           time: targetTime,
           exercises: replacementExercises,
         );
@@ -1562,8 +1621,11 @@ class _TrainerWorkoutOrganizerViewState
           _selectedDay = targetDay;
         }
         _selectedTime = targetTime;
+        _selectedExercises.clear();
+        _editingPlanId = null;
+        _editingTarget = null;
+        _planNameCtrl.clear();
       });
-      _applyExercises(replacementExercises);
 
       final targetLabel = _slotDisplayLabel(targetDay, targetTime);
       final changed =
@@ -1672,7 +1734,11 @@ class _TrainerWorkoutOrganizerViewState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Flex(
+                          direction: isMobile ? Axis.vertical : Axis.horizontal,
+                          crossAxisAlignment: isMobile
+                              ? CrossAxisAlignment.start
+                              : CrossAxisAlignment.center,
                           children: [
                             Container(
                               width: 38,
@@ -1686,9 +1752,12 @@ class _TrainerWorkoutOrganizerViewState
                                 color: Color(0xFF1D4ED8),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
+                            SizedBox(
+                              width: isMobile ? 0 : 10,
+                              height: isMobile ? 10 : 0,
+                            ),
+                            if (isMobile)
+                              Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
@@ -1707,8 +1776,30 @@ class _TrainerWorkoutOrganizerViewState
                                     ),
                                   ),
                                 ],
+                              )
+                            else
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.studentName,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Monte o treino por dia e horário permitidos do plano',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black45,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -1723,65 +1814,65 @@ class _TrainerWorkoutOrganizerViewState
                         const SizedBox(height: 6),
                         if (_planGroups.isNotEmpty)
                           ..._planGroups.map(
-                            (plan) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(
-                                    width: 104,
-                                    child: Text(
-                                      _planTypeLabel(plan['planType']),
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: _planSlots(plan)
-                                          .map(
-                                            (slot) => Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 5,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFECFDF3),
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                                border: Border.all(
-                                                  color: const Color(
-                                                    0xFF86EFAC,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: Text(
-                                                (slot['time'] ?? '')
-                                                        .toString()
-                                                        .trim()
-                                                        .isEmpty
-                                                    ? (slot['dayName'] ?? '')
-                                                          .toString()
-                                                    : '${slot["dayName"]} ${slot["time"]}',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF166534),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
-                                    ),
-                                  ),
-                                ],
+                            (plan) => Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                               ),
+                              child: isMobile
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _planTypeLabel(plan['planType']),
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: _planSlots(
+                                            plan,
+                                          ).map(_slotChip).toList(),
+                                        ),
+                                      ],
+                                    )
+                                  : Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          width: 104,
+                                          child: Text(
+                                            _planTypeLabel(plan['planType']),
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: _planSlots(
+                                              plan,
+                                            ).map(_slotChip).toList(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
                           )
                         else
@@ -1917,7 +2008,11 @@ class _TrainerWorkoutOrganizerViewState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              Flex(
+                                direction: isMobile
+                                    ? Axis.vertical
+                                    : Axis.horizontal,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Icon(
                                     Icons.add_circle_outline_rounded,
@@ -2249,70 +2344,72 @@ class _TrainerWorkoutOrganizerViewState
                             );
                           }),
                         ],
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _selectedExercises.clear();
-                                  _editingPlanId = null;
-                                  _planNameCtrl.clear();
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.restart_alt_rounded,
-                                size: 16,
+                        if (_selectedExercises.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedExercises.clear();
+                                    _editingPlanId = null;
+                                    _editingTarget = null;
+                                    _planNameCtrl.clear();
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Limpar seleção'),
                               ),
-                              label: const Text('Limpar seleção'),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _savingPlan ? null : _savePlan,
-                                icon: _savingPlan
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed:
+                                      _savingPlan ||
+                                          _editingTarget ==
+                                              _WorkoutEditTarget.favorite
+                                      ? null
+                                      : _savePlan,
+                                  icon: _savingPlan
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.save_rounded,
+                                          size: 16,
                                         ),
-                                      )
-                                    : const Icon(Icons.save_rounded, size: 16),
-                                label: Text(
-                                  isMobile
-                                      ? '${_editingPlanId == null ? 'Salvar' : 'Atualizar'} treino\n$_selectedDay ${_selectedTime.trim()}'
-                                            .trim()
-                                      : _editingPlanId == null
-                                      ? _selectedTime.trim().isEmpty
-                                            ? 'Salvar treino de $_selectedDay'
-                                            : 'Salvar treino de $_selectedDay $_selectedTime'
-                                      : _selectedTime.trim().isEmpty
-                                      ? 'Atualizar treino de $_selectedDay'
-                                      : 'Atualizar treino de $_selectedDay $_selectedTime',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0B4DBA),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: isMobile
-                                      ? const Size(0, 52)
-                                      : null,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isMobile ? 8 : 16,
-                                    vertical: isMobile ? 8 : 12,
+                                  label: Text(
+                                    _planSaveButtonLabel(isMobile: isMobile),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0B4DBA),
+                                    foregroundColor: Colors.white,
+                                    minimumSize: isMobile
+                                        ? const Size(0, 52)
+                                        : null,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isMobile ? 8 : 16,
+                                      vertical: isMobile ? 8 : 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -2379,7 +2476,9 @@ class _TrainerWorkoutOrganizerViewState
                                 onPressed: () {
                                   setState(() {
                                     _editingFavoriteId = null;
+                                    _editingTarget = null;
                                     _favoriteNameCtrl.clear();
+                                    _selectedExercises.clear();
                                   });
                                 },
                                 child: const Text('Cancelar edição'),
@@ -2681,6 +2780,8 @@ class _TrainerWorkoutOrganizerViewState
                                   _savingPlanCardFavoriteKeys.contains(
                                     planCardKey,
                                   );
+                              final alreadyFavorite =
+                                  _hasFavoriteWithSameExercises(exercises);
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.all(10),
@@ -2698,109 +2799,137 @@ class _TrainerWorkoutOrganizerViewState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFDBEAFE),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                          ),
-                                          child: Text(
-                                              (plan['name'] ?? '').toString().trim().isEmpty
-                                                  ? day
-                                                  : '${plan['name']} • $day',
-                                            style: const TextStyle(
-                                              color: Color(0xFF1D4ED8),
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 11.5,
-                                            ),
-                                          ),
-                                        ),
-                                        if (time.isNotEmpty) ...[
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFECFDF3),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              time,
-                                              style: const TextStyle(
-                                                color: Color(0xFF166534),
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 11.5,
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final header = Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFDBEAFE),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              child: Text(
+                                                _planTitle(
+                                                  name: (plan['name'] ?? '')
+                                                      .toString(),
+                                                  day: day,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF1D4ED8),
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 11.5,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                        if (isOldPlan) ...[
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
+                                            if (time.isNotEmpty) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFECFDF3,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                ),
+                                                child: Text(
+                                                  time,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF166534),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            if (isOldPlan) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFE2E8F0,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                ),
+                                                child: const Text(
+                                                  'Treino antigo',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF334155),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            if (!isMobile) const Spacer(),
+                                            TextButton(
+                                              onPressed: isOldPlan
+                                                  ? null
+                                                  : () => _startEditPlan(plan),
+                                              child: const Text('Editar'),
                                             ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFE2E8F0),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
+                                            TextButton(
+                                              onPressed: id == null
+                                                  ? null
+                                                  : () => _renamePlan(plan),
+                                              child: const Text('Renomear'),
                                             ),
-                                            child: const Text(
-                                              'Treino antigo',
-                                              style: TextStyle(
-                                                color: Color(0xFF334155),
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 11.5,
+                                            IconButton(
+                                              onPressed: id == null
+                                                  ? null
+                                                  : () => _clonePlan(plan),
+                                              tooltip: 'Clonar treino',
+                                              icon: const Icon(
+                                                Icons.copy_rounded,
+                                                size: 18,
+                                                color: Color(0xFF2563EB),
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                        const Spacer(),
-                                        TextButton(
-                                          onPressed: isOldPlan
-                                              ? null
-                                              : () => _startEditPlan(plan),
-                                          child: const Text('Editar'),
-                                        ),
-                                        TextButton(
-                                          onPressed: id == null
-                                              ? null
-                                              : () => _renamePlan(plan),
-                                          child: const Text('Renomear'),
-                                        ),
-                                        IconButton(
-                                          onPressed: id == null
-                                              ? null
-                                              : () => _clonePlan(plan),
-                                          tooltip: 'Clonar treino',
-                                          icon: const Icon(
-                                            Icons.copy_rounded,
-                                            size: 18,
-                                            color: Color(0xFF2563EB),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: id == null
-                                              ? null
-                                              : () => _deletePlan(id),
-                                          icon: const Icon(
-                                            Icons.delete_outline_rounded,
-                                            size: 18,
-                                            color: Color(0xFFB91C1C),
-                                          ),
-                                        ),
-                                      ],
+                                            IconButton(
+                                              onPressed: id == null
+                                                  ? null
+                                                  : () => _deletePlan(id),
+                                              icon: const Icon(
+                                                Icons.delete_outline_rounded,
+                                                size: 18,
+                                                color: Color(0xFFB91C1C),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                        if (!isMobile) return header;
+                                        return Wrap(
+                                          spacing: 4,
+                                          runSpacing: 2,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: header.children
+                                              .where(
+                                                (child) => child is! Spacer,
+                                              )
+                                              .toList(),
+                                        );
+                                      },
                                     ),
                                     const SizedBox(height: 6),
                                     Wrap(
@@ -2851,34 +2980,47 @@ class _TrainerWorkoutOrganizerViewState
                                     const SizedBox(height: 8),
                                     Align(
                                       alignment: Alignment.centerLeft,
-                                      child: ElevatedButton.icon(
-                                        onPressed: savingCardFavorite
-                                            ? null
-                                            : () => _savePlanAsFavorite(plan),
-                                        icon: savingCardFavorite
-                                            ? const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                Icons.favorite_rounded,
+                                      child: alreadyFavorite
+                                          ? OutlinedButton.icon(
+                                              onPressed: null,
+                                              icon: const Icon(
+                                                Icons.check_rounded,
                                                 size: 16,
                                               ),
-                                        label: const Text(
-                                          'Salvar como favorito',
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFFD97706,
-                                          ),
-                                          foregroundColor: Colors.white,
-                                        ),
-                                      ),
+                                              label: const Text(
+                                                'Já salvo como favorito',
+                                              ),
+                                            )
+                                          : ElevatedButton.icon(
+                                              onPressed: savingCardFavorite
+                                                  ? null
+                                                  : () => _savePlanAsFavorite(
+                                                      plan,
+                                                    ),
+                                              icon: savingCardFavorite
+                                                  ? const SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: Colors.white,
+                                                          ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.favorite_rounded,
+                                                      size: 16,
+                                                    ),
+                                              label: const Text(
+                                                'Salvar como favorito',
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(
+                                                  0xFFD97706,
+                                                ),
+                                                foregroundColor: Colors.white,
+                                              ),
+                                            ),
                                     ),
                                   ],
                                 ),
@@ -3036,7 +3178,6 @@ class _SelectedExerciseTileState extends State<_SelectedExerciseTile> {
     );
   }
 }
-
 
 class _TextInputDialog extends StatefulWidget {
   final String title;

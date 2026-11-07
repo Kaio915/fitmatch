@@ -20,7 +20,6 @@ class FitMatchLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frameHeight = height * zoom;
-    final frameWidth = frameHeight * widthFactor;
 
     Widget textFallback() {
       return Text(

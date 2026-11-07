@@ -400,8 +400,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       final time = (slot['time'] ?? '').toString().trim();
       final weekday = _weekdayFromPt(dayName);
       final hm = _parseHourMinute(time);
-      if (dayName.isEmpty || time.isEmpty || weekday == null || hm == null)
+      if (dayName.isEmpty || time.isEmpty || weekday == null || hm == null) {
         continue;
+      }
 
       final fromMeta = _parseSlotDateMeta(slot, hm.$1, hm.$2, anchor);
       final startAt =
@@ -947,8 +948,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
 
       bool isWithinWindow(_ChatMessage message) {
         if (startAt != null && message.time.isBefore(startAt)) return false;
-        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt))
+        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) {
           return false;
+        }
         return true;
       }
 
@@ -1115,8 +1117,9 @@ class _TrainerChatViewState extends State<TrainerChatView> {
       bool isForcedInitialRequest(_ChatMessage message) {
         if (!shouldApplyTemporalFiltering) return false;
         if (!_isRequestInitialMessageForCurrentChat(message.text)) return false;
-        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt))
+        if (effectiveLockAt != null && !message.time.isBefore(effectiveLockAt)) {
           return false;
+        }
         return true;
       }
 
@@ -1536,15 +1539,23 @@ class _TrainerChatViewState extends State<TrainerChatView> {
                   'Denunciar este usuário ao administrador?\nEscolha um motivo:',
                 ),
                 const SizedBox(height: 12),
-                for (final reason in reasons)
-                  RadioListTile<String>(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(reason),
-                    value: reason,
-                    groupValue: selectedReason,
-                    onChanged: (v) => setDialogState(() => selectedReason = v),
+                RadioGroup<String>(
+                  groupValue: selectedReason,
+                  onChanged: (v) => setDialogState(() => selectedReason = v),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final reason in reasons)
+                        RadioListTile<String>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(reason),
+                          value: reason,
+                        ),
+                    ],
                   ),
+                ),
                 if (selectedReason != null)
                   TextField(
                     autofocus: true,

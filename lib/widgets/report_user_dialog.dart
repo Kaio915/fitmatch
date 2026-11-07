@@ -38,15 +38,23 @@ Future<void> showReportUserDialog(
                     : '$consequenceMessage\n\nEscolha um motivo para a denúncia:',
               ),
               const SizedBox(height: 12),
-              for (final reason in reasons)
-                RadioListTile<String>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (v) => setDialogState(() => selectedReason = v),
+              RadioGroup<String>(
+                groupValue: selectedReason,
+                onChanged: (v) => setDialogState(() => selectedReason = v),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final reason in reasons)
+                      RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(reason),
+                        value: reason,
+                      ),
+                  ],
                 ),
+              ),
               if (selectedReason != null)
                 TextField(
                   autofocus: true,

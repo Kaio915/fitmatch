@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../views/home_view.dart';
 import '../views/register_student_view.dart';
 import '../views/register_trainer_view.dart';
 class AppRoutes {

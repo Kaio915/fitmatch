@@ -1101,9 +1101,9 @@ class _DietControlViewState extends State<DietControlView> {
     final mealType = (entry['mealType'] ?? '').toString().trim();
     final entrySignature = _entryIdentitySignature(mealType, entry);
 
-    String _fmt(double v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 1);
+    String fmt(double v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 1);
 
-    final qtyCtrl = TextEditingController(text: _fmt(currentQty));
+    final qtyCtrl = TextEditingController(text: fmt(currentQty));
     String scope = 'TODAY';
     final editUnitChoices = _buildUnitChoices();
     final rawUnit = (entry['unit'] ?? 'g').toString().trim();

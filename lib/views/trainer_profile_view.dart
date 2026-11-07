@@ -108,6 +108,56 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     {'type': 'ANUAL', 'label': 'Anual', 'sub': 'Por 1 ano'},
   ];
 
+  Widget _buildPlanOptionCard(
+    Map<String, String> option, {
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFDBEAFE) : const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF1D4ED8)
+                : const Color(0xFFE5E7EB),
+            width: isSelected ? 1.8 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              option['label']!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isSelected
+                    ? const Color(0xFF1D4ED8)
+                    : const Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              option['sub']!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                color: isSelected
+                    ? const Color(0xFF1D4ED8)
+                    : const Color(0xFF9CA3AF),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   static const Map<String, String> _planInfoTexts = {
     'DIARIO':
         'Plano diário: Permite selecionar horários avulsos apenas para um único dia. Ex: Escolher dia 12/10 às 18:00 (ou 18:00 e 19:00 do mesmo dia) para treinar somente nessa data.',
@@ -821,7 +871,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   }) {
     final normalizedPlan = planType.toUpperCase();
     final effectiveSelections = selections ?? _inlineSelectedSlots;
-    if (normalizedPlan != 'SEMANAL' && !_isRecurringWeeklyPlan(normalizedPlan)) {
+    if (normalizedPlan != 'SEMANAL' &&
+        !_isRecurringWeeklyPlan(normalizedPlan)) {
       return _dateOnly(fallback ?? DateTime.now());
     }
 
@@ -1008,9 +1059,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         1,
       ).subtract(const Duration(days: 1));
     }
-    return _addOneMonthKeepingDay(
-      firstStart,
-    ).subtract(const Duration(days: 1));
+    return _addOneMonthKeepingDay(firstStart).subtract(const Duration(days: 1));
   }
 
   DateTime? _selectionDateTime(Map<String, String> selection) {
@@ -1964,7 +2013,6 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
         }).toList();
       }
     });
-
   }
 
   /// Retorna as datas em que o horário recorrente de um plano MENSAL vai
@@ -2226,7 +2274,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
     )) {
       final end = _selectionWindowEnd(_inlinePlanType, anchor: anchor);
       final limitLabel = _formatDateLabel(end);
-      final msg = 'Plano ${_planNameLower(_inlinePlanType)} permite selecionar horários somente até $limitLabel.';
+      final msg =
+          'Plano ${_planNameLower(_inlinePlanType)} permite selecionar horários somente até $limitLabel.';
       _showSnack(
         msg,
         icon: Icons.info_outline_rounded,
@@ -2337,7 +2386,8 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
       }
 
       final normalizedPlanType = planType.toUpperCase();
-      if (normalizedPlanType == 'SEMANAL' || _isRecurringWeeklyPlan(normalizedPlanType)) {
+      if (normalizedPlanType == 'SEMANAL' ||
+          _isRecurringWeeklyPlan(normalizedPlanType)) {
         final mappedSelections = slotsWithDate
             .map(
               (slot) => {
@@ -2971,6 +3021,7 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
   // ── Agenda ────────────────────────────────────────────────────────────────
 
   Widget _buildScheduleCard() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final slots = _schedule[_days[_selectedDay]] ?? [];
     final canRequest = widget.studentId != null;
     final minWeekOffset = _minimumWeekOffsetForPlanType(_inlinePlanType);
@@ -3399,62 +3450,46 @@ class _TrainerProfileViewState extends State<TrainerProfileView> {
                 ),
               ),
               const SizedBox(height: 10),
-              Row(
-                children: List.generate(_planOptions.length, (i) {
-                  final option = _planOptions[i];
-                  final type = option['type']!;
-                  final isSelected = _inlinePlanType == type;
-
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => _changeInlinePlanType(type),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        margin: EdgeInsets.only(
+              if (isMobile)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardWidth = (constraints.maxWidth - 16) / 3;
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _planOptions.map((option) {
+                        final type = option['type']!;
+                        return SizedBox(
+                          width: cardWidth,
+                          child: _buildPlanOptionCard(
+                            option,
+                            isSelected: _inlinePlanType == type,
+                            onTap: () => _changeInlinePlanType(type),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                )
+              else
+                Row(
+                  children: List.generate(_planOptions.length, (i) {
+                    final option = _planOptions[i];
+                    final type = option['type']!;
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
                           right: i < _planOptions.length - 1 ? 8 : 0,
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFFDBEAFE)
-                              : const Color(0xFFF9FAFB),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFFE5E7EB),
-                            width: isSelected ? 1.8 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              option['label']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected
-                                    ? const Color(0xFF1D4ED8)
-                                    : const Color(0xFF374151),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              option['sub']!,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isSelected
-                                    ? const Color(0xFF1D4ED8)
-                                    : const Color(0xFF9CA3AF),
-                              ),
-                            ),
-                          ],
+                        child: _buildPlanOptionCard(
+                          option,
+                          isSelected: _inlinePlanType == type,
+                          onTap: () => _changeInlinePlanType(type),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ),
+                    );
+                  }),
+                ),
               const SizedBox(height: 10),
               Text(
                 _inlineSelectedSlots.isEmpty
