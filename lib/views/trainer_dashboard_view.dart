@@ -21,6 +21,8 @@ import '../widgets/logout_confirmation_dialog.dart';
 
 enum _SlotState { available, requested, unavailable }
 
+enum _ClearScope { selectedDay, allDays, cancel }
+
 class _Slot {
   final String time;
   _SlotState state;
@@ -2128,6 +2130,26 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     return blockedTimes;
   }
 
+  bool _hasRequestOverlayFor(int dayIndex, String time, {int? weekOffset}) {
+    return _dailyPendingOverlayFor(dayIndex, time, weekOffset: weekOffset) !=
+            null ||
+        _dailyApprovedOverlayFor(dayIndex, time, weekOffset: weekOffset) !=
+            null ||
+        _monthlyRequestOverlayFor(dayIndex, time, weekOffset: weekOffset) !=
+            null ||
+        _weeklyRequestOverlayFor(dayIndex, time, weekOffset: weekOffset) !=
+            null;
+  }
+
+  List<String> _manualClearableTimesForDay(int dayIndex, {int? weekOffset}) {
+    return _manualBlockedTimesForDay(dayIndex, weekOffset: weekOffset)
+        .where(
+          (time) =>
+              !_hasRequestOverlayFor(dayIndex, time, weekOffset: weekOffset),
+        )
+        .toList();
+  }
+
   Future<void> _showCloneDayDialog() async {
     if (widget.trainerId == null) return;
 
@@ -2347,7 +2369,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
     final dateIso = _toDateIso(selectedDate);
     final dateLabel = _formatDateLabel(selectedDate);
 
-    final blockedTimes = _manualBlockedTimesForDay(
+    final blockedTimes = _manualClearableTimesForDay(
       dayIndex,
       weekOffset: _agendaWeekOffset,
     ).toSet().toList()..sort();
@@ -2406,6 +2428,169 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
       if (!mounted) return;
       _showSnack(
         '$clearedCount horário${clearedCount > 1 ? 's' : ''} liberado${clearedCount > 1 ? 's' : ''} em $dayName ($dateLabel), somente nesta data.',
+        icon: Icons.check_circle_rounded,
+        color: const Color(0xFF16A34A),
+      );
+    } catch (e) {
+      _showSnack(
+        e.toString().replaceFirst(RegExp(r'^[A-Za-z]*Exception:\s*'), ''),
+        icon: Icons.error_outline_rounded,
+        color: const Color(0xFFEF4444),
+      );
+    } finally {
+      if (mounted) setState(() => _clearingDayBlocks = false);
+    }
+  }
+
+  Future<void> _onClearBlocksPressed() async {
+    if (widget.trainerId == null || _clearingDayBlocks) return;
+
+    final choice = await showDialog<_ClearScope>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpar bloqueios'),
+        content: const Text('Escolha o alcance da limpeza:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _ClearScope.cancel),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _ClearScope.allDays),
+            child: const Text('Todos os dias'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, _ClearScope.selectedDay),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Somente este dia'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == _ClearScope.selectedDay) {
+      await _clearBlockedTimesForSelectedDate();
+    } else if (choice == _ClearScope.allDays) {
+      await _clearBlockedTimesForAllDays();
+    }
+  }
+
+  Future<void> _clearBlockedTimesForAllDays() async {
+    if (widget.trainerId == null || _clearingDayBlocks) return;
+
+    final blockedByDay = <String, List<String>>{};
+    for (int dayIndex = 0; dayIndex < _days.length; dayIndex++) {
+      final dayName = _days[dayIndex];
+      final daySlots = _schedule[dayName] ?? const <_Slot>[];
+      final times = <String>{};
+      for (final slot in daySlots) {
+        final isWeekly = _isWeeklyManualBlockFor(dayIndex, slot.time);
+        final isOneTime = _hasOneTimeManualBlockFor(
+          dayIndex,
+          slot.time,
+          weekOffset: _agendaWeekOffset,
+        );
+        if (!isWeekly && !isOneTime) continue;
+        if (_hasRequestOverlayFor(
+          dayIndex,
+          slot.time,
+          weekOffset: _agendaWeekOffset,
+        )) {
+          continue;
+        }
+        times.add(slot.time);
+      }
+      if (times.isNotEmpty) {
+        blockedByDay[dayName] = times.toList()..sort();
+      }
+    }
+
+    if (blockedByDay.isEmpty) {
+      _showSnack(
+        'Não há bloqueios manuais para limpar em nenhum dia.',
+        icon: Icons.info_outline_rounded,
+        color: const Color(0xFF64748B),
+      );
+      return;
+    }
+
+    final totalTimes = blockedByDay.values.fold<int>(
+      0,
+      (acc, times) => acc + times.length,
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpar bloqueios de todos os dias'),
+        content: Text(
+          'Deseja liberar $totalTimes horário${totalTimes > 1 ? 's' : ''} '
+          'em todos os dias da semana?\n\n'
+          'Os bloqueios semanais serão removidos de forma permanente e os '
+          'bloqueios pontuais desta semana também serão liberados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Limpar todos'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    var clearedCount = 0;
+    setState(() => _clearingDayBlocks = true);
+    try {
+      for (final entry in blockedByDay.entries) {
+        final dayName = entry.key;
+        final dayIndex = _days.indexOf(dayName);
+        if (dayIndex < 0) continue;
+        final dateIso = _toDateIso(_dateForDayIndex(dayIndex));
+
+        for (final time in entry.value) {
+          if (_isWeeklyManualBlockFor(dayIndex, time)) {
+            await AuthService.unblockSlot(
+              widget.trainerId!,
+              dayName,
+              time,
+              repeatMode: 'WEEKLY',
+            );
+          }
+          if (_hasOneTimeManualBlockFor(
+            dayIndex,
+            time,
+            weekOffset: _agendaWeekOffset,
+          )) {
+            await AuthService.unblockSlot(
+              widget.trainerId!,
+              dayName,
+              time,
+              repeatMode: 'ONCE',
+              dateIso: dateIso,
+            );
+          }
+          clearedCount++;
+        }
+      }
+
+      await _loadSlots();
+
+      if (!mounted) return;
+      _showSnack(
+        '$clearedCount horário${clearedCount > 1 ? 's' : ''} liberado${clearedCount > 1 ? 's' : ''} em todos os dias.',
         icon: Icons.check_circle_rounded,
         color: const Color(0xFF16A34A),
       );
@@ -4666,7 +4851,7 @@ class _TrainerDashboardViewState extends State<TrainerDashboardView> {
                           _applyingBlockRange ||
                           _clearingDayBlocks)
                       ? null
-                      : _clearBlockedTimesForSelectedDate,
+                      : _onClearBlocksPressed,
                   icon: _clearingDayBlocks
                       ? const SizedBox(
                           width: 14,
