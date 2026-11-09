@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static const String _baseUrl = AppEnv.apiBaseUrl;
+  static const int _maxPhotoBytes = 10 * 1024 * 1024;
   static List<Map<String, String>>? _ibgeMunicipiosCache;
 
   static const String _tokenKey = 'auth_token';
@@ -204,6 +205,12 @@ class AuthService {
     required String bio,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register/trainer');
+    final photoLength = await photo.length();
+    if (photoLength > _maxPhotoBytes) {
+      throw Exception(
+        'A foto deve ter no máximo 10 MB. Escolha uma imagem menor.',
+      );
+    }
 
     final request = http.MultipartRequest('POST', uri)
       ..fields['name'] = name.trim()
