@@ -38,6 +38,7 @@ class _AdminTicketViewState extends State<AdminTicketView> {
   String? _selectedAnalysisTemplate;
   int? _adminId;
   bool _hasSentMessage = false;
+  bool _messagesLoaded = false;
   Timer? _chatRefreshTimer;
 
   // Rejeição anterior do mesmo email (motivo + última mensagem do admin).
@@ -156,13 +157,22 @@ class _AdminTicketViewState extends State<AdminTicketView> {
         );
       }).toList();
 
+      final hasNewMessages = loaded.length > _messages.length;
+      final wasAtBottom = !_scrollController.hasClients ||
+          _scrollController.position.maxScrollExtent -
+                  _scrollController.position.pixels <=
+              24;
+      final shouldScrollToBottom =
+          !_messagesLoaded || (hasNewMessages && wasAtBottom);
+
       setState(() {
         _messages
           ..clear()
           ..addAll(loaded);
         _hasSentMessage = loaded.any((m) => m.fromAdmin);
+        _messagesLoaded = true;
       });
-      _scrollToBottom();
+      if (shouldScrollToBottom) _scrollToBottom();
     } catch (_) {
       // Sem histórico ainda ou falha silenciosa ao carregar o chat.
     }
